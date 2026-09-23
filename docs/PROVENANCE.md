@@ -10,6 +10,8 @@ The later presentation finalizer, demo shot list, local neural narration rendere
 
 The v0.2.3 evaluator change at commit `a32866e02f3199e8fa9118de5a75bf6c45610ce5` is also pre-event Codex work. It rejects a new reader that returns old-column values while only touching the target column in a no-op expression. The reference-withheld workspace prepared from that commit is a rehearsal environment, not a Bob-authored candidate or task session.
 
+The v0.2.4 evaluator change at commit `980d12b6ea5fe5a96d7897249a03d33c2ec4ebb4` is pre-event Codex work as well. It checks new updates and inserts on a trigger-free snapshot, preventing a plan from passing only because an old-column trigger carries the value to the target. The reference-withheld workspace from this commit remains preparation, not event-period Bob work.
+
 The [event page](https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon) describes a 48-hour build on September 25–27, advertises Bob access at kickoff, asks for Bob-assisted files and task-summary screenshots, and encourages participants to get a head start. It does not explicitly define what pre-existing code is allowed. [lablab's general AI hackathon guide](https://lablab.ai/guide/ai-hackathons) says prior non-AI scaffolding is generally allowed while the core AI-powered functionality is usually built during the event, and directs participants to check event-specific rules. This general guide is not event-specific approval for Cutover.
 
 ## Event-period evidence gate — pending
