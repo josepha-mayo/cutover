@@ -3,6 +3,8 @@ import subprocess
 import sys
 from .engine import ROOT, load_case, load_plan, repair_brief, validate_contract, validate_plan
 
+WORKER_TIMEOUT_SECONDS = 30
+
 
 def run_rehearsal(case, plan, contract=None):
     if contract is None:
@@ -24,7 +26,8 @@ def run_worker(request):
     process = subprocess.run([sys.executable, '-m', 'cutover.worker'],
                              input=json.dumps(request),
                              capture_output=True, text=True, encoding='utf-8', cwd=ROOT,
-                             timeout=8, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                             timeout=WORKER_TIMEOUT_SECONDS,
+                             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     if process.returncode:
         if process.returncode == 2:
             try:

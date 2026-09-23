@@ -138,7 +138,9 @@ function renderTrace(probe) {
   if(!probe)return; selected=probe.id;
   $('trace-label').textContent=report.witness?.id===probe.id?'SHORTEST OBSERVED FAILURE':'EXECUTED REPLAY';
   $('trace-id').textContent=probe.passed?'PASS':'FAIL'; $('trace-title').textContent=probe.title;
-  $('trace-payload').textContent=`Input: ${JSON.stringify(probe.payload)}`;
+  const seededWrite=probe.actions?.some(action=>action.endsWith('.write'));
+  const rowNote=seededWrite?` · ${probe.passed?'Shown':'Failed'} row ID ${probe.seed_id} · ${probe.seed_ids_tested.length}/${activeCase.seed.length} seeded IDs checked`:'';
+  $('trace-payload').textContent=`Input: ${JSON.stringify(probe.payload)}${rowNote}`;
   $('trace').innerHTML=probe.trace.map(event=>`<div class="trace-step ${event.status}"><h4>${escape(event.action)}</h4><p>${escape(event.detail||'Executed.')}</p><details><summary>Executed SQL${event.params?' & inputs':''}</summary><pre>${escape(event.sql)}${event.params?'\n\n'+escape(pretty(event.params)):''}</pre></details>${event.status==='fail'&&event.actual?`<div class="comparison"><div class="expected">EXPECTED ${escape(pretty(event.expected))}</div><div class="actual">OBSERVED ${escape(pretty(event.actual))}</div></div>`:''}</div>`).join('');
   document.querySelectorAll('[data-probe]').forEach(b=>b.classList.toggle('chosen',b.dataset.probe===selected));
 }

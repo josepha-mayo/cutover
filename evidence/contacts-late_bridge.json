@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "engine_version": "0.3.1",
+  "engine_version": "0.3.2",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "ef477ab6421ffa7ffbe8d4baccc523f4cf794de9c9185fa5a4f8aea41c0b6576",
+  "engine_sha256": "f890c77d80bdfa4d02b4f7f8fc17c1c9f169e75ec2336460241966b86f2eeace",
   "case": "contacts",
   "project": "Relay / contact service",
-  "created_at": "2026-09-23T19:14:05.976507+00:00",
+  "created_at": "2026-09-23T20:01:57.070707+00:00",
   "plan": {
     "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
     "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
@@ -15,7 +15,7 @@
   },
   "plan_hash": "ad6f6290481f62a033e82dd6124990d872ccc9731164375ca57af9dc9d37c4b5",
   "contract_hash": "aa0246f83469d2389e58e5daa4894c35fa8e9455db6c711d47091a56bdab72cd",
-  "suite_hash": "c09752a64a0791c4ccec666a9b27688895d88cddd5eeeb8b564c036c728ff160",
+  "suite_hash": "23136f51d758ab27e67b48a6d9853b544fa5763cc76bde70a2f7eff3d3a87e5f",
   "status": "blocked",
   "passed": 108,
   "failed": 16,
@@ -140,6 +140,10 @@
       "action": "new.read",
       "step": 7
     },
+    "seed_id": 101,
+    "seed_ids_tested": [
+      101
+    ],
     "id": "window_write_after_2-0",
     "title": "Old write after migration step 2/5 → new read",
     "category": "migration_window",
@@ -155,8 +159,8 @@
     ],
     "migration_boundary": 2
   },
-  "duration_ms": 120.8,
-  "scope": "SQLite sample contracts, target-column postconditions, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+  "duration_ms": 282.0,
+  "scope": "SQLite sample contracts, target-column postconditions, every seeded record for update probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",
     "No PostgreSQL, MySQL or ORM behavior claimed.",
@@ -249,6 +253,11 @@
       }
     ],
     "failure": null,
+    "seed_id": 101,
+    "seed_ids_tested": [
+      101,
+      102
+    ],
     "id": "window_write_after_0-0",
     "title": "Old write after migration step 0/5 → new read",
     "category": "migration_window",

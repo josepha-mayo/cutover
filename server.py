@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from cutover.engine import repair_brief
 from cutover.reporting import render_markdown
-from cutover.service import catalog, run_rehearsal, validate_imported_contract
+from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, validate_imported_contract
 
 STATIC = Path(__file__).parent / 'public'
 WAREHOUSE = Path(__file__).parent / 'examples' / 'warehouse'
@@ -78,7 +78,7 @@ class Handler(BaseHTTPRequestHandler):
             finally:
                 SLOTS.release()
         except subprocess.TimeoutExpired:
-            self.send(422, {'error': 'Rehearsal exceeded its 8 second budget. No passing result was produced.'})
+            self.send(422, {'error': f'Rehearsal exceeded its {WORKER_TIMEOUT_SECONDS} second budget. No passing result was produced.'})
         except (ValueError, KeyError, TypeError) as exc:
             self.send(400, {'error': str(exc)})
 

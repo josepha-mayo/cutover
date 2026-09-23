@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.1"
+ENGINE_VERSION = "0.3.2"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -235,11 +235,11 @@ def schedules():
     return values
 
 
-def replay(contract, plan, actions, payload, statements=None):
+def replay(contract, plan, actions, payload, statements=None, seed_id=None):
     access_log = []
     db = connection(contract, access_log)
     oracle = {row[0]: row[1] for row in contract["seed"]}
-    selected_id = contract["seed"][0][0]
+    selected_id = contract["seed"][0][0] if seed_id is None else seed_id
     trace, failure = [], None
     writes = 0
     checked_new_adapter = set()
@@ -337,6 +337,31 @@ def replay(contract, plan, actions, payload, statements=None):
         db.close()
 
 
+def replay_seed_variants(contract, plan, actions, payload, statements=None):
+    """Exercise every existing record for sequences containing an update.
+
+    A trigger or adapter can accidentally work for the first seed ID only. A
+    passing probe therefore requires every seeded ID to survive the sequence;
+    the trace retained for a failure names the exact record that exposed it.
+    """
+    ids = ([row[0] for row in contract["seed"]]
+           if any(action.endswith(".write") for action in actions)
+           else [contract["seed"][0][0]])
+    attempted = []
+    first_pass = None
+    for seed_id in ids:
+        result = replay(contract, plan, actions, payload, statements, seed_id)
+        attempted.append(seed_id)
+        result["seed_id"] = seed_id
+        result["seed_ids_tested"] = list(attempted)
+        if not result["passed"]:
+            return result
+        if first_pass is None:
+            first_pass = result
+    first_pass["seed_ids_tested"] = attempted
+    return first_pass
+
+
 def rehearse(case, plan, contract=None):
     start = time.perf_counter()
     validate_plan(plan)
@@ -351,11 +376,11 @@ def rehearse(case, plan, contract=None):
     baseline = []
     for payload in payloads:
         for operation in ("write", "insert"):
-            baseline.append(replay(contract, plan, ["migrate", f"new.{operation}", "new.read"], payload))
+            baseline.append(replay_seed_variants(contract, plan, ["migrate", f"new.{operation}", "new.read"], payload))
     results = []
     for sid, title, category, actions in schedules():
         for pindex, payload in enumerate(payloads):
-            result = replay(contract, plan, actions, payload)
+            result = replay_seed_variants(contract, plan, actions, payload)
             result.update(id=f"{sid}-{pindex}", title=title, category=category, payload=payload, actions=actions)
             results.append(result)
     # A migration script can succeed yet leave a write uncovered between its
@@ -367,7 +392,7 @@ def rehearse(case, plan, contract=None):
                        [f"migration.statement.{i}" for i in range(boundary, len(statements))] +
                        ["new.read"])
             for pindex, payload in enumerate(payloads):
-                result = replay(contract, plan, actions, payload, statements)
+                result = replay_seed_variants(contract, plan, actions, payload, statements)
                 result.update(id=f"window_{operation}_after_{boundary}-{pindex}",
                               title=f"Old {operation} after migration step {boundary}/{len(statements)} → new read",
                               category="migration_window", payload=payload, actions=actions,
@@ -385,14 +410,15 @@ def rehearse(case, plan, contract=None):
         "project": contract["project"], "created_at": datetime.now(timezone.utc).isoformat(),
         "plan": plan, "plan_hash": digest(plan), "contract_hash": digest(contract),
         "suite_hash": digest({"schedules": schedules(), "payloads": payloads,
-                              "migration_window_policy": "old update and insert after every SQLite statement boundary"}),
+                              "migration_window_policy": "old update and insert after every SQLite statement boundary",
+                              "write_seed_policy": "each seeded record for every update probe"}),
         "status": "pass" if not failures else "blocked",
         "passed": len(results) - len(failures), "failed": len(failures), "total": len(results),
         "baseline": {"passed": sum(r["passed"] for r in baseline), "total": len(baseline), "results": baseline},
         "categories": categories, "witness": witness, "results": results,
         "duration_ms": round((time.perf_counter() - start) * 1000, 1),
         "scope": (("SQLite user-supplied contract" if case == "custom" else "SQLite sample contracts") +
-                  ", target-column postconditions, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
+                  ", target-column postconditions, every seeded record for update probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
         "limitations": ["No concurrent transactions, lock timing or network failures modeled.",
                         "No PostgreSQL, MySQL or ORM behavior claimed.",
                         "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",

@@ -45,7 +45,7 @@ The first command exits 1 with a blocked 108/124 verdict; its shortest observed 
 
 ## What executes
 
-Each probe gets a fresh in-memory database and a copy of fixed seed records. The old adapter is fixed; the candidate supplies migration SQL and new read/update/insert queries. Each acknowledged write updates an independent Python record ledger. A read must return exactly those records and values. The runner generates 19 completed-rollout schedules for every supplied input string, then inserts old updates and inserts at every SQLite statement boundary of the migration. Bundled samples use four strings; an imported contract chooses 2–8 domain-specific payloads. The total varies with the payload and migration-statement counts. Same-version baseline tests are reported separately.
+Each probe gets a fresh in-memory database and a copy of fixed seed records. Every update-containing probe is rerun against each seeded record; the failing trace names the record that exposed the gap. The old adapter is fixed; the candidate supplies migration SQL and new read/update/insert queries. Each acknowledged write updates an independent Python record ledger. A read must return exactly those records and values. The runner generates 19 completed-rollout schedules for every supplied input string, then inserts old updates and inserts at every SQLite statement boundary of the migration. Bundled samples use four strings; an imported contract chooses 2–8 domain-specific payloads. The total varies with the payload and migration-statement counts. Same-version baseline tests are reported separately.
 
 The engine detects schema errors, stale values, missing records, ignored writes, and unintended writes to other records. Reports include inputs, executed statements, replay prefixes, coverage, SQLite/engine versions and hashes of the candidate, contract, suite and engine source. Hashes identify inputs; they are not signed attestations.
 
@@ -92,7 +92,7 @@ python -m cutover --plan work/bob-candidate.json --output work/bob-result.json
 python -m cutover --reference late_bridge --output work/late.json --markdown work/late-review.md
 ```
 
-The CLI returns exit code 1 for a failing rehearsal and 0 for a passing suite. The hosted app and MCP server execute candidates in a subprocess with an 8-second overall deadline. SQLite interrupts long queries and denies external database attachment, pragmas, extension loading and explicit transaction control. Those restrictions are active before imported schema or seed SQL executes. All data enters a disposable in-memory database; no production connection or shell-command tool is exposed.
+The CLI returns exit code 1 for a failing rehearsal and 0 for a passing suite. The hosted app and MCP server execute candidates in a subprocess with a 30-second overall deadline. SQLite interrupts long queries and denies external database attachment, pragmas, extension loading and explicit transaction control. Those restrictions are active before imported schema or seed SQL executes. All data enters a disposable in-memory database; no production connection or shell-command tool is exposed.
 
 The test suite includes negative controls: removing each synchronization trigger, dropping an unrelated record, a write affecting the wrong number of rows, SQL injection characters as data, fresh seed identifiers, runaway SQL, input tampering, HTTP checks and actual subprocess execution.
 

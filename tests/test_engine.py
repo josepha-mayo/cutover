@@ -94,6 +94,16 @@ class RehearsalTests(unittest.TestCase):
         plan['write'] = 'UPDATE orders SET shipping_address = :value'
         self.assertEqual(rehearse('parcel', plan)['status'], 'blocked')
 
+    def test_sync_limited_to_first_seed_row_cannot_pass(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['migration'] = plan['migration'].replace(
+            'WHEN NEW.delivery_address IS NOT NEW.shipping_address',
+            'WHEN NEW.id = 101 AND NEW.delivery_address IS NOT NEW.shipping_address')
+        report = rehearse('parcel', plan)
+        self.assertEqual(report['status'], 'blocked')
+        self.assertEqual(report['witness']['seed_id'], 102)
+        self.assertIn(102, report['witness']['seed_ids_tested'])
+
     def test_noop_write_cannot_claim_success(self):
         plan = load_plan('parcel', 'bridge')
         plan['write'] = 'UPDATE orders SET shipping_address = :value WHERE id = -1'
