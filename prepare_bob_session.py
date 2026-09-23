@@ -92,9 +92,10 @@ Parcel. The late bridge passes completed-rollout checks but fails when old
 workers write between migration statements. Explain one concrete failing
 replay. Propose your own migration and new-version SQL adapter, then call
 `rehearse_candidate` until you have an honestly reported result. Keep any
-failed attempts. The new reader and updater must use the target column, and
-that column must preserve every acknowledged value. Keeping both adapters on
-the old column is not a repair.
+failed attempts. The new reader must read the target column without accessing
+the old column; the new updater must update the target directly. The target
+column must preserve every acknowledged value. Touching it only in a no-op
+expression while returning old-column data is not a repair.
 Save your final five-field plan to `work/bob-candidate.json`
 and your reasoning to `work/bob-repair.md`. Do not change the fixed contract,
 evaluator, seed data, schedules or oracle. State the untested boundaries.
@@ -117,7 +118,9 @@ reference-withheld exercise, not proof of a general or production-safe repair.
     subprocess.run([str(interpreter), str(destination / 'configure_bob.py'),
                     '--python', str(interpreter)], cwd=destination, check=True)
     assert not any((destination / 'examples' / case / 'bridge.json').exists() for case in CASES)
-    assert digest(destination / 'cutover/engine.py') == digest(ROOT / 'cutover/engine.py')
+    # Windows can check out CRLF working files from LF Git blobs. The session
+    # inventory is defined by committed bytes, not working-tree line endings.
+    assert digest(destination / 'cutover/engine.py') == hashlib.sha256(committed['cutover/engine.py']).hexdigest()
     print(f'Bob session ready: {destination}')
     print(f'Source commit: {revision}; evaluator SHA-256: {manifest["evaluator_sha256"]}')
 
