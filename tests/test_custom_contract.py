@@ -85,6 +85,22 @@ class CustomContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'not the new column'):
             rehearse('custom', fixture('bridge.json'), preexisting)
 
+    def test_initial_schema_and_every_seed_update_are_checked(self):
+        base = fixture('contract.json')
+        extra_table = copy.deepcopy(base)
+        extra_table['schema'] += '\nCREATE TABLE hidden (id INTEGER);'
+        with self.assertRaisesRegex(ValueError, 'exactly the named table'):
+            rehearse('custom', fixture('bridge.json'), extra_table)
+        trigger = copy.deepcopy(base)
+        trigger['schema'] += ('\nCREATE TRIGGER hidden_update AFTER UPDATE ON stock_items '
+                              'BEGIN SELECT 1; END;')
+        with self.assertRaisesRegex(ValueError, 'no views or triggers'):
+            rehearse('custom', fixture('bridge.json'), trigger)
+        partial_updater = copy.deepcopy(base)
+        partial_updater['old']['write'] += ' AND id = 11'
+        with self.assertRaisesRegex(ValueError, 'every seed ID'):
+            rehearse('custom', fixture('bridge.json'), partial_updater)
+
     def test_contract_schema_is_authorized_before_it_runs(self):
         contract = fixture('contract.json')
         contract['schema'] += "\nATTACH DATABASE ':memory:' AS forbidden;"

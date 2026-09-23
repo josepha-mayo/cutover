@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.0"
+ENGINE_VERSION = "0.3.1"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -72,6 +72,11 @@ def validate_old_contract_behavior(contract):
     db = None
     try:
         db = connection(contract)
+        schema_objects = db.execute(
+            "SELECT type, name FROM sqlite_master "
+            "WHERE type IN ('table', 'view', 'trigger') AND name NOT LIKE 'sqlite_%'").fetchall()
+        if [(row['type'], row['name']) for row in schema_objects] != [('table', contract['table'])]:
+            raise ValueError("Initial schema must contain exactly the named table and no views or triggers")
         columns = {column[0].casefold() for column in db.execute(
             f'SELECT * FROM "{contract["table"]}" LIMIT 0').description}
         if ({'id', contract['old_column'].casefold()} - columns or
@@ -89,12 +94,12 @@ def validate_old_contract_behavior(contract):
                 raise ValueError("Old reader does not match the supplied seed and writes")
 
         check_read()
-        first_id = contract["seed"][0][0]
         update_value = contract["payloads"][0]
-        if db.execute(contract["old"]["write"], {"id": first_id, "value": update_value}).rowcount != 1:
-            raise ValueError("Old updater must acknowledge exactly one row")
-        expected[first_id] = update_value
-        check_read()
+        for seed_id, _ in contract["seed"]:
+            if db.execute(contract["old"]["write"], {"id": seed_id, "value": update_value}).rowcount != 1:
+                raise ValueError("Old updater must acknowledge exactly one row for every seed ID")
+            expected[seed_id] = update_value
+            check_read()
         new_id = max(expected) + 1
         if db.execute(contract["old"]["insert"], {"id": new_id, "value": update_value}).rowcount != 1:
             raise ValueError("Old inserter must acknowledge exactly one row")

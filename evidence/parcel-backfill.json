@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "engine_version": "0.3.0",
+  "engine_version": "0.3.1",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "0d4e5c13fc05e02f38c4670c0260fe12c7ae7666cc2b801b17c90c73dd9c27a2",
+  "engine_sha256": "ef477ab6421ffa7ffbe8d4baccc523f4cf794de9c9185fa5a4f8aea41c0b6576",
   "case": "parcel",
   "project": "Parcel / delivery service",
-  "created_at": "2026-09-23T19:07:09.476814+00:00",
+  "created_at": "2026-09-23T19:14:05.401480+00:00",
   "plan": {
     "read": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
     "write": "UPDATE orders SET shipping_address = :value WHERE id = :id",
@@ -122,7 +122,7 @@
       "new.read"
     ]
   },
-  "duration_ms": 64.6,
+  "duration_ms": 60.9,
   "scope": "SQLite sample contracts, target-column postconditions, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",
