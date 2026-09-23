@@ -84,6 +84,6 @@ The test suite includes negative controls: removing each synchronization trigger
 
 Passing is bounded evidence, not a deployment certificate. There is no concurrent transaction/lock simulation, network-failure model, mid-statement interruption, PostgreSQL/MySQL claim, performance estimate, arbitrary repository importer, or completed final column removal. Statement-boundary probes model a successful old write between autocommitted SQLite migration statements, then completion of the remaining statements. Keep the bridge while old workers and rollback remain possible; removing it requires a later contract phase and further verification.
 
-Current HTTP/browser results are not persisted server-side; download the report before refreshing. Bob provenance is intentionally unverified until a real host session is captured. See [STATUS.md](docs/STATUS.md), [the decision record](docs/DECISION.md), and [submission preparation](docs/SUBMISSION.md).
+Current HTTP/browser results are not persisted server-side; download the report before refreshing. Bob provenance is intentionally unverified until a real host session is captured. See [the pre-event baseline and evidence gate](docs/PROVENANCE.md), [STATUS.md](docs/STATUS.md), [the decision record](docs/DECISION.md), and [submission preparation](docs/SUBMISSION.md).
 
 MIT licensed. Independent prototype; not an IBM product.
