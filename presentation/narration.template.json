@@ -1,0 +1,45 @@
+{
+  "duration_sec": 180,
+  "segments": [
+    {
+      "id": "opening",
+      "start_sec": 1,
+      "text": "A green build can still be a broken handover. All eight new-version checks pass. But an old worker is still writing while the database changes."
+    },
+    {
+      "id": "late_bridge",
+      "start_sec": 19,
+      "text": "This late bridge looks safe after the migration. All seventy-six completed-rollout probes pass. Now we replay old writes between migration statements. Sixteen window probes fail."
+    },
+    {
+      "id": "counterexample",
+      "start_sec": 44,
+      "text": "Here is the missed window. We add the new column, copy existing rows, then an old worker writes before synchronization starts. The write is accepted, but the new reader sees a stale value."
+    },
+    {
+      "id": "bob_diagnosis",
+      "start_sec": 66,
+      "text": "PENDING: Describe the actual event-period Bob diagnostic calls, reasoning, and candidate attempts."
+    },
+    {
+      "id": "bob_replay",
+      "start_sec": 105,
+      "text": "PENDING: State the independently observed counts for Bob's saved candidate and the real browser replay."
+    },
+    {
+      "id": "review_artifact",
+      "start_sec": 133,
+      "text": "PENDING: Describe Bob's verified review report if built; otherwise describe the existing JSON evidence export without attributing it to Bob."
+    },
+    {
+      "id": "negative_control",
+      "start_sec": 154,
+      "text": "Remove one synchronization direction and run it again. The verdict changes because Cutover executes the SQL against a fixed old contract and an independent write ledger."
+    },
+    {
+      "id": "close",
+      "start_sec": 171,
+      "text": "Cutover gives schema-changing pull requests a reproducible rehearsal. Today it covers these SQLite samples, not concurrent transactions or production databases."
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 This is a shot list, not a completed video or a Bob transcript. Record the Bob segment only from an actual event-period task. Keep the Bob IDE, candidate file, independent report, public demo, and final narration consistent.
 
+Use the [neural narration workflow](VOICE.md): one natural voice at a deliberate pace, with short silences while the viewer reads the counterexample and Bob evidence.
+
 | Time | Screen action | Narration point | Evidence gate |
 | --- | --- | --- | --- |
 | 0:00–0:18 | Open the public Cutover demo and run **Direct rename**. Frame the separate 8/8 baseline and blocked rollout counts. | “The new version passes all eight checks. An old worker still writing during deployment breaks the handover.” | Use the live deployed build, not a slide rendering. |

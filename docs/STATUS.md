@@ -20,7 +20,8 @@
 - After the v0.2.2 deployment, the in-app browser showed the backfill blocked at 48/100 and the safe bridge passing 124/124; its replay visibly includes the fixed `target.check` postcondition. A direct request to the public API also blocked the no-op old-adapter plan at 0/92 with `adapter_contract` evidence.
 - Reproducible [controlled detection ablation](IMPACT.md) on three deliberately unsafe patterns: new-version baseline detects 0/3, completed-rollout checks 2/3, full suite 3/3 in each structurally similar sample.
 - Current reference-withheld Bob repair workspace prepared as sibling `cutover-bob-session-c1395b51` from commit `c1395b5`. The generated manifest records evaluator SHA-256 `fc2e487d555e723b5500e06346eaad3ceee220954ee9ebd7ba7674aaf887f774`; no passing reference plan was copied, and the late bridge still blocks at 108/124. Earlier session workspaces remain on disk but use older evaluators and should not be used for the event session. This is pre-event setup, not a Bob session.
-- IBM Bob IDE 2.1.0 was installed on the Windows host on September 23 from the official IBM download. The installed executable reports version `1.126.0+bob2.1.0`, has a valid IBM code signature, and was running after setup exited. Authentication, hackathon access, and a Bob task remain unverified.
+- IBM Bob IDE 2.1.0 was installed on the Windows host on September 23 from the official IBM download. The installed executable reports version `1.126.0+bob2.1.0` and has a valid IBM code signature. After the user signed up for a free trial, the IDE showed its authenticated task composer rather than the login prompt. Hackathon-specific access, trial capacity at kickoff, and a Bob task remain unverified. No paid subscription is authorized.
+- A three-minute [demo shot list](../presentation/recording-plan.md) and [local neural narration workflow](../presentation/VOICE.md) are prepared. A single opening-line audio sample rendered at the intended slower pace; it is not the final voiceover. The script rejects pending Bob lines, so the final audio awaits real session evidence.
 
 ## Measured outcomes for both sample contracts
 
@@ -35,7 +36,7 @@ The late bridge is the key counterexample: all completed-rollout checks pass, bu
 
 ## Remaining before submission
 
-1. Obtain Bob access and capture a real Bob contribution. Approval is confirmed; access invitation was not found in email searches. Event materials advertise access at kickoff.
+1. Check Bob's trial capacity and hackathon access at kickoff, then capture a real event-period Bob contribution. Event approval is confirmed; a separate access invitation was not found in email searches. Do not purchase a paid subscription.
 2. Independently assess Bob's saved candidate with the fixed engine. Keep failed candidates and task-summary screenshots.
 3. Confirm kickoff-specific build-period rules and update [PROVENANCE.md](PROVENANCE.md) with actual event-period Bob evidence. The September 23 Codex baseline is recorded there. A solo Cutover team has been created on the event page.
 4. Record the real video and replace the placeholder Bob slide in the PDF deck draft with actual session evidence. Recheck the 16:9 cover against the submission form's image requirements.
