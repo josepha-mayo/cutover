@@ -6,6 +6,17 @@ Short description (draft): Cutover replays old and new SQL through schema migrat
 
 Provisional form fields: demo platform **Render**; application URL **https://cutover-rehearsal.onrender.com/**; code URL **https://github.com/josepha-mayo/cutover**. Candidate tags are **IBM Bob 2.0**, **developer tools**, **testing**, **DevOps**, **database migrations**, and **MCP**, subject to the form's actual choices. Keep the long description below as the base, then replace the Bob placeholder with observed task ID, files, tool calls, candidate outcome, and independently replayed counts. Do not paste a pending or planned outcome into the final form.
 
+The [general lablab submission guide](https://lablab.ai/ai-articles/hackathon-guidelines) lists a title of at most 50 characters, a summary of at most 255 characters, a long description of at least 100 words, cover/video fields, repository/demo links, technologies, and a separate **Additional Information** field. Recheck the actual September form at kickoff; the general guide does not settle event-specific fields or rules.
+
+| Field | Prepared copy or gate |
+| --- | --- |
+| Title | **Cutover: Rehearse the Release** |
+| Summary | **Cutover replays old and new SQL through schema migrations, exposes lost-write windows, and gives IBM Bob an executable counterexample to investigate.** (149 characters) |
+| Long description | Use the pitch below, then add only the observed event-period Bob contribution and its independently measured outcome. |
+| Main track and technologies | Choose the actual event track at kickoff. Name IBM Bob 2.0, MCP, Python, SQLite, JavaScript, and Render only where the form permits them. |
+| Cover, video, and slide deck | Use the checked 16:9 cover. Add the final reviewed video URL and evidenced PDF only after the real Bob session; verify upload/link behavior in the live form. |
+| Additional Information | **This is a bounded SQLite rehearsal over fixed sample contracts and migration-statement boundaries; it does not model concurrent transactions, lock timing, or production databases. The pre-event deterministic baseline is documented in `docs/PROVENANCE.md`. [PENDING: describe and link the actual event-period Bob task history, candidate attempts, and independent replay.] The Render free demo may take about a minute to wake.** Replace the bracketed text and recheck every clause and artifact link before submitting. |
+
 ## Pitch
 
 Most application tests ask whether the new version works. During a rolling release, an older worker may still write to the same database. A migration can succeed and the new-version suite can pass while one worker sees stale data or a rollback loses visibility of a new write.
