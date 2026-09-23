@@ -4,7 +4,7 @@ import re
 import unittest
 from pathlib import Path
 from cutover.engine import load_case, load_plan, migration_statements, rehearse, replay, validate_plan
-from cutover.service import run_rehearsal
+from cutover.service import run_rehearsal, verify_report_against_replay
 
 
 class RehearsalTests(unittest.TestCase):
@@ -220,6 +220,15 @@ class RehearsalTests(unittest.TestCase):
         result = run_rehearsal('parcel', load_plan('parcel', 'bridge'))
         self.assertEqual(result['passed'], 124)
         self.assertIsNone(result['witness'])
+
+    def test_final_report_must_match_fresh_independent_worker_replay(self):
+        plan = load_plan('parcel', 'late_bridge')
+        report = run_rehearsal('parcel', plan)
+        verify_report_against_replay('parcel', plan, report)
+        tampered = copy.deepcopy(report)
+        tampered['results'][0]['trace'][0]['detail'] = 'A plausible but unexecuted claim.'
+        with self.assertRaisesRegex(ValueError, 'fresh replay: results'):
+            verify_report_against_replay('parcel', plan, tampered)
 
 
 if __name__ == '__main__':

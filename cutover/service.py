@@ -16,6 +16,20 @@ def run_rehearsal(case, plan):
     return json.loads(process.stdout)
 
 
+def verify_report_against_replay(case, plan, report):
+    """Reject a final artifact whose claimed evidence differs from a fresh worker run."""
+    fresh = run_rehearsal(case, plan)
+    deterministic_fields = (
+        'schema_version', 'engine_version', 'engine_sha256', 'case', 'project',
+        'plan', 'plan_hash', 'contract_hash', 'suite_hash', 'status', 'passed',
+        'failed', 'total', 'baseline', 'categories', 'witness', 'results',
+        'scope', 'limitations',
+    )
+    for field in deterministic_fields:
+        if report.get(field) != fresh.get(field):
+            raise ValueError(f'Candidate report differs from a fresh replay: {field}')
+
+
 def catalog():
     return {'cases': [{'id': name, **load_case(name),
                        'plans': {p: load_plan(name, p) for p in ('rename', 'backfill', 'late_bridge', 'bridge')}}

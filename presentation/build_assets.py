@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import sys
 import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,10 @@ from reportlab.pdfgen import canvas
 
 ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from cutover.service import verify_report_against_replay
+
 FONTS = Path('C:/Windows/Fonts')
 INK = '#18251f'
 PANEL = '#25372c'
@@ -165,6 +170,7 @@ def event_evidence(path):
     engine_hash = hashlib.sha256(engine_source).hexdigest()
     if report.get('plan_hash') != plan_hash or report.get('engine_sha256') != engine_hash:
         raise ValueError('Candidate report must match the current plan and evaluator source')
+    verify_report_against_replay('parcel', plan, report)
     evidence['report'] = report
     return evidence
 
