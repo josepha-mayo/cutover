@@ -33,6 +33,7 @@
 - All five non-Bob narration segments now fit the 180-second timeline at voice speed 0.82; the closing line ends at 179.26 seconds. The Bob lines remain pending, and subjective voice quality still needs a human listen. A fresh seven-page PDF draft was regenerated; its Bob slide remains visibly marked PENDING. The final deck's evaluator-hash check now uses the same line-ending normalization as the engine.
 - The sample-results slide labels the passing window-safe plan as a pre-event reference, and the [submission copy](SUBMISSION.md) separates provisional form fields from the still-unobserved Bob outcome.
 - The [MP4 assembler](../presentation/assemble_video.py) produced a verified 1920×1080, 30 fps H.264/AAC four-second test with synthetic red/blue clips and audio. The test confirmed cut order and duration only. The template rejects pending footage; no real Bob clip or final MP4 exists.
+- The assembler now also checks that the finished MP4 has one H.264 1920×1080/30 fps video stream, one AAC audio stream, and is under the general 300 MB submission limit. A new four-second end-to-end synthetic render passed those checks. An existing signed-in YouTube Studio channel showed **Upload videos** on September 23, providing a likely unlisted-video link route; no final upload or signed-out playback has been tested.
 
 ## Measured outcomes for both sample contracts
 
