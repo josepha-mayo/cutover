@@ -20,6 +20,7 @@
 - After the v0.2.2 deployment, the in-app browser showed the backfill blocked at 48/100 and the safe bridge passing 124/124; its replay visibly includes the fixed `target.check` postcondition. A direct request to the public API also blocked the no-op old-adapter plan at 0/92 with `adapter_contract` evidence.
 - Reproducible [controlled detection ablation](IMPACT.md) on three deliberately unsafe patterns: new-version baseline detects 0/3, completed-rollout checks 2/3, full suite 3/3 in each structurally similar sample.
 - Current reference-withheld Bob repair workspace prepared as sibling `cutover-bob-session-c1395b51` from commit `c1395b5`. The generated manifest records evaluator SHA-256 `fc2e487d555e723b5500e06346eaad3ceee220954ee9ebd7ba7674aaf887f774`; no passing reference plan was copied, and the late bridge still blocks at 108/124. Earlier session workspaces remain on disk but use older evaluators and should not be used for the event session. This is pre-event setup, not a Bob session.
+- IBM Bob IDE 2.1.0 was installed on the Windows host on September 23 from the official IBM download. The installed executable reports version `1.126.0+bob2.1.0`, has a valid IBM code signature, and was running after setup exited. Authentication, hackathon access, and a Bob task remain unverified.
 
 ## Measured outcomes for both sample contracts
 
