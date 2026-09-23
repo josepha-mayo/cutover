@@ -4,8 +4,11 @@ import unittest
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
+from pathlib import Path
 from server import Handler
 from cutover.engine import load_case, load_plan
+
+WAREHOUSE = Path(__file__).resolve().parents[1] / 'examples' / 'warehouse'
 
 
 class HttpTests(unittest.TestCase):
@@ -61,6 +64,63 @@ class HttpTests(unittest.TestCase):
         code, body = self.request('/api/rehearse', {'case': '../../', 'plan': {}})
         self.assertEqual(code, 400)
         self.assertNotIn('passed', json.loads(body))
+
+    def test_imported_contract_blocks_late_bridge_and_exports_matching_review(self):
+        contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
+        late = json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))
+        repaired = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))
+
+        code, body = self.request('/api/contract/validate', {'contract': contract})
+        validated = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertEqual(validated['status'], 'valid')
+        self.assertEqual(validated['seed_count'], 3)
+        self.assertEqual(validated['payload_count'], 4)
+
+        code, body = self.request('/api/rehearse', {'case': 'custom', 'contract': contract, 'plan': late})
+        blocked = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertEqual((blocked['status'], blocked['passed'], blocked['total']), ('blocked', 108, 124))
+        self.assertEqual(blocked['contract_hash'], validated['contract_hash'])
+        self.assertIn('R-07', json.dumps(blocked['witness']))
+        self.assertIn('A-01', json.dumps(blocked['witness']))
+        self.assertIn(blocked['plan_hash'], blocked['review_markdown'])
+
+        code, body = self.request('/api/rehearse', {'case': 'custom', 'contract': contract, 'plan': repaired})
+        passing = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertEqual((passing['status'], passing['passed'], passing['total']), ('pass', 124, 124))
+        self.assertIn(passing['plan_hash'], passing['review_markdown'])
+
+        repaired['migration'] += '\nDROP TRIGGER sync_new_update;'
+        code, body = self.request('/api/rehearse', {'case': 'custom', 'contract': contract, 'plan': repaired})
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)['status'], 'blocked')
+
+    def test_import_validation_rejects_broken_old_contract_and_no_green_result(self):
+        contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
+        plan = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))
+        contract['old']['read'] = 'SELECT id, pick_bin FROM stock_items ORDER BY id'
+        for endpoint, request in (
+            ('/api/contract/validate', {'contract': contract}),
+            ('/api/rehearse', {'case': 'custom', 'contract': contract, 'plan': plan}),
+        ):
+            code, body = self.request(endpoint, request)
+            response = json.loads(body)
+            self.assertEqual(code, 400)
+            self.assertIn('id and value', response['error'])
+            self.assertNotIn('passed', response)
+
+    def test_imported_contract_cannot_replace_bundled_case_or_bob_brief(self):
+        contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
+        plan = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))
+        for endpoint, request in (
+            ('/api/rehearse', {'case': 'parcel', 'contract': contract, 'plan': plan}),
+            ('/api/brief', {'case': 'custom', 'contract': contract, 'plan': plan}),
+        ):
+            code, body = self.request(endpoint, request)
+            self.assertEqual(code, 400)
+            self.assertNotIn('passed', json.loads(body))
 
 
 if __name__ == '__main__':

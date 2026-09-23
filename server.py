@@ -8,7 +8,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 from cutover.engine import repair_brief
-from cutover.service import catalog, run_rehearsal
+from cutover.reporting import render_markdown
+from cutover.service import catalog, run_rehearsal, validate_imported_contract
 
 STATIC = Path(__file__).parent / 'public'
 SLOTS = threading.BoundedSemaphore(2)
@@ -40,7 +41,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send(200, file.read_bytes(), mimetypes.guess_type(file)[0] + '; charset=utf-8')
 
     def do_POST(self):
-        if self.path not in ('/api/rehearse', '/api/brief'):
+        if self.path not in ('/api/rehearse', '/api/brief', '/api/contract/validate'):
             return self.send(404, {'error': 'Not found'})
         origin = self.headers.get('Origin')
         if origin and urlparse(origin).netloc != self.headers.get('Host'):
@@ -55,8 +56,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(429, {'error': 'Two rehearsals are already running; retry shortly.'})
             try:
                 body = json.loads(self.rfile.read(size))
-                report = run_rehearsal(body['case'], body['plan'])
-                self.send(200, repair_brief(report) if self.path == '/api/brief' else report)
+                if self.path == '/api/contract/validate':
+                    self.send(200, validate_imported_contract(body['contract']))
+                else:
+                    contract = body.get('contract')
+                    if self.path == '/api/brief' and contract is not None:
+                        raise ValueError('Bob MCP repair briefs currently support bundled sample projects only')
+                    report = run_rehearsal(body['case'], body['plan'], contract)
+                    if self.path == '/api/brief':
+                        self.send(200, repair_brief(report))
+                    else:
+                        report['review_markdown'] = render_markdown(report)
+                        self.send(200, report)
             finally:
                 SLOTS.release()
         except subprocess.TimeoutExpired:

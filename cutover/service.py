@@ -8,13 +8,31 @@ def run_rehearsal(case, plan, contract=None):
     if contract is None:
         load_case(case)
     else:
+        if case != 'custom':
+            raise ValueError('Imported contracts require case=custom')
         validate_contract(contract)
     validate_plan(plan)
+    return run_worker({'case': case, 'plan': plan, 'contract': contract})
+
+
+def validate_imported_contract(contract):
+    validate_contract(contract)
+    return run_worker({'operation': 'validate_contract', 'contract': contract})
+
+
+def run_worker(request):
     process = subprocess.run([sys.executable, '-m', 'cutover.worker'],
-                             input=json.dumps({'case': case, 'plan': plan, 'contract': contract}),
+                             input=json.dumps(request),
                              capture_output=True, text=True, encoding='utf-8', cwd=ROOT,
                              timeout=8, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     if process.returncode:
+        if process.returncode == 2:
+            try:
+                error = json.loads(process.stdout).get('error')
+                if isinstance(error, str) and error:
+                    raise ValueError(error)
+            except json.JSONDecodeError:
+                pass
         raise ValueError('Rehearsal worker failed; no passing result was produced.')
     return json.loads(process.stdout)
 

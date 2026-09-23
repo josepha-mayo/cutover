@@ -18,7 +18,7 @@ Python 3.10+ with SQLite 3.25+ is sufficient for the app. No runtime packages, A
 python server.py
 ```
 
-Open http://127.0.0.1:8765. The server binds only to loopback by default. The same sample-only app is hosted at [cutover-rehearsal.onrender.com](https://cutover-rehearsal.onrender.com/); it is a hackathon demo, not a hardened public multi-tenant service.
+Open http://127.0.0.1:8765. The server binds only to loopback by default. The same bounded app is hosted at [cutover-rehearsal.onrender.com](https://cutover-rehearsal.onrender.com/); it is a hackathon demo, not a hardened public multi-tenant service.
 
 ## Try the three-minute story
 
@@ -26,9 +26,11 @@ Open http://127.0.0.1:8765. The server binds only to loopback by default. The sa
 2. Select **Direct rename**, then run. All 8 new-version checks pass, but Cutover catches 60 failing completed-rollout probes, including an old worker querying a removed column.
 3. Select **Expand & backfill**, then run. New-version checks still pass. A write is acknowledged but the other version reads stale data.
 4. Select **Window-safe bridge**. Moving synchronization before backfill preserves data through all 124 tested probes. Append `DROP TRIGGER sync_new_update;` to its migration and rerun; 12 failures return. Results are computed from SQL, never chosen by candidate name.
-5. Export evidence, save/import a candidate, or prepare a repair task for IBM Bob.
+5. Export evidence and its Markdown review, save/import a candidate, or prepare a repair task for IBM Bob.
 
 The browser includes two curated contracts: Parcel's address migration and Relay's contact-field migration. They demonstrate the same structural failure on different identifiers and seed data. They are sample SQL adapters, not claims of integration with production services or full ORM applications. Inputs deliberately stress string preservation and do not validate contact syntax.
+
+**Run your own migration in the browser:** import a contract JSON and a five-field candidate plan JSON, then press **Run release rehearsal**. The [warehouse contract](examples/warehouse/contract.json) and its [late](examples/warehouse/late_bridge.json) and [window-safe](examples/warehouse/bridge.json) plans are ready-to-try examples. The browser validates the old adapter before enabling the custom case, runs the plan in the same bounded disposable worker as the CLI, and lets you inspect the witness and export JSON evidence, a Markdown review, the contract, and the plan. A changed plan clears the old verdict until rerun. The hosted service receives imported SQL but does not persist it; use a local instance for private schemas. Imported contracts are not yet available to the Bob MCP tools.
 
 ## Bring your own contract through the CLI
 
@@ -39,7 +41,7 @@ python -m cutover --contract examples/warehouse/contract.json --plan examples/wa
 python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/bridge.json --output work/warehouse-safe.json --markdown work/warehouse-safe.md
 ```
 
-The first command exits 1 with a blocked 108/124 verdict; its shortest observed witness has `R-07` expected and `A-01` observed. The second exits 0 with 124/124 on this particular contract. The Markdown file is generated from the same executed report object as JSON, with a trace, bound inputs, expected/observed values, hashes and limitations. The imported contract must define `project`, `summary`, `table`, distinct `old_column`/`new_column`, initial `schema`, `seed_sql`, 1–16 `[id, value]` seed rows, an `old` read/write/insert adapter, and 2–8 domain-specific `payloads`. SQL identifiers and input sizes are bounded. The initial schema must contain exactly the named table, with no views or triggers. The old adapter must pass reads, updates of every seed ID, and an insert before migration evidence is produced. Run private schemas locally; the hosted browser currently exposes only the curated examples. This is a contract importer, not automatic extraction from a repository or a production-database connector.
+The first command exits 1 with a blocked 108/124 verdict; its shortest observed witness has `R-07` expected and `A-01` observed. The second exits 0 with 124/124 on this particular contract. The Markdown file is generated from the same executed report object as JSON, with a trace, bound inputs, expected/observed values, hashes and limitations. The imported contract must define `project`, `summary`, `table`, distinct `old_column`/`new_column`, initial `schema`, `seed_sql`, 1–16 `[id, value]` seed rows, an `old` read/write/insert adapter, and 2–8 domain-specific `payloads`. SQL identifiers and input sizes are bounded. The initial schema must contain exactly the named table, with no views or triggers. The old adapter must pass reads, updates of every seed ID, and an insert before migration evidence is produced. Run private schemas locally. This is a contract importer, not automatic extraction from a repository or a production-database connector.
 
 ## What executes
 

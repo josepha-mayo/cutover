@@ -27,7 +27,7 @@ Cutover makes that handover executable. A fixed old-version contract and a propo
 
 [Atlas's migration analyzer](https://atlasgo.io/lint/analyzers) can flag destructive or backward-incompatible schema operations, including column renames. Cutover complements that category of check by executing the *old and new application's SQL* at each migration statement boundary and checking acknowledged values. That temporal replay is why it finds the late-bridge gap even when the completed migration passes; this is a distinction of the current samples, not a claim that other tools cannot model deployment timing.
 
-The public browser covers two curated contracts, and the local CLI accepts a validated, user-supplied single-table SQLite contract with its own seed rows and test payloads. The CLI also writes a review-ready Markdown timeline from the same executed report as JSON. The bundled examples run 19 completed-rollout schedules with four string inputs each, plus old writes at every migration statement boundary. They detect direct schema breaks, stale data after a one-time backfill, and a late-bridge race that completed-rollout checks miss. The imported warehouse fixture reproduces the same structural failure on different SQL and domain values; it is not an independent customer incident. Results are bounded, reproducible evidence for review, not a claim of production safety. The intended user is a backend engineer shipping schema changes with long-lived workers.
+The public browser covers two curated contracts and accepts a validated, user-supplied single-table SQLite contract with its own seed rows and test payloads; the local CLI accepts the same input. Both paths can export a review-ready Markdown timeline from the executed report. The bundled examples run 19 completed-rollout schedules with four string inputs each, plus old writes at every migration statement boundary. They detect direct schema breaks, stale data after a one-time backfill, and a late-bridge race that completed-rollout checks miss. The imported warehouse fixture reproduces the same structural failure on different SQL and domain values; it is not an independent customer incident. Results are bounded, reproducible evidence for review, not a claim of production safety. The intended user is a backend engineer shipping schema changes with long-lived workers.
 
 The commercial hypothesis is an open local rehearsal tool paired with paid, per-repository CI checks that attach a counterexample to schema-changing pull requests. No pricing, willingness to pay, or market size has been validated. The next tests are interviews with release teams and a real repository adapter; the current two curated samples and CLI importer are not yet that service.
 
@@ -42,7 +42,7 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 - 0:42–1:04: Magnify the actual replay: the old write is acknowledged after backfill and before synchronization, then the new reader sees `4 Broad Street` instead of the latest `18 Marina Road`.
 - 1:04–1:45: Show the real Bob task, diagnostic tool calls, candidate files, and task summary. Describe actual attempts, including any failures, without inventing a repair.
 - 1:45–2:12: Import and independently run Bob's saved candidate. State only its observed counts and show a migration-window replay.
-- 2:12–2:33: If Bob built the browser import, show its real warehouse-contract run. Otherwise show the pre-event CLI import and Markdown review clearly attributed to Codex preparation; do not present them as Bob-built.
+- 2:12–2:33: Show the pre-event browser import of the warehouse contract and its blocked Markdown review, clearly attributed to Codex preparation; show the event-period CI gate only if Bob actually built and verified it.
 - 2:33–2:50: Rerun a negative control with one synchronization direction removed and show the actual changed verdict, then restore Bob's genuine candidate.
 - 2:50–3:00: End with the source and live demo, and name the bounded SQLite scope and untested concurrency/production-database work.
 
@@ -53,7 +53,7 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 3. A late bridge passes completed-rollout checks but misses an old write between backfill and synchronization.
 4. Fixed contracts, executed schedules, an independent ledger, and a replayable counterexample.
 5. Controlled sample ablation: 0/3 unsafe patterns detected by the new-version baseline, 2/3 by completed-rollout checks, and 3/3 after migration windows. Not a customer benchmark or Bob result.
-6. Validated CLI import of a user-supplied warehouse contract, with its actual failing witness and separately attributed pre-event provenance.
+6. Validated browser and CLI import of a user-supplied warehouse contract, with its actual failing witness and separately attributed pre-event provenance.
 7. Real Bob contribution, shown only with task evidence and an independently replayed candidate.
 8. Backend/release engineers; CI report and PR review are the initial adoption path. A paid per-repository CI check is a revenue hypothesis, not observed demand.
 
