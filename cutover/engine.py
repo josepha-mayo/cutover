@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.2"
+ENGINE_VERSION = "0.3.3"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -235,7 +235,7 @@ def schedules():
     return values
 
 
-def replay(contract, plan, actions, payload, statements=None, seed_id=None):
+def replay(contract, plan, actions, payload, statements=None, seed_id=None, insert_id=None):
     access_log = []
     db = connection(contract, access_log)
     oracle = {row[0]: row[1] for row in contract["seed"]}
@@ -270,7 +270,7 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None):
                         writes += 1
                         value = payload if writes == 1 else payload + " [updated]"
                         if operation == "insert":
-                            selected_id = max(oracle) + 1
+                            selected_id = max(oracle) + 1 if insert_id is None else insert_id
                         event["params"] = {"id": selected_id, "value": value}
                         direct_target_write = (version != "new" or
                                                writes_target_without_triggers(
@@ -338,27 +338,37 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None):
 
 
 def replay_seed_variants(contract, plan, actions, payload, statements=None):
-    """Exercise every existing record for sequences containing an update.
+    """Exercise every existing record and two distinct new-record IDs.
 
-    A trigger or adapter can accidentally work for the first seed ID only. A
-    passing probe therefore requires every seeded ID to survive the sequence;
-    the trace retained for a failure names the exact record that exposed it.
+    A trigger can accidentally protect one fixed row ID. A passing probe must
+    survive each relevant ID; a failure retains the precise exposing replay.
     """
     ids = ([row[0] for row in contract["seed"]]
            if any(action.endswith(".write") for action in actions)
            else [contract["seed"][0][0]])
-    attempted = []
+    inserts = ([max(row[0] for row in contract["seed"]) + offset for offset in (1, 2)]
+               if any(action.endswith(".insert") for action in actions) else [None])
+    attempted_seeds = []
+    attempted_inserts = []
     first_pass = None
-    for seed_id in ids:
-        result = replay(contract, plan, actions, payload, statements, seed_id)
-        attempted.append(seed_id)
+    for seed_id, insert_id in itertools.product(ids, inserts):
+        result = replay(contract, plan, actions, payload, statements, seed_id, insert_id)
+        if seed_id not in attempted_seeds:
+            attempted_seeds.append(seed_id)
         result["seed_id"] = seed_id
-        result["seed_ids_tested"] = list(attempted)
+        result["seed_ids_tested"] = list(attempted_seeds)
+        if insert_id is not None:
+            if insert_id not in attempted_inserts:
+                attempted_inserts.append(insert_id)
+            result["insert_id"] = insert_id
+            result["insert_ids_tested"] = list(attempted_inserts)
         if not result["passed"]:
             return result
         if first_pass is None:
             first_pass = result
-    first_pass["seed_ids_tested"] = attempted
+    first_pass["seed_ids_tested"] = attempted_seeds
+    if attempted_inserts:
+        first_pass["insert_ids_tested"] = attempted_inserts
     return first_pass
 
 
@@ -411,14 +421,15 @@ def rehearse(case, plan, contract=None):
         "plan": plan, "plan_hash": digest(plan), "contract_hash": digest(contract),
         "suite_hash": digest({"schedules": schedules(), "payloads": payloads,
                               "migration_window_policy": "old update and insert after every SQLite statement boundary",
-                              "write_seed_policy": "each seeded record for every update probe"}),
+                              "write_seed_policy": "each seeded record for every update probe",
+                              "insert_id_policy": "two distinct IDs beyond the highest seed for every insert probe"}),
         "status": "pass" if not failures else "blocked",
         "passed": len(results) - len(failures), "failed": len(failures), "total": len(results),
         "baseline": {"passed": sum(r["passed"] for r in baseline), "total": len(baseline), "results": baseline},
         "categories": categories, "witness": witness, "results": results,
         "duration_ms": round((time.perf_counter() - start) * 1000, 1),
         "scope": (("SQLite user-supplied contract" if case == "custom" else "SQLite sample contracts") +
-                  ", target-column postconditions, every seeded record for update probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
+                  ", target-column postconditions, every seeded record for update probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
         "limitations": ["No concurrent transactions, lock timing or network failures modeled.",
                         "No PostgreSQL, MySQL or ORM behavior claimed.",
                         "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",

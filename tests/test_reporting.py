@@ -42,6 +42,15 @@ class ReviewReportTests(unittest.TestCase):
         self.assertIn('Row shown in this replay: `102`', review)
         self.assertIn('Seed IDs checked before this verdict:', review)
 
+    def test_review_identifies_later_insert_id_that_exposes_false_pass(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['migration'] = plan['migration'].replace(
+            'WHEN NEW.shipping_address IS NULL',
+            'WHEN NEW.id = 103 AND NEW.shipping_address IS NULL')
+        review = render_markdown(rehearse('parcel', plan))
+        self.assertIn('Inserted ID shown in this replay: `104`', review)
+        self.assertIn('Insert IDs checked before this verdict:', review)
+
     def test_cli_writes_json_and_review_from_the_same_run(self):
         with tempfile.TemporaryDirectory() as temporary:
             report = Path(temporary) / 'report.json'

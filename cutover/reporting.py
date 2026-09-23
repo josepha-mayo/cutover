@@ -32,6 +32,9 @@ def replay_section(probe, title):
     if 'seed_id' in probe:
         lines += [f'Row shown in this replay: `{probe["seed_id"]}`.', '',
                   'Seed IDs checked before this verdict:', '', structured(probe['seed_ids_tested']), '']
+    if 'insert_id' in probe:
+        lines += [f'Inserted ID shown in this replay: `{probe["insert_id"]}`.', '',
+                  'Insert IDs checked before this verdict:', '', structured(probe['insert_ids_tested']), '']
     for event in probe['trace']:
         lines += [f'### {event["step"]}. {inline(event["action"])} — {inline(event["status"])}', '']
         if event.get('sql'):

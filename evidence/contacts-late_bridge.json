@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "engine_version": "0.3.2",
+  "engine_version": "0.3.3",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "f890c77d80bdfa4d02b4f7f8fc17c1c9f169e75ec2336460241966b86f2eeace",
+  "engine_sha256": "3376339f578970ccb377b2a582b27ba6716ae967567cda27487dccac8da9c716",
   "case": "contacts",
   "project": "Relay / contact service",
-  "created_at": "2026-09-23T20:01:57.070707+00:00",
+  "created_at": "2026-09-23T20:23:02.633838+00:00",
   "plan": {
     "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
     "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
@@ -15,7 +15,7 @@
   },
   "plan_hash": "ad6f6290481f62a033e82dd6124990d872ccc9731164375ca57af9dc9d37c4b5",
   "contract_hash": "aa0246f83469d2389e58e5daa4894c35fa8e9455db6c711d47091a56bdab72cd",
-  "suite_hash": "23136f51d758ab27e67b48a6d9853b544fa5763cc76bde70a2f7eff3d3a87e5f",
+  "suite_hash": "9141f5107769c0efb8d22232fb0f2bef856accc6176e91139f93bfc26bc946ea",
   "status": "blocked",
   "passed": 108,
   "failed": 16,
@@ -159,8 +159,8 @@
     ],
     "migration_boundary": 2
   },
-  "duration_ms": 282.0,
-  "scope": "SQLite sample contracts, target-column postconditions, every seeded record for update probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+  "duration_ms": 278.4,
+  "scope": "SQLite sample contracts, target-column postconditions, every seeded record for update probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",
     "No PostgreSQL, MySQL or ORM behavior claimed.",
