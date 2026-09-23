@@ -4,6 +4,8 @@ The purpose of this session is to obtain a genuine IBM Bob contribution. These a
 
 From a clean committed source project, run `python prepare_bob_session.py --python PATH_TO_MCP_PYTHON`. Open the printed reference-withheld sibling workspace in IBM Bob, confirm **Use MCP Servers** is enabled and the `cutover` project server is listed in [Bob's MCP settings](https://bob.ibm.com/docs/ide/configuration/mcp/mcp-in-bob), and choose the Cutover release engineer mode. The fixed evaluator is copied byte-for-byte, while prewritten passing plans and presentation notes are omitted. Begin a new task:
 
+Before prompting Bob, run `python verify_bob_session.py --workspace PATH_TO_SIBLING` from the full source project and retain its passing JSON output. Run it again after Bob writes its candidate; it checks the 18 copied source files against the original Git commit and catches modifications to the evaluator, contract, failing examples, or MCP configuration. The current pre-event test workspace is `cutover-bob-session-62bea5b9`; re-freeze from the final pre-kickoff commit for the actual event task. Earlier sibling workspaces are stale.
+
 > Rehearse the Parcel release using inspect_release and diagnose_reference with reference=late_bridge. The late bridge passes all 76 completed-rollout probes yet fails migration-window probes. Diagnose the shortest failing replay and propose your own migration and new SQL adapter that preserve the old application contract, inserted records and rollback reads, including old writes between migration statements. The new reader/updater must use the target column, and that column must retain every acknowledged value; keeping both adapters on the old column is not a repair. Use rehearse_candidate to test each proposal. Do not change the fixed old contract, seed records, evaluator, schedule generator, or test assertions. Save your own proposed plan to work/bob-candidate.json and explain observed failures and repair in work/bob-repair.md. Report exact final coverage and untested boundaries. Do not use the bundled window-safe bridge as proof of your own repair work.
 
 ## Evidence to retain
@@ -13,6 +15,7 @@ From a clean committed source project, run `python prepare_bob_session.py --pyth
 - Screenshots of Bob's executed tool calls and its actual task summary.
 - Every candidate it submits, including failures.
 - The generated `SESSION_MANIFEST.json` with source commit and evaluator hash.
+- Passing before-and-after `verify_bob_session.py` reports; retain any failing audit rather than masking it.
 - JSON reports from rerunning its final candidate in the full source project's CLI and browser.
 - Which files Bob wrote or changed, with an honest separation from pre-event preparation.
 
