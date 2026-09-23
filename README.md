@@ -22,9 +22,9 @@ Open http://127.0.0.1:8765. The server binds only to loopback by default. The sa
 
 ## Try the three-minute story
 
-1. Select **Direct rename**, then **Run release rehearsal**. All 8 new-version checks pass. Cutover catches 60 failing completed-rollout probes, including an old worker querying a removed column.
-2. Select **Expand & backfill**, then run. New-version checks still pass. A write is acknowledged but the other version reads stale data. Select a red square to inspect executed SQL and expected/observed values.
-3. Select **Late bridge**. All 76 completed-rollout probes pass, yet 16 of 48 migration-window probes fail. An old write after the backfill and before the triggers silently leaves the new column stale.
+1. **Late bridge** is selected on first load. Press **Run release rehearsal**. All 76 completed-rollout probes pass, yet 16 of 48 migration-window probes fail. An old write after the backfill and before the triggers silently leaves the new column stale. Select a red square to inspect the shortest observed failing replay, executed SQL, and expected/observed values.
+2. Select **Direct rename**, then run. All 8 new-version checks pass, but Cutover catches 60 failing completed-rollout probes, including an old worker querying a removed column.
+3. Select **Expand & backfill**, then run. New-version checks still pass. A write is acknowledged but the other version reads stale data.
 4. Select **Window-safe bridge**. Moving synchronization before backfill preserves data through all 124 tested probes. Append `DROP TRIGGER sync_new_update;` to its migration and rerun; 12 failures return. Results are computed from SQL, never chosen by candidate name.
 5. Export evidence, save/import a candidate, or prepare a repair task for IBM Bob.
 

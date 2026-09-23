@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-let catalog, activeCase, reference = 'rename', report = null, selected = null, busy = false, briefText = '';
+let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
 const fields = {name: 'plan-name', migration: 'migration', read: 'read', write: 'write', insert: 'insert'};
 const labels = {compatibility: 'Old worker alive', mixed_versions: 'Mixed versions', rollback: 'Rollback reads', new_records: 'New records', interleaving: 'Write order', in_flight: 'Before migration', migration_window: 'Migration windows'};
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -32,10 +32,10 @@ function setPlan(plan, source) {
   invalidate();
 }
 function chooseCase() {
-  activeCase=catalog.cases.find(c=>c.id===$('case').value); reference='rename';
+  activeCase=catalog.cases.find(c=>c.id===$('case').value); reference='late_bridge';
   $('case-description').textContent=activeCase.summary;
   $('old-contract').textContent=pretty(activeCase.old);
-  setPlan(activeCase.plans.rename,'Editable reference');
+  setPlan(activeCase.plans[reference],'Editable reference · not AI generated');
 }
 
 async function run() {
@@ -92,7 +92,7 @@ async function showBob() {
   const intro=`Inspect this Cutover project and repair the ${activeCase?.id||'parcel'} rollout. Use inspect_release and rehearse_candidate through the Cutover MCP server. Preserve the fixed old contract and the evaluator. Save your candidate to work/bob-candidate.json. Explain each change and retain your actual Bob task summary and screenshots. Do not claim that prewritten reference solutions are your work.\n\n`;
   if(report) {
     briefText=intro+pretty({case:report.case,plan_hash:report.plan_hash,candidate:report.plan,shortest_observed_witness:report.witness,constraints:['Preserve old/new updates and inserts.','Application rollback must preserve new-version writes.','Protect old writes at every migration statement boundary.','Do not change the old adapter, oracle, seeds or suite to make a plan pass.',`Rerun all ${report.total} probes, then report coverage limits.`]});
-  } else briefText=intro+'Begin with the rename candidate. The task is to produce an evidence-backed repair, not to generate a risk score.';
+  } else briefText=intro+'Begin with the late-bridge candidate. The task is to produce an evidence-backed repair, not to generate a risk score.';
   $('bob-task').value=briefText; $('bob-dialog').showModal();
 }
 
