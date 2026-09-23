@@ -16,7 +16,7 @@ output = json.dumps(report, ensure_ascii=False, indent=2)
 if args.output:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(output + "\n", encoding="utf-8")
-print(f"{report['status'].upper()}: {report['passed']}/{report['total']} rollout probes; "
+print(f"{report['status'].upper()}: {report['passed']}/{report['total']} rollout and window probes; "
       f"same-version baseline {report['baseline']['passed']}/{report['baseline']['total']}; "
       f"plan {report['plan_hash'][:12]}")
 if report['witness']:
