@@ -14,6 +14,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from prepare_bob_session import sources
+
 
 ROOT = Path(__file__).resolve().parent
 WITHHELD = {"examples/parcel/bridge.json", "examples/contacts/bridge.json"}
@@ -32,6 +34,9 @@ def verify(workspace: Path) -> dict[str, object]:
         raise ValueError("Manifest source revision is not a full Git commit hash")
     copied = manifest["copied_sha256"]
     errors: list[str] = []
+    expected_names = {path.as_posix() for path in sources()}
+    if set(copied) != expected_names:
+        errors.append("Copied-source list differs from the required workspace files")
 
     for name, expected_hash in copied.items():
         path = (workspace / name).resolve()
