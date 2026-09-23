@@ -61,7 +61,7 @@ python prepare_bob_session.py --python .venv\Scripts\python.exe
 
 Open the printed `cutover-bob-session-<commit>` folder in Bob and select **Cutover release engineer**. It contains the same evaluator and failing sample plans, but no bundled passing plan, presentation materials or prior repair notes. The custom mode permits reading and MCP calls, with edits limited to candidate JSON and notes under `work/`. The tools are `inspect_release`, `diagnose_reference`, and `rehearse_candidate`; the diagnostic tool exposes only failing references. A public solution still exists in the source repository, so this reduces answer leakage rather than proving Bob could not have seen it.
 
-Use [BOB_TASK.md](docs/BOB_TASK.md). Capture the real task summary and screenshots, retain Bob's actual candidate, and replay it in this full project with `python -m cutover --plan work/bob-candidate.json`. The interface's four reference plans are prewritten; loading the bridge is not an AI repair. The MVP intentionally does not invent an IBM Bob inference API.
+Use [BOB_TASK.md](docs/BOB_TASK.md). Capture the real task summary and screenshots, retain Bob's actual candidate, copy its `work/bob-candidate.json` into this full project's `work/`, and replay it with `python -m cutover --plan work/bob-candidate.json`. The interface's four reference plans are prewritten; loading the bridge is not an AI repair. The MVP intentionally does not invent an IBM Bob inference API.
 
 ## CLI and verification
 

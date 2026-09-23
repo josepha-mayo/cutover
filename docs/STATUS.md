@@ -18,6 +18,7 @@
 - 16:9 cover image generated and visually inspected. A seven-page PDF deck draft exists locally; its Bob slide is prominently marked pending and must be replaced with real session evidence before submission.
 - Narrow-screen browser retest at a 304-pixel viewport: the safe candidate rendered and ran 124/124 without horizontal overflow after mobile grid and coverage fixes.
 - Reproducible [controlled detection ablation](IMPACT.md) on three deliberately unsafe patterns: new-version baseline detects 0/3, completed-rollout checks 2/3, full suite 3/3 in each structurally similar sample.
+- Reference-withheld Bob repair workspace prepared as sibling `cutover-bob-session-6a032d17` from commit `6a032d1`. The generated manifest records evaluator SHA-256 `47a0a1a64acb364ae9a1cc753327f7e93cb815f4d355c119b52dba91e749d6be`; no passing reference plan was copied, and its CLI still blocks the late bridge at 108/124. This is pre-event setup, not a Bob session.
 
 ## Measured outcomes for both sample contracts
 
