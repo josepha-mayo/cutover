@@ -51,6 +51,14 @@ class RehearsalTests(unittest.TestCase):
         self.assertEqual(len(phase), 48)
         self.assertTrue(all(r['passed'] for r in phase))
 
+    def test_comments_and_empty_sql_do_not_inflate_migration_windows(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['migration'] = '; -- harmless opening note\n' + plan['migration'] + '\n;; /* trailing note */ -- final note'
+        self.assertEqual(len(migration_statements(plan['migration'])), 5)
+        report = rehearse('parcel', plan)
+        self.assertEqual((report['passed'], report['total']), (124, 124))
+        self.assertEqual(next(c['total'] for c in report['categories'] if c['id'] == 'migration_window'), 48)
+
     def test_deleting_any_sync_trigger_is_detected(self):
         for trigger in ('sync_old_update', 'sync_new_update', 'sync_old_insert'):
             with self.subTest(trigger=trigger):

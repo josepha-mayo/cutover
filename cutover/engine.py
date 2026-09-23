@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.2.0"
+ENGINE_VERSION = "0.2.1"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 
 
@@ -42,16 +42,34 @@ def validate_plan(plan):
         raise ValueError("Plan name must be at most 100 characters")
 
 
+def has_sql(fragment):
+    """Ignore comment-only and empty fragments when counting migration steps."""
+    index = 0
+    while index < len(fragment):
+        if fragment[index].isspace() or fragment[index] == ";":
+            index += 1
+        elif fragment.startswith("--", index):
+            newline = fragment.find("\n", index + 2)
+            index = len(fragment) if newline < 0 else newline + 1
+        elif fragment.startswith("/*", index):
+            end = fragment.find("*/", index + 2)
+            index = len(fragment) if end < 0 else end + 2
+        else:
+            return True
+    return False
+
+
 def migration_statements(script):
     """Split at SQLite-complete statements, including multi-statement triggers."""
     statements, pending = [], ""
     for char in script:
         pending += char
         if char == ";" and sqlite3.complete_statement(pending):
-            statements.append(pending.strip())
+            if has_sql(pending):
+                statements.append(pending.strip())
             pending = ""
-    if pending.strip():
-        if not sqlite3.complete_statement(pending + ";"):
+    if has_sql(pending):
+        if not sqlite3.complete_statement(pending + "\n;"):
             raise ValueError("Migration ends with an incomplete SQLite statement")
         statements.append(pending.strip())
     if not 1 <= len(statements) <= 32:

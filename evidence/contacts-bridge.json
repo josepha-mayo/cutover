@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "engine_version": "0.2.0",
+  "engine_version": "0.2.1",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "47a0a1a64acb364ae9a1cc753327f7e93cb815f4d355c119b52dba91e749d6be",
+  "engine_sha256": "6b9bd6ace1bde68bf8d35b5d5545b056911dfff83efc6989beced8eb0f9f61a3",
   "case": "contacts",
   "project": "Relay / contact service",
-  "created_at": "2026-09-23T11:38:31.443865+00:00",
+  "created_at": "2026-09-23T12:25:56.582990+00:00",
   "plan": {
     "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
     "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
@@ -62,7 +62,7 @@
     }
   ],
   "witness": null,
-  "duration_ms": 226.6,
+  "duration_ms": 112.4,
   "scope": "SQLite sample contracts; bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",
