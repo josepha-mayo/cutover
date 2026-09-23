@@ -2,7 +2,9 @@
 
 Working title: **Cutover: Rehearse the Release**
 
-Short description (draft): Cutover finds the data failures a green build can miss. It runs old and new SQL adapters through a database migration, gives IBM Bob an executable counterexample, and verifies the proposed repair.
+Short description (draft): Cutover replays old and new SQL through schema migrations, exposes lost-write windows, and gives IBM Bob an executable counterexample to investigate.
+
+Provisional form fields: demo platform **Render**; application URL **https://cutover-rehearsal.onrender.com/**; code URL **https://github.com/josepha-mayo/cutover**. Candidate tags are **IBM Bob 2.0**, **developer tools**, **testing**, **DevOps**, **database migrations**, and **MCP**, subject to the form's actual choices. Keep the long description below as the base, then replace the Bob placeholder with observed task ID, files, tool calls, candidate outcome, and independently replayed counts. Do not paste a pending or planned outcome into the final form.
 
 ## Pitch
 

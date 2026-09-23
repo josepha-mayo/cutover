@@ -294,16 +294,17 @@ def deck(evidence=None, output=None):
         ('Direct rename', '16/76', '8/16'),
         ('One-time backfill', '32/76', '16/24'),
         ('Late bridge', '76/76', '32/48'),
-        ('Window-safe bridge', '76/76', '48/48'),
+        ('Window-safe bridge (reference)', '76/76', '48/48'),
     ]
     for i, (name, complete, windows) in enumerate(rows):
         y = 281 - i * 53
         box(c, 45, y, 870, 44, '#563c33' if i == 2 else PANEL)
-        text(c, 60, y + 13, name, 17, CREAM, 'SegoeBold' if i in (2, 3) else 'Segoe')
+        text(c, 60, y + 13, name, 15 if i == 3 else 17,
+             CREAM, 'SegoeBold' if i in (2, 3) else 'Segoe')
         text(c, 540, y + 13, complete, 17, LIME, 'ConsolasBold')
         text(c, 748, y + 13, windows, 17, ORANGE if i == 2 else LIME, 'ConsolasBold')
     text(c, 45, 81, 'Curated unsafe patterns caught: baseline 0/3  |  rollout 2/3  |  windows 3/3', 13, ORANGE, 'Consolas')
-    text(c, 45, 59, 'Two structurally similar samples; no customer benchmark.', 11, MUTED)
+    text(c, 45, 59, 'Pre-event reference; curated samples, not Bob output or a customer benchmark.', 11, MUTED)
     c.showPage()
 
     if final:
