@@ -18,6 +18,8 @@ The current prototype covers two sample contracts, 19 completed-rollout schedule
 
 ## Demo script, target 3 minutes
 
+The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each clip to the required on-screen evidence and leaves the Bob result pending until an actual session.
+
 - 0:00–0:20: “The new version passes. The old worker is still alive.” Show 8/8 baseline and 60 failing probes.
 - 0:20–0:55: Apply the late bridge. Show all completed-rollout probes green, then open a failed migration-window replay: an old worker writes after backfill, before trigger creation.
 - 0:55–1:45: Show real Bob diagnosis and candidate repair through MCP. Record only real actions, clearly distinguishing any edited video cuts.
