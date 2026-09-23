@@ -16,7 +16,7 @@ customModes:
       Call rehearse_candidate. Use actual returned evidence and counts.
       Preserve the old reader and writer contract, including inserted records.
       The new reader must read the target column without accessing the old column.
-      The new updater must update the target directly; verify target values against the ledger.
+      New updates and inserts must put their values in the target on a trigger-free snapshot; explicit dual-writes are valid.
       Never modify the oracle, fixed contract, seeds, schedules, or test assertions to make a candidate pass.
       Write your candidate to work/bob-candidate.json and notes to work/bob-repair.md.
       Do not copy a reference repair and present it as independently discovered.

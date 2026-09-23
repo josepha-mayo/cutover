@@ -133,6 +133,43 @@ class RehearsalTests(unittest.TestCase):
                 self.assertTrue(any(result['failure'] and result['failure']['kind'] == 'adapter_contract'
                                     for result in report['results']))
 
+    def test_new_updater_cannot_hide_old_write_behind_noop_target_assignment(self):
+        for case in ('parcel', 'contacts'):
+            with self.subTest(case=case):
+                contract = load_case(case)
+                plan = load_plan(case, 'bridge')
+                plan['write'] = (f'UPDATE {contract["table"]} SET '
+                                 f'{contract["old_column"]} = :value, '
+                                 f'{contract["new_column"]} = {contract["new_column"]} '
+                                 'WHERE id = :id')
+                report = rehearse(case, plan)
+                self.assertEqual(report['status'], 'blocked')
+                self.assertEqual(report['baseline']['passed'], 4)
+                self.assertTrue(any(result['failure'] and result['failure']['kind'] == 'adapter_contract'
+                                    for result in report['results']))
+
+    def test_new_insert_cannot_depend_on_old_column_trigger(self):
+        for case in ('parcel', 'contacts'):
+            with self.subTest(case=case):
+                plan = load_plan(case, 'bridge')
+                plan['insert'] = load_case(case)['old']['insert']
+                report = rehearse(case, plan)
+                self.assertEqual(report['status'], 'blocked')
+                self.assertEqual(report['baseline']['passed'], 4)
+                self.assertTrue(any(result['failure'] and result['failure']['kind'] == 'adapter_contract'
+                                    for result in report['results']))
+
+    def test_direct_dual_write_remains_valid(self):
+        for case in ('parcel', 'contacts'):
+            with self.subTest(case=case):
+                contract = load_case(case)
+                plan = load_plan(case, 'bridge')
+                plan['write'] = (f'UPDATE {contract["table"]} SET '
+                                 f'{contract["old_column"]} = :value, '
+                                 f'{contract["new_column"]} = :value WHERE id = :id')
+                report = rehearse(case, plan)
+                self.assertEqual((report['status'], report['passed']), ('pass', 124))
+
     def test_target_ledger_catches_stale_column_masked_by_adapter(self):
         plan = load_plan('parcel', 'bridge')
         plan['migration'] = re.sub(r'CREATE TRIGGER sync_old_update.*?END;', '', plan['migration'], flags=re.S)

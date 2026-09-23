@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.2.3"
+ENGINE_VERSION = "0.2.4"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 
 
@@ -104,6 +104,28 @@ def connection(contract, access_log=None):
     return db
 
 
+def writes_target_without_triggers(db, contract, statement, params):
+    """Check that a new update or insert carries its value without triggers."""
+    shadow = connection(contract)
+    try:
+        db.backup(shadow)
+        names = [row[0] for row in shadow.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'trigger'")]
+        for name in names:
+            shadow.execute('DROP TRIGGER "' + name.replace('"', '""') + '"')
+        cursor = shadow.execute(statement, params)
+        if cursor.rowcount != 1:
+            return False
+        row = shadow.execute(
+            f'SELECT "{contract["new_column"]}" FROM "{contract["table"]}" WHERE id = :id',
+            {'id': params['id']}).fetchone()
+        return row is not None and row[0] == params['value']
+    except sqlite3.Error:
+        return False
+    finally:
+        shadow.close()
+
+
 def schedules():
     # Enumerate both reader versions after every possible pair of old/new writes.
     values = [("old_survives", "Old worker after migration", "compatibility", ["migrate", "old.read"])]
@@ -159,9 +181,15 @@ def replay(contract, plan, actions, payload, statements=None):
                         if operation == "insert":
                             selected_id = max(oracle) + 1
                         event["params"] = {"id": selected_id, "value": value}
+                        direct_target_write = (version != "new" or
+                                               writes_target_without_triggers(
+                                                   db, contract, adapter[operation], event["params"]))
                         cursor = db.execute(adapter[operation], event["params"])
                         if cursor.rowcount != 1:
                             failure = {"kind": "write_not_acknowledged", "message": f"Expected 1 affected row, got {cursor.rowcount}."}
+                        elif not direct_target_write:
+                            failure = {"kind": "adapter_contract", "message":
+                                       f"New {operation} does not put its value in {contract['new_column']} without triggers."}
                         else:
                             oracle[selected_id] = value
                             event["detail"] = "Write acknowledged; independent ledger updated."
@@ -285,7 +313,8 @@ def repair_brief(report):
         "candidate": report["plan"], "shortest_observed_witness": witness,
         "constraints": ["Do not edit the engine, contract, test schedules, seed data, or oracle to make a plan pass.",
                         "Preserve every record and the latest acknowledged write across both versions.",
-                        "The new reader and updater must use the fixed target column, which must preserve ledger values.",
+                        "The new reader must not read the old column. New updates and inserts must carry their values into the fixed target without triggers; explicit dual-writes are valid.",
+                        "The target column must preserve every acknowledged ledger value.",
                         "Cover old/new inserts as well as updates; keep the old column during the rollback window.",
                         "Propose a candidate with name, migration, read, write, insert. Call rehearse_candidate.",
                         "Report the exact coverage and limitations. Do not claim production safety."],

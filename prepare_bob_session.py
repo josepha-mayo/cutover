@@ -93,9 +93,10 @@ workers write between migration statements. Explain one concrete failing
 replay. Propose your own migration and new-version SQL adapter, then call
 `rehearse_candidate` until you have an honestly reported result. Keep any
 failed attempts. The new reader must read the target column without accessing
-the old column; the new updater must update the target directly. The target
-column must preserve every acknowledged value. Touching it only in a no-op
-expression while returning old-column data is not a repair.
+the old column; new updates and inserts must put their values in the target
+on a trigger-free snapshot. Explicit dual-writes are valid. The
+target column must preserve every acknowledged value. Touching it only in a
+no-op expression while returning old-column data is not a repair.
 Save your final five-field plan to `work/bob-candidate.json`
 and your reasoning to `work/bob-repair.md`. Do not change the fixed contract,
 evaluator, seed data, schedules or oracle. State the untested boundaries.
