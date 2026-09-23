@@ -40,13 +40,13 @@ The current prototype covers two sample contracts, 19 completed-rollout schedule
 - Recorded MP4 demo and final PDF slide deck. A local seven-page PDF draft exists, with its Bob slide clearly marked pending. Replace that slide with real session evidence before submission. General submission guidance also mentions video links; verify the actual event form at submission.
 - Actual Bob task-summary screenshots and Bob-assisted files.
 - Cutover solo team created on lablab.ai; submission form remains unavailable until the active phase.
-- After qualified submission, complete the IBM/lablab feedback form to enter the separately advertised 20 × $100 random draw.
+- After the event, complete the IBM/lablab feedback form to enter the 20 × $100 participant reward draw, provided the project was qualified and submitted by the deadline.
 - Final descriptions/tags and submission confirmation.
 
 ## Official constraints checked on September 23
 
 The event runs September 25–27, 2026. The rendered schedule gives kickoff September 25 at 16:00 West Africa Time and submission close September 27 at 16:00. September 24 is the registration deadline. Current browser and approval email confirm enrollment/approval. Access details are advertised for kickoff; email searches found approval/registration messages but no access invitation.
 
-The event requires a developer-workflow prototype and evidence of IBM Bob's role. It judges technology application, presentation, business value and originality. General lablab rules specify a public repository, online demo and presentation assets. The event page encourages preparation; confirm any additional build-period restrictions at kickoff and disclose pre-event work. The September 23 lablab email says the extra cash drawing requires a qualified submission and completed feedback form; it also reiterates that Bob access arrives at kickoff.
+The event requires a developer-workflow prototype and evidence of IBM Bob's role. It judges technology application, presentation, business value and originality. The current event page lists a $12,000 total prize pool: $10,000 for the top three projects and 20 × $100 participant rewards. The reward requires a qualified project by the deadline and a feedback form after the event. It also says submissions must be original and MIT-compliant. General lablab rules specify a public repository, online demo and presentation assets. The event page encourages preparation; confirm any additional build-period restrictions at kickoff and disclose pre-event work. Access to Bob is advertised for kickoff.
 
-Sources: [event](https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon), [rules](https://lablab.ai/hackathon-rules), [submission guide](https://lablab.ai/ai-articles/hackathon-guidelines), [Bob MCP configuration](https://bob.ibm.com/docs/ide/configuration/mcp/mcp-in-bob).
+Sources: [event](https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon), [participation terms](https://lablab.ai/terms-of-use#16-participation-terms), [submission guide](https://lablab.ai/ai-articles/hackathon-guidelines), [Bob MCP configuration](https://bob.ibm.com/docs/ide/configuration/mcp/mcp-in-bob).

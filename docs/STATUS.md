@@ -38,7 +38,7 @@ The late bridge is the key counterexample: all completed-rollout checks pass, bu
 3. Confirm kickoff-specific build-period rules. Disclose this pre-event Codex preparation. A solo Cutover team has been created on the event page.
 4. Record the real video and replace the placeholder Bob slide in the PDF deck draft with actual session evidence. Recheck the 16:9 cover against the submission form's image requirements.
 5. Submit by September 27, 2026 at 16:00 West Africa Time according to the currently displayed event schedule. September 24 is registration close, not submission close.
-6. After qualified submission, complete the event feedback form to enter the separately advertised 20 × $100 random draw. The September 23 email says both actions are required; wait for the form and give real feedback.
+6. After the event, complete its feedback form to enter the 20 × $100 participant reward draw, provided the project was qualified and submitted by the deadline. The current event page says the form comes after the event; wait for it and give real feedback.
 
 ## Important limits
 
