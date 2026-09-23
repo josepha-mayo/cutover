@@ -13,6 +13,9 @@
 - 20 Python tests passed on Python 3.14.7 / Windows, including migration-window detection and HTTP behavior.
 - Browser verification in Brave using computer use: backfill failure; bridge pass; manually edited bridge blocked with 12 failures; stale results invalidated when editing; evidence filter; Bob dialog; JSON file import and rerun; exported JSON downloaded and inspected.
 - Actual desktop screenshots inspected. At a 390-pixel mobile viewport, imported-candidate execution passed, the layout stacked correctly, and DOM measurements found no horizontal overflow. Temporary viewport override restored afterward.
+- Public [GitHub repository](https://github.com/josepha-mayo/cutover) and passing [Windows/Ubuntu CI](https://github.com/josepha-mayo/cutover/actions/runs/35855879571) on Python 3.12.
+- [Render free demo](https://cutover-rehearsal.onrender.com/) deployed and checked in a fresh browser: late bridge 108/124 blocked, window-safe bridge 124/124 passed.
+- 16:9 cover image generated and visually inspected. A seven-page PDF deck draft exists locally; its Bob slide is prominently marked pending and must be replaced with real session evidence before submission.
 
 ## Measured outcomes for both sample contracts
 
@@ -30,19 +33,18 @@ The late bridge is the key counterexample: all completed-rollout checks pass, bu
 1. Obtain Bob access and capture a real Bob contribution. Approval is confirmed; access invitation was not found in email searches. Event materials advertise access at kickoff.
 2. Independently assess Bob's saved candidate with the fixed engine. Keep failed candidates and task-summary screenshots.
 3. Confirm kickoff-specific build-period rules. Disclose this pre-event Codex preparation. A solo Cutover team has been created on the event page.
-4. Publish the repository and deploy the Render free service; verify from a fresh browser without local state. Vercel was signed into but is paused for Hobby fair-use limits.
-5. Produce the final recorded video, PDF slides and cover image using actual Bob evidence.
-6. Submit by September 27, 2026 at 16:00 West Africa Time according to the currently displayed event schedule. September 24 is registration close, not submission close.
-7. After qualified submission, complete the event feedback form to enter the separately advertised 20 × $100 random draw. The September 23 email says both actions are required; wait for the form and give real feedback.
+4. Record the real video and replace the placeholder Bob slide in the PDF deck draft with actual session evidence. Recheck the 16:9 cover against the submission form's image requirements.
+5. Submit by September 27, 2026 at 16:00 West Africa Time according to the currently displayed event schedule. September 24 is registration close, not submission close.
+6. After qualified submission, complete the event feedback form to enter the separately advertised 20 × $100 random draw. The September 23 email says both actions are required; wait for the form and give real feedback.
 
 ## Important limits
 
 - The prototype uses SQLite SQL contracts, not full application processes or a real rolling deployment.
 - No concurrent transactions, lock contention, mid-statement interruption, final contract-phase execution, or PostgreSQL/MySQL coverage.
-- The HTTP server is a local demo server. It has request-size/origin checks and bounded candidate execution, but public multi-tenant resource isolation and deployment have not been verified.
+- The public HTTP service has request-size/origin checks and bounded candidate execution, but it is a sample-only hackathon demo without verified multi-tenant resource isolation. Render's free service can spin down after inactivity and take around a minute to wake.
 - A passing reference plan is not proof of Bob authorship. No actual Bob host session has been run.
 - Browser download-event instrumentation timed out, but the browser-created JSON file was found on disk and its content was verified. Browser screenshot capture in Codex's in-app browser was unavailable, so visual verification used Brave successfully.
-- Linux/macOS and hosted deployment have not been run. No submission has been made. The project submission page currently says it is available only during the active phase.
+- CI ran on Ubuntu; macOS was not tested. No submission has been made. The project submission page currently says it is available only during the active phase.
 
 ## Local continuation
 
@@ -54,4 +56,4 @@ App: `http://127.0.0.1:8765`.
 
 Optional MCP environment prepared in this task's `work/cutover-venv`. The generated `.bob/mcp.json` points to that environment; it is machine-specific and excluded from version control. Recreate with `configure_bob.py` after relocating the project.
 
-See `BOB_TASK.md` for the exact next session and `SUBMISSION.md` for draft narrative and recording sequence. The next most valuable work is a real Bob repair and a live, independently verified hosted demo.
+See `BOB_TASK.md` for the exact next session and `SUBMISSION.md` for draft narrative and recording sequence. The next most valuable work is a real Bob repair and an evidence-backed presentation.

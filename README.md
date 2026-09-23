@@ -2,9 +2,11 @@
 
 **A green build can still be a broken handover.**
 
+![Cutover shows the missed write between a backfill and synchronization](presentation/cover.png)
+
 Cutover rehearses schema-changing releases while old and new application versions share a database. It executes their SQL contracts against disposable SQLite databases and checks that every reader sees the latest acknowledged write, including after application rollback.
 
-The local prototype is functional. The IBM Bob MCP transport has been checked with a real SDK client; an actual Bob session, public deployment, and submission assets remain outstanding. This is pre-event preparation created on September 23, 2026 with Codex, not a claim of work performed by Bob during the event.
+The prototype is functional and [the public demo](https://cutover-rehearsal.onrender.com/) is live on Render's free tier. [The source](https://github.com/josepha-mayo/cutover) is public, and the IBM Bob MCP transport has been checked with a real SDK client. An actual Bob session and submission assets remain outstanding. This is pre-event preparation created on September 23, 2026 with Codex, not a claim of work performed by Bob during the event. The free demo may take around a minute to wake after inactivity.
 
 ## Run
 
@@ -14,7 +16,7 @@ Python 3.10+ with SQLite 3.25+ is sufficient for the app. No runtime packages, A
 python server.py
 ```
 
-Open http://127.0.0.1:8765. The server binds only to loopback by default. It is a local demo server, not a hardened public multi-tenant hosting service.
+Open http://127.0.0.1:8765. The server binds only to loopback by default. The same sample-only app is hosted at [cutover-rehearsal.onrender.com](https://cutover-rehearsal.onrender.com/); it is a hackathon demo, not a hardened public multi-tenant service.
 
 ## Try the three-minute story
 

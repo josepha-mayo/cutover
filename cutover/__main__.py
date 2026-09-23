@@ -6,7 +6,7 @@ from .engine import load_plan, rehearse
 
 parser = argparse.ArgumentParser(description="Rehearse old/new application contracts on disposable SQLite databases.")
 parser.add_argument("--case", choices=["parcel", "contacts"], default="parcel")
-parser.add_argument("--reference", choices=["rename", "backfill", "bridge"], default="rename")
+parser.add_argument("--reference", choices=["rename", "backfill", "late_bridge", "bridge"], default="rename")
 parser.add_argument("--plan", type=Path, help="Candidate plan JSON. Overrides --reference.")
 parser.add_argument("--output", type=Path)
 args = parser.parse_args()

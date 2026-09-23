@@ -32,12 +32,12 @@ The current prototype covers two sample contracts, 19 completed-rollout schedule
 5. Backend/release engineers; CI report and PR review are the initial adoption path. Demand and pricing remain unvalidated.
 6. Real Bob contribution and precise prototype limits.
 
-## Final artifacts still required
+## Final artifacts
 
-- Public repository with MIT license and readable setup instructions.
-- Public working application URL. The current server is local only; harden and deploy an appropriate demo service before claiming hosted availability.
-- 16:9 PNG/JPG cover.
-- Recorded MP4 demo and PDF slide deck. General submission guidance also mentions video links; verify the actual event form at submission.
+- Public repository with MIT license and setup instructions: [github.com/josepha-mayo/cutover](https://github.com/josepha-mayo/cutover).
+- Public working demo: [cutover-rehearsal.onrender.com](https://cutover-rehearsal.onrender.com/). Render free may take around a minute to wake after inactivity; verify it again before submission and recording.
+- [16:9 PNG cover](../presentation/cover.png) generated. Recheck image requirements on the actual form.
+- Recorded MP4 demo and final PDF slide deck. A local seven-page PDF draft exists, with its Bob slide clearly marked pending. Replace that slide with real session evidence before submission. General submission guidance also mentions video links; verify the actual event form at submission.
 - Actual Bob task-summary screenshots and Bob-assisted files.
 - Cutover solo team created on lablab.ai; submission form remains unavailable until the active phase.
 - After qualified submission, complete the IBM/lablab feedback form to enter the separately advertised 20 × $100 random draw.
