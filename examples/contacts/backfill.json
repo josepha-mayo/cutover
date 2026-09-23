@@ -1,0 +1,7 @@
+{
+  "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
+  "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
+  "insert": "INSERT INTO contacts (id, email, contact_email) VALUES (:id, :value, :value)",
+  "name": "Expand + one-time backfill",
+  "migration": "ALTER TABLE contacts ADD COLUMN contact_email TEXT;\nUPDATE contacts SET contact_email = email;"
+}

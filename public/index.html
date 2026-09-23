@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cutover — Rehearse the release</title><link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script></head>
+<body>
+<aside class="rail">
+  <a class="brand" href="/" aria-label="Cutover home"><span class="brand-mark">↗</span> cutover<span class="brand-dot">.</span></a>
+  <div class="rail-label">RELEASE WORKSPACE</div>
+  <nav><a class="nav-item active" href="#workspace"><span>01</span> Rehearsal <b>↗</b></a><a class="nav-item" href="#evidence"><span>02</span> Evidence</a><button class="nav-item" id="bob-nav"><span>03</span> Bob workflow</button></nav>
+  <div class="rail-note"><span class="little-cross">+</span><p>Two versions.<br>One database.<br><strong>No lost writes.</strong></p><div class="rail-rule"></div><small>ISOLATED REHEARSAL<br>SQLite · disposable databases</small></div>
+  <div class="rail-foot"><span class="green-dot"></span> CUTOVER LAB <span>v0.1</span></div>
+</aside>
+<main id="workspace">
+  <header class="topbar"><span>Workspace <i>/</i> <strong>Release rehearsal</strong></span><span class="environment">◉ &nbsp; Disposable SQLite</span></header>
+  <section class="intro"><div><div class="eyebrow"><span></span> TEST THE SPACE BETWEEN VERSIONS</div><h1>A green build.<br>A broken <em>handover?</em></h1><p>Rehearse the moments when old workers, new code,<br class="desktop"> and a changed database have to agree.</p></div><div class="intro-note"><span class="note-number">01 — 02</span><div class="mini-flow"><span>v1</span><b>⇄</b><span class="db-icon">DB</span><b>⇄</b><span>v2</span></div><p>The migration can succeed.<br>The latest write can still disappear.</p></div></section>
+  <div class="project-line"><label for="case">SAMPLE PROJECT</label><select id="case" aria-label="Sample project"></select><span id="case-description"></span><span class="tag">LIVE SQL</span></div>
+  <section class="workspace-grid">
+    <article class="panel candidate-panel"><div class="panel-heading"><div><span class="step-label">01 / CANDIDATE</span><h2>Choose a rollout.</h2></div><span class="round-icon">↗</span></div>
+      <div class="plan-options" role="group" aria-label="Reference rollout plans">
+        <button class="plan-option selected" data-plan="rename"><span class="option-index">A</span><span><strong>Direct rename</strong><small>One migration. Immediate switch.</small></span><span class="radio"></span></button>
+        <button class="plan-option" data-plan="backfill"><span class="option-index">B</span><span><strong>Expand & backfill</strong><small>Keep both columns. Copy once.</small></span><span class="radio"></span></button>
+        <button class="plan-option" data-plan="late_bridge"><span class="option-index">C</span><span><strong>Late bridge</strong><small>Backfill first. Add triggers later.</small></span><span class="radio"></span></button>
+        <button class="plan-option" data-plan="bridge"><span class="option-index">D</span><span><strong>Window-safe bridge</strong><small>Protect writes before backfill.</small></span><span class="radio"></span></button>
+      </div>
+      <div class="code-heading"><label for="migration">MIGRATION SQL</label><span id="source-label">Editable reference</span></div><textarea id="migration" spellcheck="false" aria-label="Migration SQL"></textarea>
+      <details class="adapters"><summary>Application queries <span>3 adapters</span></summary><label for="plan-name">Candidate name</label><input id="plan-name" maxlength="100"><label for="read">New version · read</label><textarea id="read" spellcheck="false"></textarea><label for="write">New version · update</label><textarea id="write" spellcheck="false"></textarea><label for="insert">New version · insert</label><textarea id="insert" spellcheck="false"></textarea><details><summary>Fixed old-version queries</summary><pre id="old-contract"></pre></details></details>
+      <button class="primary" id="run"><span>Run release rehearsal</span><span>↗</span></button>
+      <div class="candidate-foot"><span>Fresh database for every probe</span><button class="text-button" id="save-plan">Save plan ↓</button><label class="text-button" for="import-plan">Import ↑</label><input id="import-plan" type="file" accept=".json,application/json" hidden></div>
+    </article>
+    <article class="panel result-panel" aria-live="polite"><div class="panel-heading"><div><span class="step-label">02 / VERDICT</span><h2 id="verdict-title">Ready to rehearse.</h2></div><span class="status-badge" id="status-badge">READY</span></div>
+      <p id="verdict-description" class="verdict-description">Execute the rollout against both application versions.</p>
+      <div class="stats"><div><span>NEW-VERSION BASELINE</span><strong id="baseline-count">—<small> / —</small></strong><p id="baseline-note">Not run</p></div><div><span>ROLLOUT + WINDOW PROBES</span><strong id="probe-count">—<small> / —</small></strong><p id="probe-note">Not run</p></div></div>
+      <div class="coverage-heading"><span>WHERE THE RELEASE HOLDS</span><span id="runtime">—</span></div><div id="coverage" class="coverage"></div>
+      <div class="finding" id="finding"><span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div></div>
+      <div class="result-actions"><button id="brief" class="secondary" disabled>Prepare Bob repair task ↗</button><button id="export" class="text-button" disabled>Export evidence ↓</button></div>
+      <p class="scope-note">Bounded SQLite rehearsal. A pass covers these contracts and schedules; it is not a production deployment approval.</p>
+    </article>
+  </section>
+  <section class="panel evidence-panel" id="evidence"><div class="panel-heading"><div><span class="step-label">03 / EXECUTION EVIDENCE</span><h2>Follow the write.</h2></div><label class="filter-label"><input id="failures-only" type="checkbox"> Failures only</label></div>
+    <div class="evidence-grid"><div><div class="matrix-top"><span>SCHEDULE</span><span>4 INPUT VARIANTS</span></div><div id="matrix" class="matrix"><p class="empty">Run a rehearsal to inspect its evidence.</p></div><p class="matrix-caption">Each square is an executed probe. Select one to inspect its replay.</p></div><div class="replay"><div class="replay-label"><span id="trace-label">REPLAY</span><span id="trace-id"></span></div><h3 id="trace-title">Nothing inferred. Everything replayed.</h3><p id="trace-payload"></p><div id="trace"></div></div></div>
+  </section>
+  <details class="limits"><summary>Coverage, constraints & Bob integration status <span>↗</span></summary><div><p>This prototype executes 19 completed-rollout schedules × 4 string inputs, plus old updates and inserts at every boundary between SQLite migration statements. It uses two sample SQL contracts. It does not simulate concurrent transactions, database locks, network failures, mid-statement interruption, or a final column removal.</p><p>IBM Bob integration is prepared through a local MCP server. No Bob session has been verified yet. The reference plans are prewritten examples; selecting one does not invoke an AI model.</p><p id="hashes"></p></div></details>
+  <footer><span>cutover. <small>RELEASE WITH EVIDENCE.</small></span><span>Prepared for IBM Bob 2.0 · Independent prototype</span></footer>
+</main>
+<dialog id="bob-dialog"><form method="dialog"><button class="close-button" aria-label="Close Bob workflow">×</button></form><span class="step-label">IBM BOB / REPAIR WORKFLOW</span><h2>Give Bob a failing case.<br>Ask it to earn the pass.</h2><p>Open this project in IBM Bob and connect the included MCP server. Bob can inspect the old contract, propose a SQL candidate, and call the same evaluator used here.</p><ol><li>Run <code>python configure_bob.py --python PATH_TO_MCP_PYTHON</code>.</li><li>Open the project in Bob; choose <strong>Cutover release engineer</strong>.</li><li>Use the task below. Save the task summary and screenshots.</li><li>Import Bob’s candidate JSON here and rerun it.</li></ol><label for="bob-task">TASK FOR BOB</label><textarea id="bob-task" readonly></textarea><button class="primary" id="download-brief">Download repair task ↓</button><p class="scope-note">Bob access and a real recorded session are still required. This interface does not claim to invoke Bob.</p></dialog>
+<div id="toast" role="status" hidden></div>
+</body></html>

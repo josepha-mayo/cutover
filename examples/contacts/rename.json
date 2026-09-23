@@ -1,0 +1,7 @@
+{
+  "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
+  "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
+  "insert": "INSERT INTO contacts (id, contact_email) VALUES (:id, :value)",
+  "name": "Direct rename",
+  "migration": "ALTER TABLE contacts RENAME COLUMN email TO contact_email;"
+}

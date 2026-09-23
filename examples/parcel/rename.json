@@ -1,0 +1,7 @@
+{
+  "read": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
+  "write": "UPDATE orders SET shipping_address = :value WHERE id = :id",
+  "insert": "INSERT INTO orders (id, shipping_address) VALUES (:id, :value)",
+  "name": "Direct rename",
+  "migration": "ALTER TABLE orders RENAME COLUMN delivery_address TO shipping_address;"
+}

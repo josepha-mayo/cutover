@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+work/
+.bob/mcp.json
+evidence/v0.1-*.json

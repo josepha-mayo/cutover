@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.0",
+  "sqlite_version": "3.50.4",
+  "engine_sha256": "47a0a1a64acb364ae9a1cc753327f7e93cb815f4d355c119b52dba91e749d6be",
+  "case": "parcel",
+  "project": "Parcel / delivery service",
+  "created_at": "2026-09-23T11:38:30.300827+00:00",
+  "plan": {
+    "read": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
+    "write": "UPDATE orders SET shipping_address = :value WHERE id = :id",
+    "insert": "INSERT INTO orders (id, shipping_address) VALUES (:id, :value)",
+    "name": "Direct rename",
+    "migration": "ALTER TABLE orders RENAME COLUMN delivery_address TO shipping_address;"
+  },
+  "plan_hash": "43eac0e807e6ff4dd13d8df865b5660bbf45d0dd9273187cad2a608a32c2ae46",
+  "contract_hash": "c8d6f17e2b9963eac3b3fd2a5201b82c5ae922c7a43a72af26ec0096696cc7a6",
+  "suite_hash": "c09752a64a0791c4ccec666a9b27688895d88cddd5eeeb8b564c036c728ff160",
+  "status": "blocked",
+  "passed": 24,
+  "failed": 68,
+  "total": 92,
+  "baseline": {
+    "passed": 8,
+    "total": 8
+  },
+  "categories": [
+    {
+      "id": "compatibility",
+      "passed": 0,
+      "total": 4
+    },
+    {
+      "id": "mixed_versions",
+      "passed": 4,
+      "total": 12
+    },
+    {
+      "id": "new_records",
+      "passed": 4,
+      "total": 16
+    },
+    {
+      "id": "rollback",
+      "passed": 0,
+      "total": 4
+    },
+    {
+      "id": "interleaving",
+      "passed": 4,
+      "total": 32
+    },
+    {
+      "id": "in_flight",
+      "passed": 4,
+      "total": 8
+    },
+    {
+      "id": "migration_window",
+      "passed": 8,
+      "total": 16
+    }
+  ],
+  "witness": {
+    "passed": false,
+    "trace": [
+      {
+        "step": 1,
+        "action": "migrate",
+        "status": "pass",
+        "sql": "ALTER TABLE orders RENAME COLUMN delivery_address TO shipping_address;",
+        "detail": "Migration statement executed against a fresh in-memory database."
+      },
+      {
+        "step": 2,
+        "action": "old.read",
+        "status": "fail",
+        "sql": "SELECT id, delivery_address AS value FROM orders ORDER BY id",
+        "detail": "no such column: delivery_address"
+      }
+    ],
+    "failure": {
+      "kind": "sql_error",
+      "message": "no such column: delivery_address",
+      "action": "old.read",
+      "step": 2
+    },
+    "id": "old_survives-0",
+    "title": "Old worker after migration",
+    "category": "compatibility",
+    "payload": "18 Marina Road",
+    "actions": [
+      "migrate",
+      "old.read"
+    ]
+  },
+  "duration_ms": 152.8,
+  "scope": "SQLite sample contracts; bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+  "limitations": [
+    "No concurrent transactions, lock timing or network failures modeled.",
+    "No PostgreSQL, MySQL or ORM behavior claimed.",
+    "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",
+    "Contract/drop-column phase is deferred until old workers and rollback windows are retired.",
+    "Passing covers only the fixed adapters, seed data and reported schedules."
+  ],
+  "bob": {
+    "verified": false,
+    "note": "This execution is deterministic. Bob session evidence must be captured separately."
+  },
+  "example_passing_migration_window": {
+    "passed": true,
+    "trace": [
+      {
+        "step": 1,
+        "action": "old.write",
+        "status": "pass",
+        "sql": "UPDATE orders SET delivery_address = :value WHERE id = :id",
+        "params": {
+          "id": 101,
+          "value": "18 Marina Road"
+        },
+        "detail": "Write acknowledged; independent ledger updated."
+      },
+      {
+        "step": 2,
+        "action": "migration.statement.0",
+        "status": "pass",
+        "sql": "ALTER TABLE orders RENAME COLUMN delivery_address TO shipping_address;",
+        "detail": "Migration statement executed against a fresh in-memory database."
+      },
+      {
+        "step": 3,
+        "action": "new.read",
+        "status": "pass",
+        "sql": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
+        "expected": {
+          "101": "18 Marina Road",
+          "102": "9 Station Road"
+        },
+        "actual": {
+          "101": "18 Marina Road",
+          "102": "9 Station Road"
+        },
+        "detail": "All 2 records match the independent write ledger."
+      }
+    ],
+    "failure": null,
+    "id": "window_write_after_0-0",
+    "title": "Old write after migration step 0/1 → new read",
+    "category": "migration_window",
+    "payload": "18 Marina Road",
+    "actions": [
+      "old.write",
+      "migration.statement.0",
+      "new.read"
+    ],
+    "migration_boundary": 0
+  }
+}
