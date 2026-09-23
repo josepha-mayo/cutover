@@ -45,7 +45,7 @@ async function main() {
       await page.locator('#verdict-title').scrollIntoViewIfNeeded();
       await page.waitForTimeout(scene === 'direct' ? 7000 : 3500);
       await page.locator('#trace-title').scrollIntoViewIfNeeded();
-      await page.waitForTimeout(3500);
+      await page.waitForTimeout(scene === 'late' ? 12000 : 3500);
       if (scene === 'late') {
         await page.locator('.comparison').first().scrollIntoViewIfNeeded();
         await page.waitForTimeout(2200);

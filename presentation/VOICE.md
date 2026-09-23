@@ -38,7 +38,15 @@ node presentation\capture_web_demo.js https://cutover-rehearsal.onrender.com/ wo
 node presentation\capture_web_demo.js https://cutover-rehearsal.onrender.com/ work\cutover-late.webm late 52
 ```
 
-Inspect frames at the opening, verdict, and execution trace before using the clip. The hosted site can show a blank frame during initial load, so start each final trim after the page is visible. The same recording may appear in multiple clip entries with different `start_sec` values; crop or magnify the expected/observed comparison for legibility if needed. Public-site draft takes passed the `24 / 92` Direct rename and `108 / 124` Late bridge assertions. Inspected frames show the verdicts and the `18 Marina Road` expected versus `4 Broad Street` observed comparison. These are pre-event product footage drafts, not Bob evidence or a finished video. The browser capture is 1280×720; the final assembler scales it to 1920×1080.
+Inspect frames at the opening, verdict, and execution trace before using the clip. The hosted site can show a blank frame during initial load, so start each final trim after the page is visible. The same recording may appear in multiple clip entries with different `start_sec` values. Public-site draft takes passed the `24 / 92` Direct rename and `108 / 124` Late bridge assertions. The late take pauses on the acknowledged `old.write` before scrolling to the `18 Marina Road` expected versus `4 Broad Street` observed comparison. These are pre-event product footage drafts, not Bob evidence or a finished video. The browser capture is 1280×720; the final assembler scales it to 1920×1080.
+
+For the 22-second window-replay shot, use two 16:9 crops of the same real browser take: first the acknowledged write, then the mismatched read. Review the recorded cue times before rendering; the following values matched one September 23 public take and are not guaranteed for later takes:
+
+```powershell
+ffmpeg -hide_banner -loglevel error -i work\cutover-late.webm -filter_complex '[0:v]trim=start=14:duration=6,setpts=PTS-STARTPTS,crop=640:360:640:270,scale=1920:1080,fps=30,format=yuv420p[a];[0:v]trim=start=24:duration=16,setpts=PTS-STARTPTS,crop=640:360:640:210,scale=1920:1080,fps=30,format=yuv420p[b];[a][b]concat=n=2:v=1:a=0[v]' -map '[v]' -c:v libx264 -preset medium -crf 20 -an -n work\cutover-window-proof.mp4
+```
+
+The inspected draft segment is 22 seconds of 1920×1080 H.264 and makes both the write order and the expected/observed values readable. It is an edit of the live rehearsal recording, not a simulated result. Keep the uncropped source for audit and review the entire edited segment before the final assembly.
 
 Record Bob IDE evidence only after the real event-period task, using a recorder scoped to the Bob application window. Check a test frame for unrelated windows, accounts, and tokens before recording the session. Do not use a full-desktop source. Keep raw footage ignored under `work/`, then review and trim every used segment before assembly.
 
