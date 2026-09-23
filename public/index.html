@@ -16,14 +16,14 @@
   <section class="workspace-grid">
     <article class="panel candidate-panel"><div class="panel-heading"><div><span class="step-label">01 / CANDIDATE</span><h2>Choose a rollout.</h2></div><span class="round-icon">↗</span></div>
       <div class="plan-options" role="group" aria-label="Reference rollout plans">
-        <button class="plan-option selected" data-plan="rename"><span class="option-index">A</span><span><strong>Direct rename</strong><small>One migration. Immediate switch.</small></span><span class="radio"></span></button>
-        <button class="plan-option" data-plan="backfill"><span class="option-index">B</span><span><strong>Expand & backfill</strong><small>Keep both columns. Copy once.</small></span><span class="radio"></span></button>
-        <button class="plan-option" data-plan="late_bridge"><span class="option-index">C</span><span><strong>Late bridge</strong><small>Backfill first. Add triggers later.</small></span><span class="radio"></span></button>
-        <button class="plan-option" data-plan="bridge"><span class="option-index">D</span><span><strong>Window-safe bridge</strong><small>Protect writes before backfill.</small></span><span class="radio"></span></button>
+        <button class="plan-option selected" data-plan="rename" disabled><span class="option-index">A</span><span><strong>Direct rename</strong><small>One migration. Immediate switch.</small></span><span class="radio"></span></button>
+        <button class="plan-option" data-plan="backfill" disabled><span class="option-index">B</span><span><strong>Expand & backfill</strong><small>Keep both columns. Copy once.</small></span><span class="radio"></span></button>
+        <button class="plan-option" data-plan="late_bridge" disabled><span class="option-index">C</span><span><strong>Late bridge</strong><small>Backfill first. Add triggers later.</small></span><span class="radio"></span></button>
+        <button class="plan-option" data-plan="bridge" disabled><span class="option-index">D</span><span><strong>Window-safe bridge</strong><small>Protect writes before backfill.</small></span><span class="radio"></span></button>
       </div>
       <div class="code-heading"><label for="migration">MIGRATION SQL</label><span id="source-label">Editable reference</span></div><textarea id="migration" spellcheck="false" aria-label="Migration SQL"></textarea>
       <details class="adapters"><summary>Application queries <span>3 adapters</span></summary><label for="plan-name">Candidate name</label><input id="plan-name" maxlength="100"><label for="read">New version · read</label><textarea id="read" spellcheck="false"></textarea><label for="write">New version · update</label><textarea id="write" spellcheck="false"></textarea><label for="insert">New version · insert</label><textarea id="insert" spellcheck="false"></textarea><details><summary>Fixed old-version queries</summary><pre id="old-contract"></pre></details></details>
-      <button class="primary" id="run"><span>Run release rehearsal</span><span>↗</span></button>
+      <button class="primary" id="run" disabled><span>Run release rehearsal</span><span>↗</span></button>
       <div class="candidate-foot"><span>Fresh database for every probe</span><button class="text-button" id="save-plan">Save plan ↓</button><label class="text-button" for="import-plan">Import ↑</label><input id="import-plan" type="file" accept=".json,application/json" hidden></div>
     </article>
     <article class="panel result-panel" aria-live="polite"><div class="panel-heading"><div><span class="step-label">02 / VERDICT</span><h2 id="verdict-title">Ready to rehearse.</h2></div><span class="status-badge" id="status-badge">READY</span></div>
