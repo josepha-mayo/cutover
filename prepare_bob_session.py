@@ -47,8 +47,10 @@ def main():
         parser.error('The requested Python interpreter does not exist.')
     try:
         subprocess.run([str(interpreter), '-c', 'import mcp'], check=True,
-                       capture_output=True, timeout=10)
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                       capture_output=True, timeout=45)
+    except subprocess.TimeoutExpired:
+        parser.error('That interpreter did not finish an MCP import within 45 seconds.')
+    except subprocess.CalledProcessError:
         parser.error('That interpreter cannot import the installed MCP SDK.')
 
     if subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True).strip():
