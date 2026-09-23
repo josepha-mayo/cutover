@@ -4,4 +4,4 @@ import sys
 from .engine import rehearse
 
 request = json.load(sys.stdin)
-print(json.dumps(rehearse(request['case'], request['plan']), ensure_ascii=True))
+print(json.dumps(rehearse(request['case'], request['plan'], request.get('contract')), ensure_ascii=True))

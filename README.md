@@ -28,15 +28,26 @@ Open http://127.0.0.1:8765. The server binds only to loopback by default. The sa
 4. Select **Window-safe bridge**. Moving synchronization before backfill preserves data through all 124 tested probes. Append `DROP TRIGGER sync_new_update;` to its migration and rerun; 12 failures return. Results are computed from SQL, never chosen by candidate name.
 5. Export evidence, save/import a candidate, or prepare a repair task for IBM Bob.
 
-Two sample contracts are included: Parcel's address migration and Relay's contact-field migration. They demonstrate the same structural failure on different identifiers and seed data. They are sample SQL adapters, not claims of integration with production services or full ORM applications. Inputs deliberately stress string preservation and do not validate contact syntax.
+The browser includes two curated contracts: Parcel's address migration and Relay's contact-field migration. They demonstrate the same structural failure on different identifiers and seed data. They are sample SQL adapters, not claims of integration with production services or full ORM applications. Inputs deliberately stress string preservation and do not validate contact syntax.
+
+## Bring your own contract through the CLI
+
+A developer can supply a bounded single-table SQLite contract and candidate plan as JSON. The [warehouse contract](examples/warehouse/contract.json) is a complete example with its own bin-code payloads. Its [late synchronization plan](examples/warehouse/late_bridge.json) misses an acknowledged old-worker move; its [window-safe plan](examples/warehouse/bridge.json) passes the reported suite.
+
+```powershell
+python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/late_bridge.json --output work/warehouse-late.json --markdown work/warehouse-late.md
+python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/bridge.json --output work/warehouse-safe.json --markdown work/warehouse-safe.md
+```
+
+The first command exits 1 with a blocked 108/124 verdict; its shortest observed witness has `R-07` expected and `A-01` observed. The second exits 0 with 124/124 on this particular contract. The Markdown file is generated from the same executed report object as JSON, with a trace, bound inputs, expected/observed values, hashes and limitations. The imported contract must define `project`, `summary`, `table`, distinct `old_column`/`new_column`, initial `schema`, `seed_sql`, 1–16 `[id, value]` seed rows, an `old` read/write/insert adapter, and 2–8 domain-specific `payloads`. SQL identifiers and input sizes are bounded. The old adapter must pass a read/update/insert smoke check before migration evidence is produced. Run private schemas locally; the hosted browser currently exposes only the curated examples. This is a contract importer, not automatic extraction from a repository or a production-database connector.
 
 ## What executes
 
-Each probe gets a fresh in-memory database and a copy of fixed seed records. The old adapter is fixed; the candidate supplies migration SQL and new read/update/insert queries. Each acknowledged write updates an independent Python record ledger. A read must return exactly those records and values. The runner generates 19 completed-rollout schedules with four input strings each, then inserts old updates and inserts at every SQLite statement boundary of the migration. The total varies with the number of migration statements. Same-version baseline tests are reported separately.
+Each probe gets a fresh in-memory database and a copy of fixed seed records. The old adapter is fixed; the candidate supplies migration SQL and new read/update/insert queries. Each acknowledged write updates an independent Python record ledger. A read must return exactly those records and values. The runner generates 19 completed-rollout schedules for every supplied input string, then inserts old updates and inserts at every SQLite statement boundary of the migration. Bundled samples use four strings; an imported contract chooses 2–8 domain-specific payloads. The total varies with the payload and migration-statement counts. Same-version baseline tests are reported separately.
 
 The engine detects schema errors, stale values, missing records, ignored writes, and unintended writes to other records. Reports include inputs, executed statements, replay prefixes, coverage, SQLite/engine versions and hashes of the candidate, contract, suite and engine source. Hashes identify inputs; they are not signed attestations.
 
-A no-op migration cannot pass by keeping the "new" adapter on the old field: the new reader must access the fixed target column without reading the old column, new updates and inserts must carry their values into the target directly, and the target column itself must match the independent ledger after every successful replay. A trigger-free shadow of each new update or insert rejects a no-op target assignment or old-only insert that relies on an old-column synchronization trigger; explicit dual-writes remain valid. This also rejects a reader that touches the target in a no-op expression while returning old-column data. The target column and table come from the fixed sample contract, not from the candidate.
+A no-op migration cannot pass by keeping the "new" adapter on the old field: the new reader must access the fixed target column without reading the old column, new updates and inserts must carry their values into the target directly, and the target column itself must match the independent ledger after every successful replay. A trigger-free shadow of each new update or insert rejects a no-op target assignment or old-only insert that relies on an old-column synchronization trigger; explicit dual-writes remain valid. This also rejects a reader that touches the target in a no-op expression while returning old-column data. The target column and table come from the fixed contract supplied for that run, not from the candidate.
 
 The smallest failure shown is the **shortest observed failing prefix in this suite**, not a globally minimal counterexample. Rollback means returning traffic to the old application while retaining the expanded database, not executing a down migration.
 
@@ -76,15 +87,16 @@ python -m unittest discover -s tests -p "test_*.py" -v
 python -m cutover --reference rename --output work/rename.json
 python -m cutover --reference bridge --output work/bridge.json
 python -m cutover --plan work/bob-candidate.json --output work/bob-result.json
+python -m cutover --reference late_bridge --output work/late.json --markdown work/late-review.md
 ```
 
-The CLI returns exit code 1 for a failing rehearsal and 0 for a passing suite. The app and MCP server execute candidates in a subprocess with an 8-second overall deadline. SQLite also interrupts long queries and denies external database attachment, pragmas, extension loading and explicit transaction control. Only sample data enters the database; no production connection or shell-command tool is exposed.
+The CLI returns exit code 1 for a failing rehearsal and 0 for a passing suite. The hosted app and MCP server execute candidates in a subprocess with an 8-second overall deadline. SQLite interrupts long queries and denies external database attachment, pragmas, extension loading and explicit transaction control. Those restrictions are active before imported schema or seed SQL executes. All data enters a disposable in-memory database; no production connection or shell-command tool is exposed.
 
 The test suite includes negative controls: removing each synchronization trigger, dropping an unrelated record, a write affecting the wrong number of rows, SQL injection characters as data, fresh seed identifiers, runaway SQL, input tampering, HTTP checks and actual subprocess execution.
 
 ## Boundaries
 
-Passing is bounded evidence, not a deployment certificate. There is no concurrent transaction/lock simulation, network-failure model, mid-statement interruption, PostgreSQL/MySQL claim, performance estimate, arbitrary repository importer, or completed final column removal. Statement-boundary probes model a successful old write between autocommitted SQLite migration statements, then completion of the remaining statements. Keep the bridge while old workers and rollback remain possible; removing it requires a later contract phase and further verification.
+Passing is bounded evidence, not a deployment certificate. There is no concurrent transaction/lock simulation, network-failure model, mid-statement interruption, PostgreSQL/MySQL claim, performance estimate, automatic repository extractor, or completed final column removal. Statement-boundary probes model a successful old write between autocommitted SQLite migration statements, then completion of the remaining statements. Keep the bridge while old workers and rollback remain possible; removing it requires a later contract phase and further verification.
 
 Current HTTP/browser results are not persisted server-side; download the report before refreshing. Bob provenance is intentionally unverified until a real host session is captured. See [the pre-event baseline and evidence gate](docs/PROVENANCE.md), [STATUS.md](docs/STATUS.md), [the decision record](docs/DECISION.md), and [submission preparation](docs/SUBMISSION.md).
 

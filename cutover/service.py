@@ -1,14 +1,17 @@
 import json
 import subprocess
 import sys
-from .engine import ROOT, load_case, load_plan, repair_brief, validate_plan
+from .engine import ROOT, load_case, load_plan, repair_brief, validate_contract, validate_plan
 
 
-def run_rehearsal(case, plan):
-    load_case(case)
+def run_rehearsal(case, plan, contract=None):
+    if contract is None:
+        load_case(case)
+    else:
+        validate_contract(contract)
     validate_plan(plan)
     process = subprocess.run([sys.executable, '-m', 'cutover.worker'],
-                             input=json.dumps({'case': case, 'plan': plan}),
+                             input=json.dumps({'case': case, 'plan': plan, 'contract': contract}),
                              capture_output=True, text=True, encoding='utf-8', cwd=ROOT,
                              timeout=8, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     if process.returncode:
@@ -16,9 +19,9 @@ def run_rehearsal(case, plan):
     return json.loads(process.stdout)
 
 
-def verify_report_against_replay(case, plan, report):
+def verify_report_against_replay(case, plan, report, contract=None):
     """Reject a final artifact whose claimed evidence differs from a fresh worker run."""
-    fresh = run_rehearsal(case, plan)
+    fresh = run_rehearsal(case, plan, contract)
     deterministic_fields = (
         'schema_version', 'engine_version', 'engine_sha256', 'case', 'project',
         'plan', 'plan_hash', 'contract_hash', 'suite_hash', 'status', 'passed',

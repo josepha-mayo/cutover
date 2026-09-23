@@ -28,6 +28,7 @@ def sources():
         Path('cutover/__init__.py'),
         Path('cutover/__main__.py'),
         Path('cutover/engine.py'),
+        Path('cutover/reporting.py'),
         Path('cutover/service.py'),
         Path('cutover/worker.py'),
     ]

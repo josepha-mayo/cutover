@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
+import re
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -11,8 +12,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.2.4"
+ENGINE_VERSION = "0.3.0"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
+IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
 def digest(value):
@@ -23,6 +25,86 @@ def load_case(name="parcel"):
     if name not in ("parcel", "contacts"):
         raise ValueError("Unknown sample project")
     return json.loads((CASES / name / "contract.json").read_text(encoding="utf-8"))
+
+
+def validate_contract(contract):
+    """Validate the bounded, single-table contract shape before SQL execution."""
+    required = {"project", "summary", "old_column", "new_column", "table",
+                "schema", "seed_sql", "seed", "old", "payloads"}
+    if not isinstance(contract, dict) or set(contract) != required:
+        raise ValueError("Contract must contain exactly the documented ten fields")
+    for key in ("project", "summary", "schema", "seed_sql"):
+        value = contract[key]
+        if not isinstance(value, str) or not value.strip() or len(value) > 12000:
+            raise ValueError(f"Contract {key} must be a nonempty string of at most 12000 characters")
+    for key in ("table", "old_column", "new_column"):
+        value = contract[key]
+        if not isinstance(value, str) or len(value) > 63 or not IDENTIFIER.fullmatch(value):
+            raise ValueError(f"Contract {key} must be a safe SQL identifier of at most 63 characters")
+    if contract["old_column"].casefold() == contract["new_column"].casefold():
+        raise ValueError("Old and new columns must be distinct")
+    payloads = contract["payloads"]
+    if (not isinstance(payloads, list) or not 2 <= len(payloads) <= 8 or
+            any(not isinstance(value, str) or len(value) > 1000 for value in payloads) or
+            len(set(payloads)) != len(payloads)):
+        raise ValueError("Contract payloads must contain 2 to 8 distinct strings of at most 1000 characters")
+    old = contract["old"]
+    if not isinstance(old, dict) or set(old) != {"read", "write", "insert"}:
+        raise ValueError("Contract old adapter must contain read, write and insert SQL")
+    for key, value in old.items():
+        if not isinstance(value, str) or not value.strip() or len(value) > 12000:
+            raise ValueError(f"Contract old.{key} must be a nonempty string of at most 12000 characters")
+    seed = contract["seed"]
+    if not isinstance(seed, list) or not 1 <= len(seed) <= 16:
+        raise ValueError("Contract seed must contain 1 to 16 records")
+    ids = set()
+    for row in seed:
+        if (not isinstance(row, list) or len(row) != 2 or type(row[0]) is not int or
+                not 1 <= row[0] <= 1_000_000 or not isinstance(row[1], str) or
+                len(row[1]) > 1000 or row[0] in ids):
+            raise ValueError("Seed records need unique positive integer IDs and string values")
+        ids.add(row[0])
+    return contract
+
+
+def validate_old_contract_behavior(contract):
+    """Prove the supplied old adapter works before attributing failures to a migration."""
+    db = None
+    try:
+        db = connection(contract)
+        columns = {column[0].casefold() for column in db.execute(
+            f'SELECT * FROM "{contract["table"]}" LIMIT 0').description}
+        if ({'id', contract['old_column'].casefold()} - columns or
+                contract['new_column'].casefold() in columns):
+            raise ValueError("Initial table must have id and old column, but not the new column")
+        expected = {row[0]: row[1] for row in contract["seed"]}
+
+        def check_read():
+            rows = db.execute(contract["old"]["read"]).fetchmany(100)
+            try:
+                actual = {row["id"]: row["value"] for row in rows}
+            except (IndexError, KeyError) as exc:
+                raise ValueError("Old reader must return id and value columns") from exc
+            if len(rows) != len(expected) or actual != expected:
+                raise ValueError("Old reader does not match the supplied seed and writes")
+
+        check_read()
+        first_id = contract["seed"][0][0]
+        update_value = contract["payloads"][0]
+        if db.execute(contract["old"]["write"], {"id": first_id, "value": update_value}).rowcount != 1:
+            raise ValueError("Old updater must acknowledge exactly one row")
+        expected[first_id] = update_value
+        check_read()
+        new_id = max(expected) + 1
+        if db.execute(contract["old"]["insert"], {"id": new_id, "value": update_value}).rowcount != 1:
+            raise ValueError("Old inserter must acknowledge exactly one row")
+        expected[new_id] = update_value
+        check_read()
+    except sqlite3.Error as exc:
+        raise ValueError(f"Old contract SQL failed: {exc}") from exc
+    finally:
+        if db is not None:
+            db.close()
 
 
 def load_plan(case="parcel", name="rename"):
@@ -81,8 +163,6 @@ def connection(contract, access_log=None):
     db = sqlite3.connect(":memory:", isolation_level=None)
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA recursive_triggers=ON')
-    db.executescript(contract["schema"])
-    db.executemany(contract["seed_sql"], contract["seed"])
     # The exercise permits schema and data edits only in this ephemeral database.
     # ATTACH, pragmas, extensions and transactions from user SQL are denied.
     denied = {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH, sqlite3.SQLITE_PRAGMA,
@@ -101,6 +181,12 @@ def connection(contract, access_log=None):
     db.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED, 0)
     deadline = time.monotonic() + 0.15
     db.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+    try:
+        db.executescript(contract["schema"])
+        db.executemany(contract["seed_sql"], contract["seed"])
+    except Exception:
+        db.close()
+        raise
     return db
 
 
@@ -246,19 +332,24 @@ def replay(contract, plan, actions, payload, statements=None):
         db.close()
 
 
-def rehearse(case, plan):
+def rehearse(case, plan, contract=None):
+    start = time.perf_counter()
     validate_plan(plan)
     statements = migration_statements(plan["migration"])
-    contract = load_case(case)
-    start = time.perf_counter()
+    if contract is None:
+        contract = load_case(case)
+    else:
+        validate_contract(contract)
+        validate_old_contract_behavior(contract)
+    payloads = contract.get("payloads", PAYLOADS)
     # Same-version green checks intentionally do not count as rollout coverage.
     baseline = []
-    for payload in PAYLOADS:
+    for payload in payloads:
         for operation in ("write", "insert"):
             baseline.append(replay(contract, plan, ["migrate", f"new.{operation}", "new.read"], payload))
     results = []
     for sid, title, category, actions in schedules():
-        for pindex, payload in enumerate(PAYLOADS):
+        for pindex, payload in enumerate(payloads):
             result = replay(contract, plan, actions, payload)
             result.update(id=f"{sid}-{pindex}", title=title, category=category, payload=payload, actions=actions)
             results.append(result)
@@ -270,7 +361,7 @@ def rehearse(case, plan):
                        [f"old.{operation}"] +
                        [f"migration.statement.{i}" for i in range(boundary, len(statements))] +
                        ["new.read"])
-            for pindex, payload in enumerate(PAYLOADS):
+            for pindex, payload in enumerate(payloads):
                 result = replay(contract, plan, actions, payload, statements)
                 result.update(id=f"window_{operation}_after_{boundary}-{pindex}",
                               title=f"Old {operation} after migration step {boundary}/{len(statements)} → new read",
@@ -288,14 +379,15 @@ def rehearse(case, plan):
         "engine_sha256": hashlib.sha256(Path(__file__).read_bytes().replace(b"\r\n", b"\n")).hexdigest(), "case": case,
         "project": contract["project"], "created_at": datetime.now(timezone.utc).isoformat(),
         "plan": plan, "plan_hash": digest(plan), "contract_hash": digest(contract),
-        "suite_hash": digest({"schedules": schedules(), "payloads": PAYLOADS,
+        "suite_hash": digest({"schedules": schedules(), "payloads": payloads,
                               "migration_window_policy": "old update and insert after every SQLite statement boundary"}),
         "status": "pass" if not failures else "blocked",
         "passed": len(results) - len(failures), "failed": len(failures), "total": len(results),
         "baseline": {"passed": sum(r["passed"] for r in baseline), "total": len(baseline), "results": baseline},
         "categories": categories, "witness": witness, "results": results,
         "duration_ms": round((time.perf_counter() - start) * 1000, 1),
-        "scope": "SQLite sample contracts, target-column postconditions, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+        "scope": (("SQLite user-supplied contract" if case == "custom" else "SQLite sample contracts") +
+                  ", target-column postconditions, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
         "limitations": ["No concurrent transactions, lock timing or network failures modeled.",
                         "No PostgreSQL, MySQL or ORM behavior claimed.",
                         "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",

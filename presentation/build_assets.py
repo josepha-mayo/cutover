@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from cutover.service import verify_report_against_replay
+from cutover.service import run_rehearsal, verify_report_against_replay
 
 FONTS = Path('C:/Windows/Fonts')
 INK = '#18251f'
@@ -85,7 +85,7 @@ def cover():
     draw.text((112, 965), 'completed-rollout probes pass', font=font('segoeui.ttf', 24), fill=MUTED)
     draw.text((948, 878), '16', font=font('consolab.ttf', 64), fill=ORANGE)
     draw.text((948, 965), 'migration-window probes fail', font=font('segoeui.ttf', 24), fill=MUTED)
-    draw.text((1660, 968), 'v0.2 / SQLITE', font=font('consola.ttf', 17), fill=MUTED)
+    draw.text((1660, 968), 'v0.3 / SQLITE', font=font('consola.ttf', 17), fill=MUTED)
     image.save(HERE / 'cover.png', optimize=True)
 
 
@@ -124,7 +124,7 @@ def base(c, number, title, kicker, final=False):
     text(c, 45, 451, kicker, 11, LIME, 'ConsolasBold')
     text(c, 45, 402, title, 34, CREAM, 'SegoeBold')
     c.line(45, 38, 915, 38)
-    text(c, 45, 21, 'Bounded SQLite sample; no production safety claim.' if final else
+    text(c, 45, 21, 'Bounded SQLite rehearsal; no production safety claim.' if final else
          'Pre-event draft. Bob session evidence still required.', 9, MUTED, 'Consolas')
     text(c, 883, 21, f'{number:02d}', 10, MUTED, 'Consolas')
 
@@ -189,7 +189,7 @@ def bob_slide(c, evidence):
     report = evidence['report']
     passing = report['status'] == 'pass'
     title = 'Bob repaired the missed window.' if passing else 'Bob exposed a remaining gap.'
-    base(c, 6, title, '05  /  OBSERVED IBM BOB WORK', final=True)
+    base(c, 7, title, '06  /  OBSERVED IBM BOB WORK', final=True)
     box(c, 45, 94, 506, 286, PANEL, '#516452')
     with Image.open(evidence['bob_summary_image']) as screenshot:
         width, height = screenshot.size
@@ -313,12 +313,37 @@ def deck(evidence=None, output=None):
     text(c, 45, 59, 'Pre-event reference; curated samples, not Bob output or a customer benchmark.', 11, MUTED)
     c.showPage()
 
+    warehouse = ROOT / 'examples' / 'warehouse'
+    contract = json.loads((warehouse / 'contract.json').read_text(encoding='utf-8'))
+    late_plan = json.loads((warehouse / 'late_bridge.json').read_text(encoding='utf-8'))
+    safe_plan = json.loads((warehouse / 'bridge.json').read_text(encoding='utf-8'))
+    late = run_rehearsal('custom', late_plan, contract)
+    safe = run_rehearsal('custom', safe_plan, contract)
+    if (late['status'], late['passed'], late['total'], safe['status'], safe['passed'], safe['total']) != (
+            'blocked', 108, 124, 'pass', 124, 124):
+        raise ValueError('Warehouse slide evidence has changed; review its claims before building the deck')
+    witness = late['witness']['failure']
+    expected = witness['expected']['11']
+    observed = witness['actual']['11']
+    base(c, 6, 'Bring your own release contract.', '05  /  VALIDATED CLI IMPORT', final)
+    box(c, 45, 206, 870, 174)
+    text(c, 63, 348, 'WAREHOUSE / BIN RELOCATION', 13, LIME, 'ConsolasBold')
+    text(c, 63, 313, 'Old scanner workers update pick_bin while new workers read fulfillment_bin.', 17)
+    text(c, 63, 272, 'Late bridge', 17, CREAM, 'SegoeBold')
+    text(c, 244, 272, f"{late['passed']}/{late['total']}  BLOCKED", 19, ORANGE, 'ConsolasBold')
+    text(c, 63, 235, 'Window-safe ordering', 17, CREAM, 'SegoeBold')
+    text(c, 298, 235, f"{safe['passed']}/{safe['total']}  PASS", 19, LIME, 'ConsolasBold')
+    text(c, 45, 168, f'Old write acknowledged: {expected}   /   New read observed: {observed}', 18, ORANGE)
+    text(c, 45, 119, 'JSON + Markdown carry the same executed report, SQL, inputs and hashes.', 16)
+    text(c, 45, 78, 'Pre-event Codex CLI work; browser import and Bob repair remain event tasks.', 13, MUTED)
+    c.showPage()
+
     if final:
         bob_slide(c, evidence)
     else:
-        base(c, 6, 'Bob must earn the pass.', '05  /  LIVE HACKATHON WORKFLOW')
+        base(c, 7, 'Bob must earn the pass.', '06  /  LIVE HACKATHON WORKFLOW')
         box(c, 45, 335, 870, 45, '#563c33', ORANGE)
-        text(c, 62, 350, 'PENDING: access begins at kickoff. Replace this slide with real session evidence.', 14, CREAM, 'SegoeBold')
+        text(c, 62, 350, 'PENDING: event-period Bob task. Replace with observed session evidence.', 14, CREAM, 'SegoeBold')
         for y, n, title, detail in [
             (268, '01', 'Diagnose', 'Bob calls Cutover MCP tools on the late-bridge failure.'),
             (194, '02', 'Repair', 'Bob proposes its own candidate; failed attempts are retained.'),
@@ -329,7 +354,7 @@ def deck(evidence=None, output=None):
             text(c, 270, y + 5, detail, 14, MUTED)
         c.showPage()
 
-    base(c, 7, 'A review step for schema-changing PRs.', '06  /  USER AND ADOPTION', final)
+    base(c, 8, 'A review step for schema-changing PRs.', '07  /  USER AND ADOPTION', final)
     box(c, 45, 247, 412, 117)
     text(c, 64, 328, 'USER', 13, LIME, 'ConsolasBold')
     text(c, 64, 298, 'Backend / release engineer', 21, CREAM, 'SegoeBold')
@@ -340,8 +365,8 @@ def deck(evidence=None, output=None):
     text(c, 501, 269, 'Attach a witness and bounded evidence.', 12, MUTED)
     text(c, 45, 210, 'Revenue hypothesis: paid per-repository CI checks; demand unvalidated.', 17)
     text(c, 45, 180, 'Next: release-team interviews and a real repository adapter.', 16)
-    text(c, 45, 139, 'Limits: SQLite samples; no concurrency, locks, mid-statement failure,', 14, MUTED)
-    text(c, 45, 116, 'performance, final column removal or production safety claim.', 14, MUTED)
+    text(c, 45, 139, 'Limits: SQLite single-table contracts; no concurrency, locks,', 14, MUTED)
+    text(c, 45, 116, 'mid-statement failure, performance or production safety claim.', 14, MUTED)
     text(c, 45, 68, 'github.com/josepha-mayo/cutover', 15, LIME, 'Consolas')
     c.showPage()
     c.save()

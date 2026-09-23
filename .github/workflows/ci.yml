@@ -16,7 +16,11 @@ jobs:
       - run: python tests/check_mcp.py
       - run: python -m evidence.build_ablation
       - run: python -m cutover --reference bridge --output work/bridge.json
+      - run: python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/bridge.json --output work/warehouse-safe.json --markdown work/warehouse-safe.md
       - uses: actions/upload-artifact@v4
         with:
           name: bridge-evidence-${{ matrix.os }}
-          path: work/bridge.json
+          path: |
+            work/bridge.json
+            work/warehouse-safe.json
+            work/warehouse-safe.md
