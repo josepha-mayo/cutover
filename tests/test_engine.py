@@ -2,6 +2,7 @@ import copy
 import json
 import re
 import unittest
+from pathlib import Path
 from cutover.engine import load_case, load_plan, migration_statements, rehearse, replay, validate_plan
 from cutover.service import run_rehearsal
 
@@ -118,6 +119,20 @@ class RehearsalTests(unittest.TestCase):
                 self.assertTrue(any(result['failure'] and result['failure']['kind'] == 'adapter_contract'
                                     for result in report['results']))
 
+    def test_new_reader_cannot_hide_old_column_behind_noop_target_access(self):
+        for case in ('parcel', 'contacts'):
+            with self.subTest(case=case):
+                contract = load_case(case)
+                plan = load_plan(case, 'bridge')
+                plan['read'] = (f'SELECT id, {contract["old_column"]} || '
+                                f'substr({contract["new_column"]}, 1, 0) AS value '
+                                f'FROM {contract["table"]} ORDER BY id')
+                report = rehearse(case, plan)
+                self.assertEqual(report['status'], 'blocked')
+                self.assertEqual(report['baseline']['passed'], 0)
+                self.assertTrue(any(result['failure'] and result['failure']['kind'] == 'adapter_contract'
+                                    for result in report['results']))
+
     def test_target_ledger_catches_stale_column_masked_by_adapter(self):
         plan = load_plan('parcel', 'bridge')
         plan['migration'] = re.sub(r'CREATE TRIGGER sync_old_update.*?END;', '', plan['migration'], flags=re.S)
@@ -152,6 +167,11 @@ class RehearsalTests(unittest.TestCase):
         self.assertNotEqual(a['plan_hash'], b['plan_hash'])
         self.assertEqual(a['plan_hash'], c['plan_hash'])
         self.assertEqual(a['results'], c['results'])
+
+    def test_checked_in_evidence_identifies_this_evaluator(self):
+        report = rehearse('parcel', load_plan('parcel', 'bridge'))
+        summary = json.loads((Path(__file__).resolve().parents[1] / 'evidence' / 'summary.json').read_text(encoding='utf-8'))
+        self.assertEqual({row['engine_sha256'] for row in summary}, {report['engine_sha256']})
 
     def test_cannot_supply_replacement_oracle_or_schedules(self):
         plan = load_plan('parcel', 'bridge')

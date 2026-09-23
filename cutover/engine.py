@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.2.2"
+ENGINE_VERSION = "0.2.3"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 
 
@@ -167,15 +167,22 @@ def replay(contract, plan, actions, payload, statements=None):
                             event["detail"] = "Write acknowledged; independent ledger updated."
                     if not failure and version == "new" and operation in ("read", "write") and operation not in checked_new_adapter:
                         required = sqlite3.SQLITE_READ if operation == "read" else sqlite3.SQLITE_UPDATE
+                        adapter_access = access_log[access_start:]
                         direct_access = any(
                             code == required and table == contract["table"] and column == contract["new_column"]
                             and (operation == "read" or source is None)
-                            for code, table, column, source in access_log[access_start:])
-                        if direct_access:
+                            for code, table, column, source in adapter_access)
+                        old_column_read = operation == "read" and any(
+                            code == sqlite3.SQLITE_READ and table == contract["table"]
+                            and column == contract["old_column"]
+                            for code, table, column, source in adapter_access)
+                        if direct_access and not old_column_read:
                             checked_new_adapter.add(operation)
                         else:
                             failure = {"kind": "adapter_contract", "message":
-                                       f"New {operation} does not use the required {contract['new_column']} column."}
+                                       (f"New reader still accesses the old {contract['old_column']} column."
+                                        if old_column_read else
+                                        f"New {operation} does not use the required {contract['new_column']} column.")}
                 if failure:
                     event.update(status="fail", detail=failure["message"])
             except (sqlite3.Error, KeyError, IndexError) as exc:
@@ -250,7 +257,7 @@ def rehearse(case, plan):
         categories.append({"id": category, "passed": sum(r["passed"] for r in group), "total": len(group)})
     return {
         "schema_version": 1, "engine_version": ENGINE_VERSION, "sqlite_version": sqlite3.sqlite_version,
-        "engine_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "case": case,
+        "engine_sha256": hashlib.sha256(Path(__file__).read_bytes().replace(b"\r\n", b"\n")).hexdigest(), "case": case,
         "project": contract["project"], "created_at": datetime.now(timezone.utc).isoformat(),
         "plan": plan, "plan_hash": digest(plan), "contract_hash": digest(contract),
         "suite_hash": digest({"schedules": schedules(), "payloads": PAYLOADS,
