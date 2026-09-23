@@ -196,7 +196,8 @@ def deck():
         text(c, 60, y + 13, name, 17, CREAM, 'SegoeBold' if i in (2, 3) else 'Segoe')
         text(c, 540, y + 13, complete, 17, LIME, 'ConsolasBold')
         text(c, 748, y + 13, windows, 17, ORANGE if i == 2 else LIME, 'ConsolasBold')
-    text(c, 45, 71, 'Two sample contracts show the same structural failure; no customer benchmark is claimed.', 13, MUTED)
+    text(c, 45, 81, 'Curated unsafe patterns caught: baseline 0/3  |  rollout 2/3  |  windows 3/3', 13, ORANGE, 'Consolas')
+    text(c, 45, 59, 'Two structurally similar samples; no customer benchmark.', 11, MUTED)
     c.showPage()
 
     base(c, 6, 'Bob must earn the pass.', '05  /  LIVE HACKATHON WORKFLOW')

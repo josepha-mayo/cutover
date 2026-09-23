@@ -28,7 +28,7 @@ The current prototype covers two sample contracts, 19 completed-rollout schedule
 1. A green build can still be a broken handover.
 2. One-time backfills can miss writes from still-running workers.
 3. Fixed contracts → executed schedules → counterexample → Bob repair → replay.
-4. Measured sample outcomes: late bridge 76/76 completed-rollout but 32/48 migration-window probes; window-safe reference 124/124 total. Not a customer benchmark or Bob result.
+4. Controlled sample ablation: 0/3 unsafe patterns detected by the new-version baseline, 2/3 by completed-rollout checks, and 3/3 after migration windows. The late bridge passes 76/76 completed-rollout probes but fails 16/48 windows; the window-safe reference passes 124/124. Not a customer benchmark or Bob result.
 5. Backend/release engineers; CI report and PR review are the initial adoption path. Demand and pricing remain unvalidated.
 6. Real Bob contribution and precise prototype limits.
 

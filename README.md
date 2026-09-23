@@ -36,6 +36,10 @@ The engine detects schema errors, stale values, missing records, ignored writes,
 
 The smallest failure shown is the **shortest observed failing prefix in this suite**, not a globally minimal counterexample. Rollback means returning traffic to the old application while retaining the expanded database, not executing a down migration.
 
+## Measured impact in the sample challenge
+
+Among three deliberately unsafe rollout patterns, the new-version baseline detects 0/3, completed-rollout checks detect 2/3, and adding migration-statement windows detects 3/3. The late bridge alone passes 76/76 completed-rollout probes but fails 16 window probes. This is a [controlled fixture ablation](docs/IMPACT.md), repeated on two structurally similar examples; it is not a customer benchmark or measured time saving. Recompute it with `python -m evidence.build_ablation`.
+
 ## Bob integration
 
 The optional integration uses the official MCP Python SDK v1, pinned to the version tested here.
