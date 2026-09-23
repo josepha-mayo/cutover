@@ -25,6 +25,83 @@ def structured(value):
     return fenced(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True), 'json')
 
 
+def render_reproduction(report, contract):
+    """Export a standalone, in-memory Python replay of an observed data gap."""
+    witness = report.get('witness')
+    kind = witness.get('failure', {}).get('kind') if witness else None
+    if kind not in ('data_mismatch', 'target_mismatch'):
+        raise ValueError('A failing data mismatch witness is required for a runnable reproduction')
+    steps = [{key: event[key] for key in ('action', 'status', 'sql', 'params', 'expected', 'actual')
+              if key in event} for event in witness['trace']]
+    constants = ('#!/usr/bin/env python3\n'
+                 '# Cutover standalone witness. Runs candidate SQL in disposable in-memory SQLite.\n'
+                 'import json\nimport sqlite3\nimport time\n\n'
+                 f'PROBE = {witness["id"]!r}\n'
+                 f'FAILURE_KIND = {kind!r}\n'
+                 f'PLAN_HASH = {report["plan_hash"]!r}\n'
+                 f'SCHEMA = {contract["schema"]!r}\n'
+                 f'SEED_SQL = {contract["seed_sql"]!r}\n'
+                 f'SEED = {contract["seed"]!r}\n'
+                 f'STEPS = {steps!r}\n\n')
+    runner = '''def reproduce():
+    db = sqlite3.connect(':memory:', isolation_level=None)
+    db.row_factory = sqlite3.Row
+    db.execute('PRAGMA recursive_triggers=ON')
+    denied = {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH, sqlite3.SQLITE_PRAGMA,
+              sqlite3.SQLITE_TRANSACTION, sqlite3.SQLITE_SAVEPOINT}
+
+    def authorize(action, a, b, database, source):
+        if action in denied or (action == sqlite3.SQLITE_FUNCTION and
+                                str(b).lower() in ('load_extension', 'writefile', 'readfile')):
+            return sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK
+
+    db.set_authorizer(authorize)
+    db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, 1000000)
+    db.setlimit(sqlite3.SQLITE_LIMIT_SQL_LENGTH, 20000)
+    db.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED, 0)
+    deadline = time.monotonic() + 3
+    db.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+    try:
+        db.executescript(SCHEMA)
+        db.executemany(SEED_SQL, SEED)
+        for step in STEPS:
+            action = step['action']
+            if action == 'migrate' or action.startswith('migration.statement.'):
+                db.executescript(step['sql'])
+            elif action.endswith('.write') or action.endswith('.insert'):
+                count = db.execute(step['sql'], step['params']).rowcount
+                if count != 1:
+                    raise AssertionError(f'{action} affected {count} records instead of one')
+            else:
+                rows = db.execute(step['sql']).fetchmany(100)
+                actual = {str(row['id']): row['value'] for row in rows}
+                recorded = {str(key): value for key, value in step['actual'].items()}
+                expected = {str(key): value for key, value in step['expected'].items()}
+                if actual != recorded:
+                    raise AssertionError(f'{action} no longer matches the recorded observation')
+                if step['status'] == 'fail':
+                    if actual == expected:
+                        raise AssertionError('The recorded data gap is no longer reproducible')
+                    print(json.dumps({'status': 'REPRODUCED', 'probe': PROBE,
+                                      'failure_kind': FAILURE_KIND, 'plan_hash': PLAN_HASH,
+                                      'expected': expected, 'actual': actual,
+                                      'sqlite_version': sqlite3.sqlite_version},
+                                     ensure_ascii=False, sort_keys=True))
+                    return
+                if actual != expected:
+                    raise AssertionError(f'{action} diverged before the recorded failure')
+        raise AssertionError('The recorded failure step was not reached')
+    finally:
+        db.close()
+
+
+if __name__ == '__main__':
+    reproduce()
+'''
+    return constants + runner
+
+
 def replay_section(probe, title):
     lines = [f'## {title}', '',
              f'Probe: **`{probe["id"]}`** — {inline(probe["title"])}', '',

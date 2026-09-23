@@ -42,7 +42,7 @@ function invalidate() {
   $('trace-label').textContent='REPLAY';
   $('window-map').hidden=true; $('window-stages').replaceChildren();
   $('finding').innerHTML='<span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div>';
-  $('export').disabled=true; $('export-review').disabled=true; $('brief').disabled=true;
+  $('export').disabled=true; $('export-review').disabled=true; $('export-repro').disabled=true; $('brief').disabled=true;
 }
 function setPlan(plan, source) {
   Object.entries(fields).forEach(([key,id])=>$(id).value=plan[key]);
@@ -97,7 +97,7 @@ function renderReport() {
   $('coverage').innerHTML=report.categories.map(c=>`<div class="coverage-row"><span>${escape(labels[c.id])}</span><div class="meter" aria-label="${c.passed} of ${c.total} passed">${Array.from({length:c.total},(_,i)=>`<i class="${i<c.passed?'good':'bad'}"></i>`).join('')}</div><span>${c.passed}/${c.total}</span></div>`).join('');
   const witness=report.witness;
   $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p></div>`;
-  $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('brief').disabled=activeCase.id==='custom';
+  $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('brief').disabled=activeCase.id==='custom';
   $('hashes').textContent=`Plan SHA-256: ${report.plan_hash} · Contract SHA-256: ${report.contract_hash} · Suite SHA-256: ${report.suite_hash}`;
   renderWindowMap(); renderMatrix(); renderTrace(witness || report.results.find(r=>r.id==='new_to_old-0'));
 }
@@ -165,7 +165,8 @@ document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener
 Object.values(fields).forEach(id=>$(id).addEventListener('input',()=>{reference=null;$('source-label').textContent='Custom candidate · not yet executed';document.querySelectorAll('[data-plan]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});invalidate();updateModeControls();}));
 $('failures-only').addEventListener('change',renderMatrix);
 $('brief').addEventListener('click',showBob); $('bob-nav').addEventListener('click',showBob);
-$('export').addEventListener('click',()=>{if(!report)return;const {review_markdown,...evidence}=report;download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.json`,pretty(evidence));});
+$('export').addEventListener('click',()=>{if(!report)return;const {review_markdown,reproduction_python,...evidence}=report;download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.json`,pretty(evidence));});
+$('export-repro').addEventListener('click',()=>report?.reproduction_python&&download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}-replay.py`,report.reproduction_python,'text/x-python'));
 $('export-review').addEventListener('click',()=>report?.review_markdown&&download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.md`,report.review_markdown,'text/markdown'));
 $('save-plan').addEventListener('click',()=>download(`cutover-${activeCase.id}-candidate.json`,pretty(currentPlan())));
 $('save-contract').addEventListener('click',()=>importedContract&&download(`cutover-${fileSlug(importedContract.project)}-contract.json`,pretty(importedContract)));

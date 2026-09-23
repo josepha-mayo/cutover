@@ -1,4 +1,7 @@
 import json
+import subprocess
+import sys
+import tempfile
 import threading
 import unittest
 import urllib.error
@@ -85,12 +88,21 @@ class HttpTests(unittest.TestCase):
         self.assertIn('R-07', json.dumps(blocked['witness']))
         self.assertIn('A-01', json.dumps(blocked['witness']))
         self.assertIn(blocked['plan_hash'], blocked['review_markdown'])
+        self.assertIn('reproduction_python', blocked)
+        with tempfile.TemporaryDirectory() as temporary:
+            replay = Path(temporary) / 'replay.py'
+            replay.write_text(blocked['reproduction_python'], encoding='utf-8')
+            reproduced = subprocess.run([sys.executable, '-I', str(replay)], cwd=temporary,
+                                        capture_output=True, text=True, encoding='utf-8', timeout=15)
+            self.assertEqual(reproduced.returncode, 0, reproduced.stderr)
+            self.assertEqual(json.loads(reproduced.stdout)['probe'], blocked['witness']['id'])
 
         code, body = self.request('/api/rehearse', {'case': 'custom', 'contract': contract, 'plan': repaired})
         passing = json.loads(body)
         self.assertEqual(code, 200)
         self.assertEqual((passing['status'], passing['passed'], passing['total']), ('pass', 124, 124))
         self.assertIn(passing['plan_hash'], passing['review_markdown'])
+        self.assertNotIn('reproduction_python', passing)
 
         repaired['migration'] += '\nDROP TRIGGER sync_new_update;'
         code, body = self.request('/api/rehearse', {'case': 'custom', 'contract': contract, 'plan': repaired})

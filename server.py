@@ -7,8 +7,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
-from cutover.engine import repair_brief
-from cutover.reporting import render_markdown
+from cutover.engine import load_case, repair_brief
+from cutover.reporting import render_markdown, render_reproduction
 from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, validate_imported_contract
 
 STATIC = Path(__file__).parent / 'public'
@@ -74,6 +74,9 @@ class Handler(BaseHTTPRequestHandler):
                         self.send(200, repair_brief(report))
                     else:
                         report['review_markdown'] = render_markdown(report)
+                        if report['witness'] and report['witness']['failure']['kind'] in ('data_mismatch', 'target_mismatch'):
+                            report['reproduction_python'] = render_reproduction(
+                                report, contract if contract is not None else load_case(body['case']))
                         self.send(200, report)
             finally:
                 SLOTS.release()

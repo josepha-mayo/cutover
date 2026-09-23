@@ -2,8 +2,8 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from .engine import load_plan, rehearse
-from .reporting import render_markdown
+from .engine import load_case, load_plan, rehearse
+from .reporting import render_markdown, render_reproduction
 
 parser = argparse.ArgumentParser(description="Rehearse old/new application contracts on disposable SQLite databases.")
 parser.add_argument("--case", choices=["parcel", "contacts"], default="parcel")
@@ -12,15 +12,17 @@ parser.add_argument("--plan", type=Path, help="Candidate plan JSON. Overrides --
 parser.add_argument("--contract", type=Path, help="A bounded SQL contract JSON; requires --plan.")
 parser.add_argument("--output", type=Path)
 parser.add_argument("--markdown", type=Path, help="Review-ready Markdown from the same executed report.")
+parser.add_argument("--repro", type=Path, help="Standalone Python replay of a failing data mismatch witness.")
 args = parser.parse_args()
 if args.contract and not args.plan:
     parser.error("--contract requires a candidate --plan")
 if args.contract and args.case != 'parcel':
     parser.error("--case selects a bundled example and cannot be combined with --contract")
-if args.output and args.markdown and args.output.resolve() == args.markdown.resolve():
-    parser.error("--output and --markdown must be different files")
+destinations = [path.resolve() for path in (args.output, args.markdown, args.repro) if path]
+if len(destinations) != len(set(destinations)):
+    parser.error("Evidence outputs must be different files")
 inputs = {path.resolve() for path in (args.contract, args.plan) if path}
-for destination in (args.output, args.markdown):
+for destination in (args.output, args.markdown, args.repro):
     if destination and destination.resolve() in inputs:
         parser.error("Evidence outputs cannot overwrite a contract or candidate plan")
 
@@ -40,6 +42,10 @@ try:
     report = rehearse('custom' if contract is not None else args.case, plan, contract)
 except ValueError as exc:
     parser.error(str(exc))
+try:
+    reproduction = render_reproduction(report, contract if contract is not None else load_case(args.case)) if args.repro else None
+except ValueError as exc:
+    parser.error(str(exc))
 output = json.dumps(report, ensure_ascii=False, indent=2)
 if args.output:
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -47,6 +53,9 @@ if args.output:
 if args.markdown:
     args.markdown.parent.mkdir(parents=True, exist_ok=True)
     args.markdown.write_text(render_markdown(report), encoding="utf-8")
+if args.repro:
+    args.repro.parent.mkdir(parents=True, exist_ok=True)
+    args.repro.write_text(reproduction, encoding="utf-8")
 print(f"{report['status'].upper()}: {report['passed']}/{report['total']} rollout and window probes; "
       f"same-version baseline {report['baseline']['passed']}/{report['baseline']['total']}; "
       f"plan {report['plan_hash'][:12]}")

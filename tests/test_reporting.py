@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cutover.engine import load_plan, rehearse
-from cutover.reporting import fenced, render_markdown
+from cutover.engine import load_case, load_plan, rehearse
+from cutover.reporting import fenced, render_markdown, render_reproduction
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,9 +55,10 @@ class ReviewReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             report = Path(temporary) / 'report.json'
             review = Path(temporary) / 'review.md'
+            replay = Path(temporary) / 'replay.py'
             result = subprocess.run(
                 [sys.executable, '-m', 'cutover', '--reference', 'late_bridge',
-                 '--output', str(report), '--markdown', str(review)],
+                 '--output', str(report), '--markdown', str(review), '--repro', str(replay)],
                 cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=20)
             self.assertEqual(result.returncode, 1)
             data = json.loads(report.read_text(encoding='utf-8'))
@@ -66,6 +67,42 @@ class ReviewReportTests(unittest.TestCase):
             self.assertIn(data['plan_hash'], markdown)
             self.assertIn(data['witness']['id'], markdown)
             self.assertIn(data['witness']['failure']['expected']['101'], markdown)
+            reproduced = subprocess.run([sys.executable, '-I', str(replay)],
+                                        cwd=temporary, capture_output=True, text=True,
+                                        encoding='utf-8', timeout=15)
+            self.assertEqual(reproduced.returncode, 0, reproduced.stderr)
+            self.assertEqual(json.loads(reproduced.stdout)['probe'], data['witness']['id'])
+
+    def test_downloadable_witness_reexecutes_the_failure(self):
+        for case in ('parcel', 'contacts'):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                report = rehearse(case, load_plan(case, 'late_bridge'))
+                script = Path(temporary) / 'reproduce.py'
+                script.write_text(render_reproduction(report, load_case(case)), encoding='utf-8')
+                result = subprocess.run([sys.executable, '-I', str(script)],
+                                        cwd=temporary, capture_output=True, text=True,
+                                        encoding='utf-8', timeout=15)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                outcome = json.loads(result.stdout)
+                self.assertEqual(outcome['status'], 'REPRODUCED')
+                self.assertEqual(outcome['probe'], report['witness']['id'])
+                self.assertEqual(outcome['failure_kind'], report['witness']['failure']['kind'])
+
+    def test_passing_report_has_no_failure_reproduction(self):
+        report = rehearse('parcel', load_plan('parcel', 'bridge'))
+        with self.assertRaisesRegex(ValueError, 'data mismatch'):
+            render_reproduction(report, load_case('parcel'))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence = Path(temporary) / 'evidence.json'
+            replay = Path(temporary) / 'replay.py'
+            result = subprocess.run([sys.executable, '-m', 'cutover', '--reference', 'bridge',
+                                     '--output', str(evidence), '--repro', str(replay)],
+                                    cwd=ROOT, capture_output=True, text=True,
+                                    encoding='utf-8', timeout=20)
+            self.assertEqual(result.returncode, 2)
+            self.assertFalse(evidence.exists())
+            self.assertFalse(replay.exists())
 
 
 if __name__ == '__main__':
