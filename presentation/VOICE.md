@@ -22,7 +22,14 @@ After Bob's real task, copy `narration.template.json` to `work/final-narration.j
 
 ```powershell
 work\voice-venv\Scripts\python.exe presentation\render_voice.py --script work\final-narration.json --output work\final-narration.wav
-ffmpeg -i work\final-narration.wav -af "loudnorm=I=-16:TP=-1.5:LRA=11" -c:a aac -b:a 160k work\final-narration.m4a
 ```
 
-The renderer rejects unfinished narration, overlapping speech, or speech running past the 180-second timeline. Review the generated `.timings.json`; leave a few seconds of visual silence around each proof point. Listen to the full final mix for pronunciation, unnatural emphasis, clipping, and pace before embedding it in the MP4. A local opening-line test rendered and passed format/duration checks; its voice quality still needs a human listen. The final MP4 and Bob-specific narration do not exist yet.
+Then copy `video-clips.template.json` to `work/final-video-clips.json`, replace every pending path with an actual screen recording, and adjust trims to show the observed results. The clip durations must total 180 seconds. Assemble the video with the WAV; the assembler normalizes the audio once:
+
+```powershell
+python presentation\assemble_video.py --manifest work\final-video-clips.json --narration work\final-narration.wav --output work\cutover-demo.mp4
+```
+
+The voice renderer rejects unfinished narration, overlapping speech, or speech running past the 180-second timeline. The video assembler rejects pending clips, missing or too-short recordings, timing mismatches, and existing output paths. It makes a 1920×1080 H.264/AAC MP4 at 30 frames per second. A four-second test using two synthetic color clips and synthetic audio confirmed the media pipeline and cut order; those test files are ignored and cannot count as demo footage.
+
+Review the generated `.timings.json`; leave a few seconds of visual silence around each proof point. Watch and listen to the full final MP4 for legibility, pronunciation, unnatural emphasis, clipping, secrets, and pace before publishing. A local opening-line test rendered and passed format/duration checks; its voice quality still needs a human listen. The final MP4 and Bob-specific narration do not exist yet.

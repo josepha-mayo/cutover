@@ -1,0 +1,13 @@
+{
+  "duration_sec": 180,
+  "clips": [
+    {"path": "PENDING/direct-rename.mp4", "start_sec": 0, "duration_sec": 18},
+    {"path": "PENDING/late-bridge.mp4", "start_sec": 0, "duration_sec": 24},
+    {"path": "PENDING/window-replay.mp4", "start_sec": 0, "duration_sec": 22},
+    {"path": "PENDING/real-bob-task.mp4", "start_sec": 0, "duration_sec": 41},
+    {"path": "PENDING/bob-candidate-replay.mp4", "start_sec": 0, "duration_sec": 27},
+    {"path": "PENDING/review-artifact.mp4", "start_sec": 0, "duration_sec": 21},
+    {"path": "PENDING/negative-control.mp4", "start_sec": 0, "duration_sec": 17},
+    {"path": "PENDING/close.mp4", "start_sec": 0, "duration_sec": 10}
+  ]
+}
