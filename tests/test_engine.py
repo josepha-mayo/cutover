@@ -99,6 +99,35 @@ class RehearsalTests(unittest.TestCase):
         report = rehearse('parcel', plan)
         self.assertTrue(any(r['failure'] and r['failure']['kind'] == 'write_not_acknowledged' for r in report['results']))
 
+    def test_old_column_only_plan_cannot_pass_as_a_migration(self):
+        old = load_case('parcel')['old']
+        plan = {'name': 'No migration', 'migration': 'SELECT 1;', **old}
+        report = rehearse('parcel', plan)
+        self.assertEqual(report['status'], 'blocked')
+        self.assertEqual(report['baseline']['passed'], 0)
+        self.assertTrue(all(not result['passed'] for result in report['results']))
+
+    def test_new_adapter_must_really_use_target_column(self):
+        old = load_case('parcel')['old']
+        for operation in ('read', 'write'):
+            with self.subTest(operation=operation):
+                plan = load_plan('parcel', 'bridge')
+                plan[operation] = old[operation]
+                report = rehearse('parcel', plan)
+                self.assertEqual(report['status'], 'blocked')
+                self.assertTrue(any(result['failure'] and result['failure']['kind'] == 'adapter_contract'
+                                    for result in report['results']))
+
+    def test_target_ledger_catches_stale_column_masked_by_adapter(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['migration'] = re.sub(r'CREATE TRIGGER sync_old_update.*?END;', '', plan['migration'], flags=re.S)
+        plan['read'] = ('SELECT id, delivery_address || substr(shipping_address, 1, 0) AS value '
+                        'FROM orders ORDER BY id')
+        report = rehearse('parcel', plan)
+        self.assertEqual(report['status'], 'blocked')
+        self.assertTrue(any(result['failure'] and result['failure']['kind'] == 'target_mismatch'
+                            for result in report['results']))
+
     def test_file_database_and_extension_access_denied(self):
         for sql in ("ATTACH DATABASE ':memory:' AS other;", 'PRAGMA writable_schema=ON;', "SELECT load_extension('anything');"):
             plan = load_plan('parcel', 'bridge')

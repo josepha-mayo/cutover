@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "engine_version": "0.2.1",
+  "engine_version": "0.2.2",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "6b9bd6ace1bde68bf8d35b5d5545b056911dfff83efc6989beced8eb0f9f61a3",
+  "engine_sha256": "fc2e487d555e723b5500e06346eaad3ceee220954ee9ebd7ba7674aaf887f774",
   "case": "contacts",
   "project": "Relay / contact service",
-  "created_at": "2026-09-23T12:25:56.582990+00:00",
+  "created_at": "2026-09-23T12:39:52.273326+00:00",
   "plan": {
     "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
     "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
@@ -62,8 +62,8 @@
     }
   ],
   "witness": null,
-  "duration_ms": 112.4,
-  "scope": "SQLite sample contracts; bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+  "duration_ms": 114.5,
+  "scope": "SQLite sample contracts, target-column postconditions, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",
     "No PostgreSQL, MySQL or ORM behavior claimed.",
@@ -138,6 +138,21 @@
           "102": "lin@example.test"
         },
         "detail": "All 2 records match the independent write ledger."
+      },
+      {
+        "step": 8,
+        "action": "target.check",
+        "status": "pass",
+        "sql": "SELECT id, \"contact_email\" AS value FROM \"contacts\" ORDER BY id",
+        "expected": {
+          "101": "18 Marina Road",
+          "102": "lin@example.test"
+        },
+        "actual": {
+          "101": "18 Marina Road",
+          "102": "lin@example.test"
+        },
+        "detail": "Required target column matches the independent write ledger."
       }
     ],
     "failure": null,

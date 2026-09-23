@@ -10,7 +10,7 @@
 - Candidate import/save, JSON evidence export, and a Bob task-preparation dialog.
 - Project-local Bob custom mode and MCP configuration generator.
 - Official MCP SDK v1.30.0 connection: initialization, discovery, all three tools, actual candidate execution and invalid-input errors checked with an SDK client.
-- 21 Python tests passed on Python 3.14.7 / Windows, including migration-window detection, HTTP behavior, and excluding comment-only SQL from migration-step coverage.
+- 25 Python tests passed on Python 3.14.7 / Windows, including migration-window detection, HTTP behavior, excluding comment-only SQL from coverage, and rejecting old-column-only plans that previously produced a false pass.
 - Browser verification in Brave using computer use: backfill failure; bridge pass; manually edited bridge blocked with 12 failures; stale results invalidated when editing; evidence filter; Bob dialog; JSON file import and rerun; exported JSON downloaded and inspected.
 - Actual desktop screenshots inspected. At a 390-pixel mobile viewport, imported-candidate execution passed, the layout stacked correctly, and DOM measurements found no horizontal overflow. Temporary viewport override restored afterward.
 - Public [GitHub repository](https://github.com/josepha-mayo/cutover) and passing [Windows/Ubuntu CI](https://github.com/josepha-mayo/cutover/actions/runs/35860477775) on Python 3.12.
@@ -25,7 +25,7 @@
 | Candidate | Same-version baseline | Completed rollout | Migration windows | Total |
 | --- | --- | --- | --- | --- |
 | Direct rename | 8/8 | 16/76 | 8/16 | 24/92 |
-| Expand + one-time backfill | 8/8 | 48/76 | 16/24 | 64/100 |
+| Expand + one-time backfill | 8/8 | 32/76 | 16/24 | 48/100 |
 | Late bridge | 8/8 | 76/76 | 32/48 | 108/124 |
 | Window-safe bridge | 8/8 | 76/76 | 48/48 | 124/124 |
 

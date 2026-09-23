@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "engine_version": "0.2.1",
+  "engine_version": "0.2.2",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "6b9bd6ace1bde68bf8d35b5d5545b056911dfff83efc6989beced8eb0f9f61a3",
+  "engine_sha256": "fc2e487d555e723b5500e06346eaad3ceee220954ee9ebd7ba7674aaf887f774",
   "case": "parcel",
   "project": "Parcel / delivery service",
-  "created_at": "2026-09-23T12:25:55.891333+00:00",
+  "created_at": "2026-09-23T12:39:51.590304+00:00",
   "plan": {
     "read": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
     "write": "UPDATE orders SET shipping_address = :value WHERE id = :id",
@@ -17,8 +17,8 @@
   "contract_hash": "c8d6f17e2b9963eac3b3fd2a5201b82c5ae922c7a43a72af26ec0096696cc7a6",
   "suite_hash": "c09752a64a0791c4ccec666a9b27688895d88cddd5eeeb8b564c036c728ff160",
   "status": "blocked",
-  "passed": 64,
-  "failed": 36,
+  "passed": 48,
+  "failed": 52,
   "total": 100,
   "baseline": {
     "passed": 8,
@@ -32,12 +32,12 @@
     },
     {
       "id": "mixed_versions",
-      "passed": 8,
+      "passed": 4,
       "total": 12
     },
     {
       "id": "new_records",
-      "passed": 12,
+      "passed": 8,
       "total": 16
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "id": "interleaving",
-      "passed": 16,
+      "passed": 8,
       "total": 32
     },
     {
@@ -122,8 +122,8 @@
       "new.read"
     ]
   },
-  "duration_ms": 61.3,
-  "scope": "SQLite sample contracts; bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+  "duration_ms": 56.1,
+  "scope": "SQLite sample contracts, target-column postconditions, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",
     "No PostgreSQL, MySQL or ORM behavior claimed.",
@@ -177,6 +177,21 @@
           "102": "9 Station Road"
         },
         "detail": "All 2 records match the independent write ledger."
+      },
+      {
+        "step": 5,
+        "action": "target.check",
+        "status": "pass",
+        "sql": "SELECT id, \"shipping_address\" AS value FROM \"orders\" ORDER BY id",
+        "expected": {
+          "101": "18 Marina Road",
+          "102": "9 Station Road"
+        },
+        "actual": {
+          "101": "18 Marina Road",
+          "102": "9 Station Road"
+        },
+        "detail": "Required target column matches the independent write ledger."
       }
     ],
     "failure": null,

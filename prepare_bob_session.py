@@ -83,7 +83,10 @@ Parcel. The late bridge passes completed-rollout checks but fails when old
 workers write between migration statements. Explain one concrete failing
 replay. Propose your own migration and new-version SQL adapter, then call
 `rehearse_candidate` until you have an honestly reported result. Keep any
-failed attempts. Save your final five-field plan to `work/bob-candidate.json`
+failed attempts. The new reader and updater must use the target column, and
+that column must preserve every acknowledged value. Keeping both adapters on
+the old column is not a repair.
+Save your final five-field plan to `work/bob-candidate.json`
 and your reasoning to `work/bob-repair.md`. Do not change the fixed contract,
 evaluator, seed data, schedules or oracle. State the untested boundaries.
 

@@ -15,6 +15,7 @@ customModes:
       Propose a candidate with name, migration, read, write and insert SQL fields.
       Call rehearse_candidate. Use actual returned evidence and counts.
       Preserve the old reader and writer contract, including inserted records.
+      Require the new reader and updater to use the target column; verify its values against the ledger.
       Never modify the oracle, fixed contract, seeds, schedules, or test assertions to make a candidate pass.
       Write your candidate to work/bob-candidate.json and notes to work/bob-repair.md.
       Do not copy a reference repair and present it as independently discovered.

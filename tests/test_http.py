@@ -5,7 +5,7 @@ import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 from server import Handler
-from cutover.engine import load_plan
+from cutover.engine import load_case, load_plan
 
 
 class HttpTests(unittest.TestCase):
@@ -40,6 +40,14 @@ class HttpTests(unittest.TestCase):
         code, data = self.request('/api/rehearse', {'case': 'parcel', 'plan': plan})
         self.assertEqual(code, 200)
         self.assertEqual(json.loads(data)['status'], 'blocked')
+
+    def test_noop_old_adapter_is_blocked_through_public_api(self):
+        plan = {'name': 'No migration', 'migration': 'SELECT 1;', **load_case('parcel')['old']}
+        code, data = self.request('/api/rehearse', {'case': 'parcel', 'plan': plan})
+        report = json.loads(data)
+        self.assertEqual(code, 200)
+        self.assertEqual(report['status'], 'blocked')
+        self.assertEqual(report['baseline']['passed'], 0)
 
     def test_hostile_origin_rejected(self):
         code, _ = self.request('/api/rehearse', {'case': 'parcel', 'plan': load_plan()}, Origin='https://unrelated.example')

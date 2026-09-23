@@ -192,7 +192,7 @@ def deck():
     text(c, 733, 350, 'Windows', 14, MUTED, 'ConsolasBold')
     rows = [
         ('Direct rename', '16/76', '8/16'),
-        ('One-time backfill', '48/76', '16/24'),
+        ('One-time backfill', '32/76', '16/24'),
         ('Late bridge', '76/76', '32/48'),
         ('Window-safe bridge', '76/76', '48/48'),
     ]

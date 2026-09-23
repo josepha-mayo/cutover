@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.2.1"
+ENGINE_VERSION = "0.2.2"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 
 
@@ -77,7 +77,7 @@ def migration_statements(script):
     return statements
 
 
-def connection(contract):
+def connection(contract, access_log=None):
     db = sqlite3.connect(":memory:", isolation_level=None)
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA recursive_triggers=ON')
@@ -89,6 +89,8 @@ def connection(contract):
               sqlite3.SQLITE_TRANSACTION, sqlite3.SQLITE_SAVEPOINT}
 
     def authorize(action, a, b, database, source):
+        if access_log is not None:
+            access_log.append((action, a, b, source))
         if action in denied or (action == sqlite3.SQLITE_FUNCTION and str(b).lower() in ("load_extension", "writefile", "readfile")):
             return sqlite3.SQLITE_DENY
         return sqlite3.SQLITE_OK
@@ -121,11 +123,13 @@ def schedules():
 
 
 def replay(contract, plan, actions, payload, statements=None):
-    db = connection(contract)
+    access_log = []
+    db = connection(contract, access_log)
     oracle = {row[0]: row[1] for row in contract["seed"]}
     selected_id = contract["seed"][0][0]
     trace, failure = [], None
     writes = 0
+    checked_new_adapter = set()
     try:
         for index, action in enumerate(actions):
             event = {"step": index + 1, "action": action, "status": "pass"}
@@ -139,6 +143,7 @@ def replay(contract, plan, actions, payload, statements=None):
                     version, operation = action.split(".")
                     adapter = contract["old"] if version == "old" else plan
                     event["sql"] = adapter[operation]
+                    access_start = len(access_log)
                     if operation == "read":
                         rows = db.execute(adapter["read"]).fetchmany(100)
                         actual = {row["id"]: row["value"] for row in rows}
@@ -160,6 +165,17 @@ def replay(contract, plan, actions, payload, statements=None):
                         else:
                             oracle[selected_id] = value
                             event["detail"] = "Write acknowledged; independent ledger updated."
+                    if not failure and version == "new" and operation in ("read", "write") and operation not in checked_new_adapter:
+                        required = sqlite3.SQLITE_READ if operation == "read" else sqlite3.SQLITE_UPDATE
+                        direct_access = any(
+                            code == required and table == contract["table"] and column == contract["new_column"]
+                            and (operation == "read" or source is None)
+                            for code, table, column, source in access_log[access_start:])
+                        if direct_access:
+                            checked_new_adapter.add(operation)
+                        else:
+                            failure = {"kind": "adapter_contract", "message":
+                                       f"New {operation} does not use the required {contract['new_column']} column."}
                 if failure:
                     event.update(status="fail", detail=failure["message"])
             except (sqlite3.Error, KeyError, IndexError) as exc:
@@ -169,6 +185,27 @@ def replay(contract, plan, actions, payload, statements=None):
             if failure:
                 failure.update(action=action, step=index + 1)
                 break
+        if not failure:
+            target_sql = (f'SELECT id, "{contract["new_column"]}" AS value '
+                          f'FROM "{contract["table"]}" ORDER BY id')
+            event = {"step": len(trace) + 1, "action": "target.check", "status": "pass", "sql": target_sql}
+            try:
+                rows = db.execute(target_sql).fetchmany(100)
+                actual = {row["id"]: row["value"] for row in rows}
+                event.update(expected=dict(oracle), actual=actual)
+                if len(rows) != len(oracle) or actual != oracle:
+                    failure = {"kind": "target_mismatch", "message":
+                               f"Required {contract['new_column']} column does not preserve acknowledged data.",
+                               "expected": dict(oracle), "actual": actual}
+                else:
+                    event["detail"] = "Required target column matches the independent write ledger."
+            except sqlite3.Error as exc:
+                failure = {"kind": "target_contract", "message":
+                           f"Required {contract['new_column']} column is unavailable: {exc}"}
+            if failure:
+                event.update(status="fail", detail=failure["message"])
+                failure.update(action="target.check", step=event["step"])
+            trace.append(event)
         return {"passed": failure is None, "trace": trace, "failure": failure}
     finally:
         db.close()
@@ -223,7 +260,7 @@ def rehearse(case, plan):
         "baseline": {"passed": sum(r["passed"] for r in baseline), "total": len(baseline), "results": baseline},
         "categories": categories, "witness": witness, "results": results,
         "duration_ms": round((time.perf_counter() - start) * 1000, 1),
-        "scope": "SQLite sample contracts; bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+        "scope": "SQLite sample contracts, target-column postconditions, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
         "limitations": ["No concurrent transactions, lock timing or network failures modeled.",
                         "No PostgreSQL, MySQL or ORM behavior claimed.",
                         "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",
@@ -241,6 +278,7 @@ def repair_brief(report):
         "candidate": report["plan"], "shortest_observed_witness": witness,
         "constraints": ["Do not edit the engine, contract, test schedules, seed data, or oracle to make a plan pass.",
                         "Preserve every record and the latest acknowledged write across both versions.",
+                        "The new reader and updater must use the fixed target column, which must preserve ledger values.",
                         "Cover old/new inserts as well as updates; keep the old column during the rollback window.",
                         "Propose a candidate with name, migration, read, write, insert. Call rehearse_candidate.",
                         "Report the exact coverage and limitations. Do not claim production safety."],
