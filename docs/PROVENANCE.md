@@ -18,7 +18,7 @@ The [event page](https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon) describes 
 
 At kickoff, check the published brief and any event-specific rules. If they restrict pre-existing code more tightly, follow those rules before claiming eligibility or submitting. Record the exact rule source and decision here.
 
-The proposed event work is for IBM Bob to diagnose the deliberately failing late-bridge release through Cutover's MCP tools, author and save its own candidate repair, and then build a review-ready Markdown report path in the full project. The [task brief](BOB_TASK.md) defines the requested behavior; it is not proof of completion. A material Bob contribution must be visible in an actual Bob session and in inspectable files created or changed during the event. Do not treat merely calling Bob, opening the prepared UI, or selecting the prewritten passing candidate as the core AI contribution.
+The proposed event work is for IBM Bob to diagnose the deliberately failing late-bridge release through Cutover's MCP tools, author and save its own candidate repair, and then add a validated CLI import path for a user-supplied SQL contract. A review-ready Markdown report is an optional further task. The [task brief](BOB_TASK.md) defines requested behavior; it is not proof of completion. A material Bob contribution must be visible in an actual Bob session and in inspectable files created or changed during the event. Do not treat merely calling Bob, opening the prepared UI, or selecting the prewritten passing candidate as the core AI contribution.
 
 | Evidence | Record after it exists |
 | --- | --- |

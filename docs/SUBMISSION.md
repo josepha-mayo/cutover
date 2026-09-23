@@ -42,7 +42,7 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 - 0:42–1:04: Magnify the actual replay: the old write is acknowledged after backfill and before synchronization, then the new reader sees `4 Broad Street` instead of the latest `18 Marina Road`.
 - 1:04–1:45: Show the real Bob task, diagnostic tool calls, candidate files, and task summary. Describe actual attempts, including any failures, without inventing a repair.
 - 1:45–2:12: Import and independently run Bob's saved candidate. State only its observed counts and show a migration-window replay.
-- 2:12–2:33: Show Bob's review artifact if it was genuinely built and verified; otherwise show the existing JSON export without attributing it to Bob.
+- 2:12–2:33: Show a genuinely Bob-built third-contract replay if implemented and verified. Otherwise show the existing JSON export without attributing it to Bob. A review-ready Markdown report is a further option only if it exists.
 - 2:33–2:50: Rerun a negative control with one synchronization direction removed and show the actual changed verdict, then restore Bob's genuine candidate.
 - 2:50–3:00: End with the source and live demo, and name the bounded SQLite scope and untested concurrency/production-database work.
 
