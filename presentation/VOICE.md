@@ -30,13 +30,17 @@ Then copy `video-clips.template.json` to `work/final-video-clips.json`, replace 
 python presentation\assemble_video.py --manifest work\final-video-clips.json --narration work\final-narration.wav --output work\cutover-demo.mp4
 ```
 
-For real footage on this Windows host, FFmpeg has the `gdigrab` desktop source. After hiding private tabs and making the demo text legible, start a silent screen recording during the actual event-period task:
+For Cutover web footage, record an isolated headless browser page. It checks the chosen live result and saves a silent, page-only WebM under ignored `work/`. Set the bundled Playwright path on this host, then run:
 
 ```powershell
-ffmpeg -hide_banner -f gdigrab -framerate 30 -i desktop -t 900 -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -n work\raw-session.mkv
+$env:CUTOVER_PLAYWRIGHT_MODULE='C:\Users\JosephMayo\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\node_modules\playwright'
+node presentation\capture_web_demo.js https://cutover-rehearsal.onrender.com/ work\cutover-direct.webm direct 23
+node presentation\capture_web_demo.js https://cutover-rehearsal.onrender.com/ work\cutover-late.webm late 52
 ```
 
-Press `q` in that terminal to end the recording early. The raw capture stays under ignored `work/`; the same file can appear in multiple clip entries with different `start_sec` values. Inspect and trim out private account or token screens before assembly. `gdigrab` availability was checked, but a real desktop capture has not been made yet.
+Inspect frames at the opening, verdict, and execution trace before using the clip. The hosted site can show a blank frame during initial load, so start each final trim after the page is visible. The same recording may appear in multiple clip entries with different `start_sec` values; crop or magnify the expected/observed comparison for legibility if needed. Public-site draft takes passed the `24 / 92` Direct rename and `108 / 124` Late bridge assertions. Inspected frames show the verdicts and the `18 Marina Road` expected versus `4 Broad Street` observed comparison. These are pre-event product footage drafts, not Bob evidence or a finished video. The browser capture is 1280×720; the final assembler scales it to 1920×1080.
+
+Record Bob IDE evidence only after the real event-period task, using a recorder scoped to the Bob application window. Check a test frame for unrelated windows, accounts, and tokens before recording the session. Do not use a full-desktop source. Keep raw footage ignored under `work/`, then review and trim every used segment before assembly.
 
 The voice renderer rejects unfinished narration, overlapping speech, or speech running past the 180-second timeline, and reports the conflicting times when a segment does not fit. The video assembler rejects pending clips, missing or too-short recordings, timing mismatches, existing output paths, and a final video at or above the general submission guide's 300 MB limit. It verifies the finished file is 1920×1080 H.264/AAC at 30 frames per second. A four-second test using two synthetic color clips and synthetic audio confirmed the media pipeline and cut order; those test files are ignored and cannot count as demo footage.
 
