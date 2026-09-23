@@ -40,6 +40,33 @@ def duration(path: Path) -> float:
     return float(result.stdout.strip())
 
 
+def validate_submission_media(path: Path) -> None:
+    # The general lablab.ai submission guide sets a 300 MB presentation limit.
+    if path.stat().st_size >= 300_000_000:
+        raise ValueError(f"Video exceeds the 300 MB submission limit: {path}")
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "error", "-show_entries",
+            "stream=codec_type,codec_name,width,height,avg_frame_rate",
+            "-of", "json", str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    streams = json.loads(result.stdout)["streams"]
+    video = [stream for stream in streams if stream.get("codec_type") == "video"]
+    audio = [stream for stream in streams if stream.get("codec_type") == "audio"]
+    if len(video) != 1 or video[0].get("codec_name") != "h264":
+        raise ValueError("Expected exactly one H.264 video stream")
+    if (video[0].get("width"), video[0].get("height")) != (1920, 1080):
+        raise ValueError("Expected a 1920×1080 video stream")
+    if video[0].get("avg_frame_rate") != "30/1":
+        raise ValueError("Expected a 30 fps video stream")
+    if len(audio) != 1 or audio[0].get("codec_name") != "aac":
+        raise ValueError("Expected exactly one AAC narration stream")
+
+
 def assemble(manifest_path: Path, narration: Path, output: Path) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     clips = manifest["clips"]
@@ -121,6 +148,7 @@ def assemble(manifest_path: Path, narration: Path, output: Path) -> None:
     actual = duration(output)
     if abs(actual - target) > 0.3:
         raise RuntimeError(f"Assembled video lasts {actual:.2f}s, expected {target:.2f}s")
+    validate_submission_media(output)
     print(f"Created {output} ({actual:.2f}s, {len(clips)} clips)")
 
 

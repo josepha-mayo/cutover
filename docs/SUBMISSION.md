@@ -47,7 +47,7 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 - Public repository with MIT license and setup instructions: [github.com/josepha-mayo/cutover](https://github.com/josepha-mayo/cutover).
 - Public working demo: [cutover-rehearsal.onrender.com](https://cutover-rehearsal.onrender.com/). Render free may take around a minute to wake after inactivity; verify it again before submission and recording.
 - [16:9 PNG cover](../presentation/cover.png) generated. Recheck image requirements on the actual form.
-- Recorded MP4 demo and final PDF slide deck. A local seven-page PDF draft exists, with its Bob slide clearly marked pending. Replace that slide with real session evidence before submission. General submission guidance also mentions video links; verify the actual event form at submission.
+- Recorded MP4 demo and final PDF slide deck. A local seven-page PDF draft exists, with its Bob slide clearly marked pending. Replace that slide with real session evidence before submission. The general guide asks for a video link, under 300 MB and within five minutes; check the final export and signed-out playback of its public link, then verify the actual event form accepts it.
 - Actual Bob task-summary screenshots and Bob-assisted files.
 - Cutover solo team created on lablab.ai; submission form remains unavailable until the active phase.
 - After the event, complete the IBM/lablab feedback form to enter the 20 × $100 participant reward draw, provided the project was qualified and submitted by the deadline.
