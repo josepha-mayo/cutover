@@ -30,6 +30,14 @@ Then copy `video-clips.template.json` to `work/final-video-clips.json`, replace 
 python presentation\assemble_video.py --manifest work\final-video-clips.json --narration work\final-narration.wav --output work\cutover-demo.mp4
 ```
 
+For real footage on this Windows host, FFmpeg has the `gdigrab` desktop source. After hiding private tabs and making the demo text legible, start a silent screen recording during the actual event-period task:
+
+```powershell
+ffmpeg -hide_banner -f gdigrab -framerate 30 -i desktop -t 900 -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -n work\raw-session.mkv
+```
+
+Press `q` in that terminal to end the recording early. The raw capture stays under ignored `work/`; the same file can appear in multiple clip entries with different `start_sec` values. Inspect and trim out private account or token screens before assembly. `gdigrab` availability was checked, but a real desktop capture has not been made yet.
+
 The voice renderer rejects unfinished narration, overlapping speech, or speech running past the 180-second timeline. The video assembler rejects pending clips, missing or too-short recordings, timing mismatches, and existing output paths. It makes a 1920×1080 H.264/AAC MP4 at 30 frames per second. A four-second test using two synthetic color clips and synthetic audio confirmed the media pipeline and cut order; those test files are ignored and cannot count as demo footage.
 
 Review the generated `.timings.json`; leave a few seconds of visual silence around each proof point. Watch and listen to the full final MP4 for legibility, pronunciation, unnatural emphasis, clipping, secrets, and pace before publishing. A local opening-line test rendered and passed format/duration checks; its voice quality still needs a human listen. The final MP4 and Bob-specific narration do not exist yet.
