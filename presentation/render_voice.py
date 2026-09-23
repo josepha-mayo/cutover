@@ -49,9 +49,15 @@ def render_segments(
         first = round(start * rate)
         last = first + len(samples)
         if last > len(timeline):
-            raise ValueError(f"Segment {item['id']} exceeds the video duration")
+            raise ValueError(
+                f"Segment {item['id']} ends at {last / rate:.2f}s, "
+                f"past the {float(data['duration_sec']):.2f}s video duration"
+            )
         if first < last_end:
-            raise ValueError(f"Segment {item['id']} overlaps another spoken segment")
+            raise ValueError(
+                f"Segment {item['id']} starts at {start:.2f}s, "
+                f"before the previous speech ends at {last_end / rate:.2f}s"
+            )
         timeline[first:last] = samples
         last_end = last
         timings.append(

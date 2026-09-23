@@ -161,7 +161,8 @@ def event_evidence(path):
         raise ValueError('Candidate report must be generated after the Bob task and before submission close')
     plan_hash = hashlib.sha256(json.dumps(plan, ensure_ascii=False, sort_keys=True,
                                           separators=(',', ':')).encode()).hexdigest()
-    engine_hash = hashlib.sha256((ROOT / 'cutover' / 'engine.py').read_bytes()).hexdigest()
+    engine_source = (ROOT / 'cutover' / 'engine.py').read_bytes().replace(b'\r\n', b'\n')
+    engine_hash = hashlib.sha256(engine_source).hexdigest()
     if report.get('plan_hash') != plan_hash or report.get('engine_sha256') != engine_hash:
         raise ValueError('Candidate report must match the current plan and evaluator source')
     evidence['report'] = report

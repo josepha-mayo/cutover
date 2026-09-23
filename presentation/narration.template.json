@@ -38,8 +38,8 @@
     },
     {
       "id": "close",
-      "start_sec": 171,
-      "text": "Cutover gives schema-changing pull requests a reproducible rehearsal. Today it covers these SQLite samples, not concurrent transactions or production databases."
+      "start_sec": 170,
+      "text": "Cutover rehearses schema changes in SQLite. Concurrent transactions and production databases remain future work."
     }
   ]
 }
