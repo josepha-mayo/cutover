@@ -3,12 +3,12 @@
   "segments": [
     {
       "id": "opening",
-      "start_sec": 1,
+      "start_sec": 4,
       "text": "A green build can still be a broken handover. All eight new-version checks pass. But an old worker is still writing while the database changes."
     },
     {
       "id": "late_bridge",
-      "start_sec": 19,
+      "start_sec": 21,
       "text": "This late bridge looks safe after the migration. All seventy-six completed-rollout probes pass. Now we replay old writes between migration statements. Sixteen window probes fail."
     },
     {

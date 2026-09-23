@@ -33,7 +33,7 @@ async function main() {
       const selected = await page.locator('.plan-option.selected strong').innerText();
       const expected = scene === 'direct' ? 'Direct rename' : 'Late bridge';
       if (selected !== expected) throw new Error(`Unexpected plan: ${selected}`);
-      await page.waitForTimeout(900);
+      await page.waitForTimeout(3600);
       await page.locator('#run').scrollIntoViewIfNeeded();
       await page.waitForTimeout(800);
       await page.locator('#run').click();
