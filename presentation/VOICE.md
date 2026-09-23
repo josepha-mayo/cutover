@@ -24,6 +24,14 @@ After Bob's real task, copy `narration.template.json` to `work/final-narration.j
 work\voice-venv\Scripts\python.exe presentation\render_voice.py --script work\final-narration.json --output work\final-narration.wav
 ```
 
+Generate an optional caption file from the measured speech-segment timings, then listen to the final MP4 while reviewing every cue. Sentence boundaries inside a segment are estimated, so adjust any cue that leads or lags the spoken words before uploading it with the video:
+
+```powershell
+python presentation\make_captions.py --script work\final-narration.json --timings work\final-narration.timings.json --output work\cutover-demo.srt
+```
+
+The pre-event 64-second prologue produced an ignored 11-cue SRT with no overlaps or unfinished text. This is a caption workflow check, not a final video or Bob evidence.
+
 Then copy `video-clips.template.json` to `work/final-video-clips.json`, replace every pending path with an actual screen recording, and adjust trims to show the observed results. The clip durations must total 180 seconds. Assemble the video with the WAV; the assembler normalizes the audio once:
 
 ```powershell
