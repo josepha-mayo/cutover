@@ -14,6 +14,8 @@ This workflow risk has an external engineering precedent: [GitLab documented a c
 
 Cutover makes that handover executable. A fixed old-version contract and a proposed new adapter run against disposable SQLite databases. An independent ledger checks each acknowledged write and the required target column; a candidate cannot pass by leaving the "new" adapter on the old column. When a schedule fails, the engineer gets the SQL, inputs, expected data and observed data. A local MCP interface lets IBM Bob investigate the counterexample and submit a revised candidate to the same evaluator.
 
+[Atlas's migration analyzer](https://atlasgo.io/lint/analyzers) can flag destructive or backward-incompatible schema operations, including column renames. Cutover complements that category of check by executing the *old and new application's SQL* at each migration statement boundary and checking acknowledged values. That temporal replay is why it finds the late-bridge gap even when the completed migration passes; this is a distinction of the current samples, not a claim that other tools cannot model deployment timing.
+
 The current prototype covers two sample contracts, 19 completed-rollout schedules with four string inputs each, and old writes at every migration statement boundary. It detects direct schema breaks, stale data after a one-time backfill, and a late-bridge race that completed-rollout checks miss. Its result is bounded, reproducible evidence that supports review, not a claim of production safety. The intended user is a backend engineer shipping schema changes with long-lived workers.
 
 **Update the Bob paragraph to describe only the session that was actually performed before publishing. No real Bob repair has been captured yet.**
