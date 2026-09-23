@@ -6,6 +6,8 @@
 
 Cutover rehearses schema-changing releases while old and new application versions share a database. It executes their SQL contracts against disposable SQLite databases and checks that every reader sees the latest acknowledged write, including after application rollback.
 
+This is a documented release problem, not a hypothetical one. [GitLab's account of mixed-version incidents](https://docs.gitlab.com/development/multi_version_compatibility/#examples-of-previous-incidents) describes a migration that passed canary QA while older production instances still failed to insert records. [Its migration guidance](https://docs.gitlab.com/development/database/avoiding_downtime_in_migrations/#renaming-columns) explains why a direct column rename requires downtime when old application code may still use the old name. Cutover tests a narrower, original SQLite sample of that failure class; it has not analyzed GitLab's repository or prevented those incidents.
+
 The prototype is functional and [the public demo](https://cutover-rehearsal.onrender.com/) is live on Render's free tier. [The source](https://github.com/josepha-mayo/cutover) is public, and the IBM Bob MCP transport has been checked with a real SDK client. An actual Bob session and submission assets remain outstanding. This is pre-event preparation created on September 23, 2026 with Codex, not a claim of work performed by Bob during the event. The free demo may take around a minute to wake after inactivity.
 
 ## Run
