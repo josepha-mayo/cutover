@@ -18,6 +18,8 @@ Cutover makes that handover executable. A fixed old-version contract and a propo
 
 The current prototype covers two sample contracts, 19 completed-rollout schedules with four string inputs each, and old writes at every migration statement boundary. It detects direct schema breaks, stale data after a one-time backfill, and a late-bridge race that completed-rollout checks miss. Its result is bounded, reproducible evidence that supports review, not a claim of production safety. The intended user is a backend engineer shipping schema changes with long-lived workers.
 
+The commercial hypothesis is an open local rehearsal tool paired with paid, per-repository CI checks that attach a counterexample to schema-changing pull requests. No pricing, willingness to pay, or market size has been validated. The next tests are interviews with release teams and a real repository adapter; the current two-sample prototype is not yet that service.
+
 **Update the Bob paragraph to describe only the session that was actually performed before publishing. No real Bob repair has been captured yet.**
 
 ## Demo script, target 3 minutes
@@ -37,7 +39,7 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 2. One-time backfills can miss writes from still-running workers.
 3. Fixed contracts → executed schedules → counterexample → Bob repair → replay.
 4. Controlled sample ablation: 0/3 unsafe patterns detected by the new-version baseline, 2/3 by completed-rollout checks, and 3/3 after migration windows. The late bridge passes 76/76 completed-rollout probes but fails 16/48 windows; the window-safe reference passes 124/124. Not a customer benchmark or Bob result.
-5. Backend/release engineers; CI report and PR review are the initial adoption path. Demand and pricing remain unvalidated.
+5. Backend/release engineers; CI report and PR review are the initial adoption path. A paid per-repository CI check is a revenue hypothesis, not observed demand. Validate it through release-team interviews and a real repository adapter before claiming a market size or price.
 6. Real Bob contribution and precise prototype limits.
 
 ## Final artifacts
