@@ -27,7 +27,7 @@ The proposed event work is for IBM Bob to diagnose the deliberately failing late
 | Diagnosis | Original prompt, executed MCP calls, actual failing replay, Bob's analysis |
 | Candidate repair | Bob-written file and hash, failed attempts retained, independent CLI/browser replay |
 | Product extension | Bob-assisted changed files, before/after commits, tests and observed output |
-| Required screenshots | Actual Bob task-summary captures and their local paths |
+| Task records | Actual Bob task-summary captures, IDE-exported Markdown histories where required, and their repository paths under `bob_sessions/` |
 | Presentation | Final video/deck show only observed Bob actions and bounded results |
 
 Before submission, compare the final Git diff against this baseline, review each Bob-attributed file and summary, rerun the reported candidate with the fixed evaluator, and make the source, demo, video, deck, and form tell the same story. If Bob cannot produce a passing repair, preserve that result and show only what it did achieve. A passing reference plan is not a substitute.
