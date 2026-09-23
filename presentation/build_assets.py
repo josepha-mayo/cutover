@@ -131,6 +131,12 @@ def deck():
 
     base(c, 2, 'The release is not one moment.', '01  /  PROBLEM')
     text(c, 45, 360, 'A new-version test can pass while an old worker is still writing.', 20)
+    text(c, 45, 329, 'GitLab documented canary QA passing while older production instances failed inserts.',
+         13, MUTED)
+    text(c, 45, 307, 'Source: docs.gitlab.com/development/multi_version_compatibility/',
+         10, LIME, 'Consolas')
+    c.linkURL('https://docs.gitlab.com/development/multi_version_compatibility/#downtime-on-release-features-between-canary-and-production-deployment',
+              (45, 303, 650, 321), relative=0)
     steps = [
         (45, '01', 'ADD COLUMN', 'The new field now exists.'),
         (338, '02', 'BACKFILL', 'Rows are copied once.'),
