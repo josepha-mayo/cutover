@@ -28,8 +28,10 @@ def rehearse_candidate(case: str, name: str, migration: str, read: str, write: s
 def diagnose_reference(case: str = 'parcel', reference: str = 'rename') -> dict:
     """Execute a bundled example and return a repair brief with concrete expected/actual evidence.
 
-    References are rename, backfill, late_bridge, bridge. Bridge is a prewritten reference solution, never a claim of Bob authorship.
+    Failing references are rename, backfill, late_bridge. Passing examples are withheld from this diagnostic tool.
     """
+    if reference not in ('rename', 'backfill', 'late_bridge'):
+        raise ValueError('Only failing references are available through this diagnostic tool.')
     return repair_brief(run_rehearsal(case, load_plan(case, reference)))
 
 

@@ -18,6 +18,6 @@ customModes:
       Never modify the oracle, fixed contract, seeds, schedules, or test assertions to make a candidate pass.
       Write your candidate to work/bob-candidate.json and notes to work/bob-repair.md.
       Do not copy a reference repair and present it as independently discovered.
-      Report limits: SQLite only, bounded sequential schedules, no locking or interrupted migration coverage.
+      Report limits: SQLite only, bounded sequential schedules, no locking or mid-statement interruption coverage.
       The final contract phase must wait until old workers and the rollback window are retired.
       Retain actual task summaries and screenshots for submission evidence.

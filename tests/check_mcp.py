@@ -28,6 +28,8 @@ async def main():
             assert content['bob']['verified'] is False
             invalid = await session.call_tool('inspect_release', {'case': '../anything'})
             assert invalid.isError
+            withheld = await session.call_tool('diagnose_reference', {'case': 'parcel', 'reference': 'bridge'})
+            assert withheld.isError
             print('PASS: MCP initialize, tool discovery, inspect, diagnose, candidate execution and invalid-input handling.')
             print('SDK client verified; IBM Bob host session remains unverified.')
 
