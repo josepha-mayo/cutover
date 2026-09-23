@@ -26,12 +26,14 @@ The commercial hypothesis is an open local rehearsal tool paired with paid, per-
 
 The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each clip to the required on-screen evidence and leaves the Bob result pending until an actual session.
 
-- 0:00–0:20: “The new version passes. The old worker is still alive.” Show 8/8 baseline and 60 failing probes.
-- 0:20–0:55: Apply the late bridge. Show all completed-rollout probes green, then open a failed migration-window replay: an old worker writes after backfill, before trigger creation.
-- 0:55–1:45: Show real Bob diagnosis and candidate repair through MCP. Record only real actions, clearly distinguishing any edited video cuts.
-- 1:45–2:20: Import Bob's actual plan. Execute all probes. Open the repaired migration-window replay. Remove one sync direction and rerun to show the evaluator is independent.
-- 2:20–2:45: Export the report. Explain the target user and pull-request integration path.
-- 2:45–3:00: Name the limits: statement boundaries, not concurrent transactions or mid-statement interruption. Show a concrete adoption path for review reports and future PostgreSQL adapters.
+- 0:00–0:18: Run Direct rename. The new-version baseline passes 8/8, while the full rollout passes only 24/92 and blocks on 68 probes.
+- 0:18–0:42: Run Late bridge. All 76 completed-rollout probes pass, but 16 of 48 migration-window probes fail; the full result is 108/124.
+- 0:42–1:04: Magnify the actual replay: the old write is acknowledged after backfill and before synchronization, then the new reader sees `4 Broad Street` instead of the latest `18 Marina Road`.
+- 1:04–1:45: Show the real Bob task, diagnostic tool calls, candidate files, and task summary. Describe actual attempts, including any failures, without inventing a repair.
+- 1:45–2:12: Import and independently run Bob's saved candidate. State only its observed counts and show a migration-window replay.
+- 2:12–2:33: Show Bob's review artifact if it was genuinely built and verified; otherwise show the existing JSON export without attributing it to Bob.
+- 2:33–2:50: Rerun a negative control with one synchronization direction removed and show the actual changed verdict, then restore Bob's genuine candidate.
+- 2:50–3:00: End with the source and live demo, and name the bounded SQLite scope and untested concurrency/production-database work.
 
 ## Deck outline
 
