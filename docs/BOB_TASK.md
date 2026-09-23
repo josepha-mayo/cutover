@@ -18,7 +18,11 @@ From a clean committed source project, run `python prepare_bob_session.py --pyth
 
 ## A meaningful extension if the first repair succeeds quickly
 
-After saving the repair, open the full Cutover project in normal Bob Agent mode for a separate development task: add a review-ready Markdown report with one failing replay, a migration-step timeline, exact coverage and untested boundaries. Validate it against the fixed JSON report and test it with both a failing and a passing candidate. This is a next milestone, not present functionality. Do not silently weaken the evaluator.
+After saving the repair, open the full Cutover project in normal Bob Agent mode for a separate development task. If repair is still blocked after a focused attempt, retain that failure and move to this independent build task before the recording window; do not present an unsolved candidate as a repair. Give Bob this concrete build brief:
+
+> Add a `--markdown PATH` option to `python -m cutover` that writes a review-ready Markdown report from the **same executed report object** used for the JSON verdict. Include the case, candidate name, exact baseline/completed-rollout/migration-window counts, plan/contract/suite/engine hashes, and the tested limitations. For a blocked candidate, include the shortest observed failing replay as an ordered migration/write/read timeline with executed SQL, inputs, expected values and observed values. For a passing candidate, include one actual passing migration-window replay and state that passing is bounded to this suite. Render arbitrary candidate SQL as safe Markdown code blocks. Add focused tests for both outcomes. Keep the fixed contract, oracle, schedules and evaluator unchanged; do not hardcode the reference candidates' names or counts into the renderer.
+
+Acceptance: run `python -m cutover --reference late_bridge --output work/late.json --markdown work/late-review.md` and expect the existing blocked exit code plus a report containing the stale-data witness. Run `python -m cutover --reference bridge --output work/safe.json --markdown work/safe-review.md` and expect the existing pass exit code plus a passing migration-window replay. Compare each Markdown file with the JSON report from the same run, then run the full test suite and CI. Capture Bob's actual task summary, changed files and any failed attempts. This is a next milestone, not present functionality; the CLI does not yet support `--markdown`.
 
 ## Recording sequence
 
