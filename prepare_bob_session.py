@@ -6,7 +6,6 @@ replayed in the source project, which retains the full fixed evaluator.
 import argparse
 import hashlib
 import json
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -63,12 +62,20 @@ def main():
     missing = [str(relative) for relative in required if not (ROOT / relative).is_file()]
     if missing:
         parser.error(f'Required source is missing: {", ".join(missing)}')
+    committed = {}
+    for relative in required:
+        name = relative.as_posix()
+        try:
+            committed[name] = subprocess.check_output(
+                ['git', 'show', f'{revision}:{name}'], cwd=ROOT)
+        except subprocess.CalledProcessError:
+            parser.error(f'Required file is absent from source commit: {name}')
+
     copied = {}
     for relative in required:
-        source = ROOT / relative
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
+        target.write_bytes(committed[relative.as_posix()])
         copied[relative.as_posix()] = digest(target)
 
     task = f'''# Cutover repair task for IBM Bob
