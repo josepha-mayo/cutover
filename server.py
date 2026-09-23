@@ -12,6 +12,7 @@ from cutover.reporting import render_markdown
 from cutover.service import catalog, run_rehearsal, validate_imported_contract
 
 STATIC = Path(__file__).parent / 'public'
+WAREHOUSE = Path(__file__).parent / 'examples' / 'warehouse'
 SLOTS = threading.BoundedSemaphore(2)
 
 
@@ -32,6 +33,12 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == '/api/catalog':
             return self.send(200, catalog())
+        if path == '/api/example/warehouse':
+            return self.send(200, {
+                'contract': json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8')),
+                'plan': json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8')),
+                'source': 'prewritten warehouse example',
+            })
         if path == '/api/health':
             return self.send(200, {'ok': True, 'engine': 'SQLite', 'bob_session_verified': False})
         files = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css'}

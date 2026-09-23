@@ -97,6 +97,14 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertEqual(json.loads(body)['status'], 'blocked')
 
+    def test_warehouse_walkthrough_loads_real_fixture_and_unsafe_plan(self):
+        code, body = self.request('/api/example/warehouse')
+        example = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertEqual(example['contract'], json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8')))
+        self.assertEqual(example['plan'], json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8')))
+        self.assertEqual(example['source'], 'prewritten warehouse example')
+
     def test_import_validation_rejects_broken_old_contract_and_no_green_result(self):
         contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
         plan = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))

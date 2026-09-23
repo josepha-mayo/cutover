@@ -18,11 +18,13 @@ function updateModeControls() {
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||custom);
   $('run').disabled=busy||!activeCase||(custom&&!candidateReady());
   $('save-plan').disabled=busy||!activeCase||(custom&&!candidateReady());
+  $('try-warehouse').disabled=busy;
 }
-function setBusy(value) {
+function setBusy(value, label='Executing SQL rehearsals…') {
   busy=value;
   for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract')) node.disabled=value;
-  $('run').innerHTML=value?'<span>Executing SQL rehearsals…</span><span>◌</span>':'<span>Run release rehearsal</span><span>↗</span>';
+  $('try-warehouse').disabled=value;
+  $('run').innerHTML=value?`<span>${escape(label)}</span><span>◌</span>`:'<span>Run release rehearsal</span><span>↗</span>';
   if(!value)updateModeControls();
 }
 
@@ -38,6 +40,7 @@ function invalidate() {
   $('matrix').innerHTML='<p class="empty">Run this candidate to inspect its evidence.</p>';
   $('trace').replaceChildren(); $('trace-title').textContent='Nothing inferred. Everything replayed.'; $('trace-id').textContent=''; $('trace-payload').textContent='';
   $('trace-label').textContent='REPLAY';
+  $('window-map').hidden=true; $('window-stages').replaceChildren();
   $('finding').innerHTML='<span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div>';
   $('export').disabled=true; $('export-review').disabled=true; $('brief').disabled=true;
 }
@@ -96,7 +99,32 @@ function renderReport() {
   $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p></div>`;
   $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('brief').disabled=activeCase.id==='custom';
   $('hashes').textContent=`Plan SHA-256: ${report.plan_hash} · Contract SHA-256: ${report.contract_hash} · Suite SHA-256: ${report.suite_hash}`;
-  renderMatrix(); renderTrace(witness || report.results.find(r=>r.id==='new_to_old-0'));
+  renderWindowMap(); renderMatrix(); renderTrace(witness || report.results.find(r=>r.id==='new_to_old-0'));
+}
+function renderWindowMap() {
+  const grouped=new Map();
+  for(const probe of report.results.filter(item=>item.category==='migration_window')) {
+    const match=/^window_(write|insert)_after_(\d+)-/.exec(probe.id);
+    if(!match)continue;
+    const step=Number(match[2]);
+    if(!grouped.has(step))grouped.set(step,{write:[],insert:[]});
+    grouped.get(step)[match[1]].push(probe);
+  }
+  if(!grouped.size){$('window-map').hidden=true;return;}
+  const last=Math.max(...grouped.keys());
+  const earliest=[...grouped].find(([,kinds])=>[...kinds.write,...kinds.insert].some(probe=>!probe.passed));
+  $('window-summary').textContent=earliest
+    ?`First observed gap: after statement ${earliest[0]} of ${last}. An old ${earliest[1].write.some(probe=>!probe.passed)?'update':'insert'} can become invisible.`
+    :`No lost write or insert in ${report.categories.find(item=>item.id==='migration_window')?.total||0} tested migration windows.`;
+  $('window-stages').innerHTML=[...grouped].map(([step,kinds])=>`<div class="window-stage"><b>${step===0?'BEFORE SQL':`AFTER ${step}/${last}`}</b>${['write','insert'].map(kind=>{
+    const probes=kinds[kind], failures=probes.filter(probe=>!probe.passed), picked=failures[0]||probes[0];
+    return `<button type="button" class="${failures.length?'fail':''}" data-window-probe="${picked.id}" aria-label="${step===0?'Before migration':`After statement ${step} of ${last}`}; old ${kind}; ${probes.length-failures.length} of ${probes.length} passed"><span>Old ${kind==='write'?'update':'insert'}</span><span>${probes.length-failures.length}/${probes.length}</span></button>`;
+  }).join('')}</div>`).join('');
+  $('window-stages').querySelectorAll('[data-window-probe]').forEach(button=>button.addEventListener('click',()=>{
+    renderTrace(report.results.find(probe=>probe.id===button.dataset.windowProbe));
+    $('trace-title').scrollIntoView({behavior:'smooth',block:'center'});
+  }));
+  $('window-map').hidden=false;
 }
 function renderMatrix() {
   if(!report) return;
@@ -145,31 +173,49 @@ $('import-plan').addEventListener('change',async event=>{
   try {if(file.size>65536)throw Error('Plan is larger than 64 KiB.'); const plan=JSON.parse(await file.text()); if(!plan||typeof plan!=='object'||Array.isArray(plan)||Object.keys(plan).sort().join(',')!==Object.keys(fields).sort().join(',')||Object.values(plan).some(v=>typeof v!=='string'||!v.trim()||v.length>12000)||plan.name.length>100) throw Error('Expected a plan with name, migration, read, write and insert strings.');reference=null;setPlan(plan,'Imported candidate · not yet executed');updateModeControls();notify('Candidate imported. Run a rehearsal to verify it.');}
   catch(error){$('status-badge').textContent='IMPORT ERROR';$('verdict-title').textContent='Plan not imported.';$('verdict-description').textContent=error.message;notify(error.message);}finally{event.target.value='';}
 });
+async function activateContract(contract, source) {
+  if(!contract||typeof contract!=='object'||Array.isArray(contract))throw Error('Contract must be a JSON object.');
+  const body=JSON.stringify({contract});
+  if(new Blob([body]).size>65536)throw Error('Contract exceeds the 64 KiB hosted request limit. Use the local CLI.');
+  const response=await fetch('/api/contract/validate',{method:'POST',headers:{'Content-Type':'application/json'},body});
+  const result=await response.json(); if(!response.ok)throw Error(result.error||'Contract validation failed.');
+  importedContract=contract; importedMeta=result; customPlan=null;
+  let option=$('case').querySelector('option[value="custom"]');
+  if(!option){option=document.createElement('option');option.value='custom';$('case').append(option);}
+  option.textContent=`${contract.project} · ${source==='example'?'example':'imported'}`;
+  $('case').value='custom'; chooseCase();
+  $('contract-status').textContent=`${source==='example'?'Prewritten example · ':''}Validated ${result.seed_count} seed records · ${result.payload_count} inputs · contract ${result.contract_hash.slice(0,12)}`;
+}
 $('import-contract').addEventListener('change',async event=>{
   if(busy)return;
   const file=event.target.files[0]; if(!file)return;
-  invalidate(); $('status-badge').textContent='CHECKING CONTRACT';
+  setBusy(true,'Validating contract…'); invalidate(); $('status-badge').textContent='CHECKING CONTRACT';
   try {
     if(file.size>65536)throw Error('Contract is larger than 64 KiB. Use the local CLI.');
     const contract=JSON.parse(await file.text());
-    if(!contract||typeof contract!=='object'||Array.isArray(contract))throw Error('Contract must be a JSON object.');
-    const body=JSON.stringify({contract});
-    if(new Blob([body]).size>65536)throw Error('Contract exceeds the 64 KiB hosted request limit. Use the local CLI.');
-    const response=await fetch('/api/contract/validate',{method:'POST',headers:{'Content-Type':'application/json'},body});
-    const result=await response.json(); if(!response.ok)throw Error(result.error||'Contract validation failed.');
-    importedContract=contract; importedMeta=result; customPlan=null;
-    let option=$('case').querySelector('option[value="custom"]');
-    if(!option){option=document.createElement('option');option.value='custom';$('case').append(option);}
-    option.textContent=`${contract.project} · imported`;
-    $('case').value='custom'; chooseCase();
-    $('contract-status').textContent=`Validated ${result.seed_count} seed records · ${result.payload_count} inputs · contract ${result.contract_hash.slice(0,12)}`;
+    await activateContract(contract,'imported');
     notify('Contract validated. Import a candidate plan or enter its SQL, then run the rehearsal.');
   } catch(error) {
     $('status-badge').textContent='IMPORT ERROR'; $('verdict-title').textContent='Contract not imported.';
     $('verdict-description').textContent=error.message;
     $('contract-status').textContent=`Import rejected: ${error.message} ${importedMeta?'Previously validated contract remains available.':''}`;
     notify(error.message);
-  } finally {event.target.value='';}
+  } finally {event.target.value='';setBusy(false);}
+});
+$('try-warehouse').addEventListener('click',async()=>{
+  if(busy)return;
+  setBusy(true,'Loading warehouse example…'); invalidate(); $('status-badge').textContent='LOADING EXAMPLE';
+  try {
+    const response=await fetch('/api/example/warehouse');
+    const data=await response.json(); if(!response.ok)throw Error(data.error||'Warehouse example unavailable.');
+    await activateContract(data.contract,'example');
+    reference=null;
+    setPlan(data.plan,'Prewritten warehouse example · not AI generated');
+    notify('Warehouse example loaded. Run the SQL rehearsal to see the unsafe migration window.');
+  } catch(error) {
+    $('status-badge').textContent='EXAMPLE ERROR'; $('verdict-title').textContent='Example not loaded.';
+    $('verdict-description').textContent=error.message; notify(error.message);
+  } finally {setBusy(false);}
 });
 try {const response=await fetch('/api/catalog');if(!response.ok)throw Error('Could not load sample projects.');catalog=await response.json();$('case').innerHTML=catalog.cases.map(c=>`<option value="${c.id}">${escape(c.project)}</option>`).join('');chooseCase();}
 catch(error){$('verdict-title').textContent='Workspace unavailable.';$('verdict-description').textContent=error.message;$('run').disabled=true;notify(error.message);}
