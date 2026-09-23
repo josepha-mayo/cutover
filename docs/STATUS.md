@@ -10,15 +10,15 @@
 - Candidate import/save, JSON evidence export, and a Bob task-preparation dialog.
 - Project-local Bob custom mode and MCP configuration generator.
 - Official MCP SDK v1.30.0 connection: initialization, discovery, all three tools, actual candidate execution and invalid-input errors checked with an SDK client.
-- 20 Python tests passed on Python 3.14.7 / Windows, including migration-window detection and HTTP behavior.
+- 21 Python tests passed on Python 3.14.7 / Windows, including migration-window detection, HTTP behavior, and excluding comment-only SQL from migration-step coverage.
 - Browser verification in Brave using computer use: backfill failure; bridge pass; manually edited bridge blocked with 12 failures; stale results invalidated when editing; evidence filter; Bob dialog; JSON file import and rerun; exported JSON downloaded and inspected.
 - Actual desktop screenshots inspected. At a 390-pixel mobile viewport, imported-candidate execution passed, the layout stacked correctly, and DOM measurements found no horizontal overflow. Temporary viewport override restored afterward.
-- Public [GitHub repository](https://github.com/josepha-mayo/cutover) and passing [Windows/Ubuntu CI](https://github.com/josepha-mayo/cutover/actions/runs/35856942314) on Python 3.12.
+- Public [GitHub repository](https://github.com/josepha-mayo/cutover) and passing [Windows/Ubuntu CI](https://github.com/josepha-mayo/cutover/actions/runs/35860477775) on Python 3.12.
 - [Render free demo](https://cutover-rehearsal.onrender.com/) deployed and checked in a fresh browser: late bridge 108/124 blocked, window-safe bridge 124/124 passed.
 - 16:9 cover image generated and visually inspected. A seven-page PDF deck draft exists locally; its Bob slide is prominently marked pending and must be replaced with real session evidence before submission.
 - Narrow-screen browser retest at a 304-pixel viewport: the safe candidate rendered and ran 124/124 without horizontal overflow after mobile grid and coverage fixes.
 - Reproducible [controlled detection ablation](IMPACT.md) on three deliberately unsafe patterns: new-version baseline detects 0/3, completed-rollout checks 2/3, full suite 3/3 in each structurally similar sample.
-- Reference-withheld Bob repair workspace prepared as sibling `cutover-bob-session-6a032d17` from commit `6a032d1`. The generated manifest records evaluator SHA-256 `47a0a1a64acb364ae9a1cc753327f7e93cb815f4d355c119b52dba91e749d6be`; no passing reference plan was copied, and its CLI still blocks the late bridge at 108/124. This is pre-event setup, not a Bob session.
+- Current reference-withheld Bob repair workspace prepared as sibling `cutover-bob-session-e739b75b` from commit `e739b75`. The generated manifest records evaluator SHA-256 `6b9bd6ace1bde68bf8d35b5d5545b056911dfff83efc6989beced8eb0f9f61a3`; no passing reference plan was copied. The prior `cutover-bob-session-6a032d17` workspace remains on disk but uses the older evaluator and should not be used for the event session. This is pre-event setup, not a Bob session.
 
 ## Measured outcomes for both sample contracts
 

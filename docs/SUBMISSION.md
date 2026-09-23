@@ -2,7 +2,7 @@
 
 Working title: **Cutover: Rehearse the Release**
 
-Short description (draft): Cutover finds the data failures a green build can miss. It replays old and new application versions through a database migration, gives IBM Bob an executable counterexample, and verifies the proposed repair.
+Short description (draft): Cutover finds the data failures a green build can miss. It runs old and new SQL adapters through a database migration, gives IBM Bob an executable counterexample, and verifies the proposed repair.
 
 ## Pitch
 
