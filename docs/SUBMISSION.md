@@ -48,12 +48,14 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 
 ## Deck outline
 
-1. A green build can still be a broken handover.
-2. One-time backfills can miss writes from still-running workers.
-3. Fixed contracts → executed schedules → counterexample → Bob repair → replay.
-4. Controlled sample ablation: 0/3 unsafe patterns detected by the new-version baseline, 2/3 by completed-rollout checks, and 3/3 after migration windows. The late bridge passes 76/76 completed-rollout probes but fails 16/48 windows; the window-safe reference passes 124/124. Not a customer benchmark or Bob result.
-5. Backend/release engineers; CI report and PR review are the initial adoption path. A paid per-repository CI check is a revenue hypothesis, not observed demand. Validate it through release-team interviews and a real repository adapter before claiming a market size or price.
-6. Real Bob contribution and precise prototype limits.
+1. Cover: a green build can still be a broken handover.
+2. The release is a period when old and new workers share a database.
+3. A late bridge passes completed-rollout checks but misses an old write between backfill and synchronization.
+4. Fixed contracts, executed schedules, an independent ledger, and a replayable counterexample.
+5. Controlled sample ablation: 0/3 unsafe patterns detected by the new-version baseline, 2/3 by completed-rollout checks, and 3/3 after migration windows. Not a customer benchmark or Bob result.
+6. Validated CLI import of a user-supplied warehouse contract, with its actual failing witness and separately attributed pre-event provenance.
+7. Real Bob contribution, shown only with task evidence and an independently replayed candidate.
+8. Backend/release engineers; CI report and PR review are the initial adoption path. A paid per-repository CI check is a revenue hypothesis, not observed demand.
 
 ## Final artifacts
 
