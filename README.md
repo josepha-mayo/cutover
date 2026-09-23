@@ -92,7 +92,7 @@ python -m cutover --plan work/bob-candidate.json --output work/bob-result.json
 python -m cutover --reference late_bridge --output work/late.json --markdown work/late-review.md
 ```
 
-The CLI returns exit code 1 for a failing rehearsal and 0 for a passing suite. The hosted app and MCP server execute candidates in a subprocess with a 30-second overall deadline. SQLite interrupts long queries and denies external database attachment, pragmas, extension loading and explicit transaction control. Those restrictions are active before imported schema or seed SQL executes. All data enters a disposable in-memory database; no production connection or shell-command tool is exposed.
+The CLI returns exit code 1 for a failing rehearsal and 0 for a passing suite. The hosted app and MCP server execute candidates in a subprocess with a 90-second overall deadline. SQLite interrupts long queries and denies external database attachment, pragmas, extension loading and explicit transaction control. Those restrictions are active before imported schema or seed SQL executes. All data enters a disposable in-memory database; no production connection or shell-command tool is exposed.
 
 The test suite includes negative controls: removing each synchronization trigger, dropping an unrelated record, a write affecting the wrong number of rows, SQL injection characters as data, fresh seed identifiers, runaway SQL, input tampering, HTTP checks and actual subprocess execution.
 

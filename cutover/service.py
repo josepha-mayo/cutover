@@ -3,7 +3,7 @@ import subprocess
 import sys
 from .engine import ROOT, load_case, load_plan, repair_brief, validate_contract, validate_plan
 
-WORKER_TIMEOUT_SECONDS = 30
+WORKER_TIMEOUT_SECONDS = 90
 
 
 def run_rehearsal(case, plan, contract=None):
