@@ -19,6 +19,7 @@ function updateModeControls() {
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||custom);
   $('try-cross-record').disabled=busy||custom;
   $('run').disabled=busy||!activeCase||(custom&&!candidateReady());
+  $('quick-run').disabled=$('run').disabled;
   $('save-plan').disabled=busy||!activeCase||(custom&&!candidateReady());
   $('try-warehouse').disabled=busy;
 }
@@ -26,6 +27,7 @@ function setBusy(value, label='Executing SQL rehearsals…') {
   busy=value;
   for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract')) node.disabled=value;
   $('try-warehouse').disabled=value;
+  $('quick-run').disabled=value;
   $('run').innerHTML=value?`<span>${escape(label)}</span><span>◌</span>`:'<span>Run release rehearsal</span><span>↗</span>';
   if(!value)updateModeControls();
 }
@@ -177,6 +179,11 @@ async function showBob() {
 }
 
 $('run').addEventListener('click',run);
+$('quick-run').addEventListener('click',async()=>{
+  if(busy||$('run').disabled)return;
+  await run();
+  $('verdict-title').closest('.result-panel').scrollIntoView({behavior:'smooth',block:'start'});
+});
 $('case').addEventListener('change',chooseCase);
 document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference=button.dataset.plan;setPlan(activeCase.plans[reference],'Editable reference · not AI generated');}));
 $('try-cross-record').addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference='cross_record';setPlan(activeCase.plans.cross_record,'Prewritten negative control · not AI generated');run();});
