@@ -6,8 +6,8 @@ const { chromium } = require(process.env.CUTOVER_PLAYWRIGHT_MODULE || 'playwrigh
 const url = process.argv[2] || 'https://cutover-rehearsal.onrender.com/';
 const output = path.resolve(process.argv[3] || 'work/cutover-browser-draft.webm');
 const scene = process.argv[4] || 'late';
-const minSeconds = Number(process.argv[5] || ({ direct: 23, late: 52, trap: 30 }[scene]));
-if (!['direct', 'late', 'trap'].includes(scene)) throw new Error('Scene must be direct, late, or trap');
+const minSeconds = Number(process.argv[5] || ({ direct: 23, late: 52, trap: 30, warehouse: 28 }[scene]));
+if (!['direct', 'late', 'trap', 'warehouse'].includes(scene)) throw new Error('Scene must be direct, late, trap, or warehouse');
 if (!Number.isFinite(minSeconds) || minSeconds < 8 || minSeconds > 120) {
   throw new Error('Capture duration must be 8–120 seconds');
 }
@@ -30,9 +30,17 @@ async function main() {
       await page.waitForFunction(() => !document.querySelector('#run').disabled, null, { timeout: 120000 });
       await page.locator('.plan-option.selected strong').waitFor({ state: 'visible' });
       if (scene === 'direct') await page.locator('[data-plan="rename"]').click();
+      if (scene === 'warehouse') {
+        await page.locator('#try-warehouse').click();
+        await page.locator('#contract-status').filter({ hasText: 'Prewritten example · Validated' })
+          .waitFor({ timeout: 120000 });
+        await page.waitForFunction(() => !document.querySelector('#run').disabled);
+      }
       const selected = scene === 'trap' ? 'Cross-record trap'
+        : scene === 'warehouse' ? await page.locator('#case option:checked').innerText()
         : await page.locator('.plan-option.selected strong').innerText();
-      const expected = { direct: 'Direct rename', late: 'Late bridge', trap: 'Cross-record trap' }[scene];
+      const expected = { direct: 'Direct rename', late: 'Late bridge', trap: 'Cross-record trap',
+        warehouse: 'Warehouse / bin relocation · example' }[scene];
       if (selected !== expected) throw new Error(`Unexpected plan: ${selected}`);
       await page.waitForTimeout(3600);
       const trigger = page.locator(scene === 'trap' ? '#try-cross-record' : '#run');
@@ -42,10 +50,14 @@ async function main() {
       await page.locator('#verdict-title').filter({ hasText: 'The handover breaks.' })
         .waitFor({ timeout: 120000 });
       const count = (await page.locator('#probe-count').innerText()).replace(/\s+/g, ' ').trim();
-      const expectedCount = { direct: '24 / 92', late: '108 / 124', trap: '100 / 132' }[scene];
+      const expectedCount = { direct: '24 / 92', late: '108 / 124', trap: '100 / 132',
+        warehouse: '108 / 124' }[scene];
       if (count !== expectedCount) throw new Error(`Unexpected live rehearsal: ${count}`);
       if (scene === 'trap' && !(await page.locator('#source-label').innerText()).includes('negative control')) {
         throw new Error('Cross-record result lacks its prewritten negative-control label');
+      }
+      if (scene === 'warehouse' && !(await page.locator('#source-label').innerText()).includes('prewritten warehouse example')) {
+        throw new Error('Warehouse result lacks its prewritten-example label');
       }
       await page.locator('#verdict-title').scrollIntoViewIfNeeded();
       await page.waitForTimeout(scene === 'direct' ? 7000 : scene === 'trap' ? 4000 : 3500);
@@ -60,6 +72,20 @@ async function main() {
       if (scene === 'late') {
         await page.locator('.comparison').first().scrollIntoViewIfNeeded();
         await page.waitForTimeout(2200);
+      }
+      if (scene === 'warehouse') {
+        await page.locator('#export-review').scrollIntoViewIfNeeded();
+        if (await page.locator('#export-review').isDisabled()) throw new Error('Warehouse review export unavailable');
+        await page.waitForTimeout(2800);
+        const [review] = await Promise.all([
+          page.waitForEvent('download'), page.locator('#export-review').click(),
+        ]);
+        if (!review.suggestedFilename().endsWith('.md') ||
+            !fs.readFileSync(await review.path(), 'utf8').includes('108/124 rollout and window probes passed')) {
+          throw new Error('Downloaded Warehouse review lacks the executed 108/124 result');
+        }
+        await page.locator('.comparison').first().scrollIntoViewIfNeeded();
+        await page.waitForTimeout(5000);
       }
       await page.waitForTimeout(Math.max(0, minSeconds * 1000 - (Date.now() - started)));
       await context.close();
