@@ -145,7 +145,11 @@ function renderReport() {
   $('runtime').textContent=`${report.duration_ms} ms engine time`;
   $('coverage').innerHTML=report.categories.map(c=>`<div class="coverage-row"><span>${escape(labels[c.id])}</span><div class="meter" aria-label="${c.passed} of ${c.total} passed">${Array.from({length:c.total},(_,i)=>`<i class="${i<c.passed?'good':'bad'}"></i>`).join('')}</div><span>${c.passed}/${c.total}</span></div>`).join('');
   const witness=report.witness;
-  $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p></div>`;
+  const failedRead=witness?.trace.find(step=>step.status==='fail'&&step.expected&&step.actual);
+  const rowId=failedRead&&[...new Set([...Object.keys(failedRead.expected),...Object.keys(failedRead.actual)])].find(id=>failedRead.expected[id]!==failedRead.actual[id]);
+  const value=value=>value===undefined?'(missing row)':JSON.stringify(value);
+  const gap=rowId===undefined?'':`<p class="witness-gap">Row ${escape(rowId)} · ledger expected <strong>${escape(value(failedRead.expected[rowId]))}</strong>; ${escape(failedRead.action)} observed <strong>${escape(value(failedRead.actual[rowId]))}</strong>.</p>`;
+  $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p>${gap}</div>`;
   $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('brief').disabled=false;
   $('hashes').textContent=`Plan SHA-256: ${report.plan_hash} · Contract SHA-256: ${report.contract_hash} · Suite SHA-256: ${report.suite_hash}`;
   renderComparison();
