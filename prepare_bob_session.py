@@ -6,6 +6,7 @@ replayed in the source project, which retains the full fixed evaluator.
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -16,6 +17,13 @@ CASES = ('parcel', 'contacts')
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def session_destination(revision, label=None):
+    if label is not None and not re.fullmatch(r'[a-z][a-z0-9-]{0,39}', label):
+        raise ValueError('Session label must be 1–40 lowercase letters, digits or hyphens, starting with a letter')
+    suffix = f'-{label}' if label else ''
+    return ROOT.parent / f'cutover-bob-session-{revision[:8]}{suffix}'
 
 
 def sources():
@@ -42,7 +50,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', required=True, type=Path,
                         help='Absolute path to the Python interpreter with requirements-mcp.txt installed')
+    parser.add_argument('--label', help='Optional unique label, such as event-20260925; never reuses a prior workspace')
     args = parser.parse_args()
+    try:
+        session_destination('00000000', args.label)
+    except ValueError as exc:
+        parser.error(str(exc))
     interpreter = args.python.resolve()
     if not interpreter.is_file():
         parser.error('The requested Python interpreter does not exist.')
@@ -57,9 +70,9 @@ def main():
     if subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True).strip():
         parser.error('Commit or set aside source changes before freezing a Bob session.')
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-    destination = ROOT.parent / f'cutover-bob-session-{revision[:8]}'
+    destination = session_destination(revision, args.label)
     if destination.exists():
-        parser.error(f'Session already exists: {destination}. Reuse it or make a new source commit.')
+        parser.error(f'Session already exists: {destination}. Choose a new --label; existing sessions are never overwritten.')
 
     required = sources()
     missing = [str(relative) for relative in required if not (ROOT / relative).is_file()]
@@ -74,6 +87,10 @@ def main():
         except subprocess.CalledProcessError:
             parser.error(f'Required file is absent from source commit: {name}')
 
+    try:
+        destination.mkdir()
+    except FileExistsError:
+        parser.error(f'Session already exists: {destination}. Choose a new --label.')
     copied = {}
     for relative in required:
         target = destination / relative
