@@ -52,6 +52,13 @@ class CustomContractTests(unittest.TestCase):
         self.assertEqual(original['results'][0]['payload'], 'R-07')
         self.assertEqual(revised['results'][0]['payload'], 'Q-99')
 
+    def test_target_identifier_case_follows_sqlite_semantics(self):
+        contract = fixture('contract.json')
+        contract['new_column'] = contract['new_column'].upper()
+        result = rehearse('custom', fixture('bridge.json'), contract)
+        self.assertEqual((result['status'], result['passed'], result['total']),
+                         ('pass', 124, 124))
+
     def test_rejects_invalid_shape_and_seed_before_execution(self):
         base = fixture('contract.json')
         variants = []

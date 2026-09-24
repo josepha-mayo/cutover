@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.6"
+ENGINE_VERSION = "0.3.7"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -292,12 +292,13 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None, inse
                         required = sqlite3.SQLITE_READ if operation == "read" else sqlite3.SQLITE_UPDATE
                         adapter_access = access_log[access_start:]
                         direct_access = any(
-                            code == required and table == contract["table"] and column == contract["new_column"]
+                            code == required and str(table).casefold() == contract["table"].casefold()
+                            and str(column).casefold() == contract["new_column"].casefold()
                             and (operation == "read" or source is None)
                             for code, table, column, source in adapter_access)
                         old_column_read = operation == "read" and any(
-                            code == sqlite3.SQLITE_READ and table == contract["table"]
-                            and column == contract["old_column"]
+                            code == sqlite3.SQLITE_READ and str(table).casefold() == contract["table"].casefold()
+                            and str(column).casefold() == contract["old_column"].casefold()
                             for code, table, column, source in adapter_access)
                         if direct_access and not old_column_read:
                             checked_new_adapter.add(operation)
