@@ -4,6 +4,8 @@ The final three-minute video should use one warm, human-sounding neural voice, a
 
 The local renderer uses [Kokoro 82M](https://huggingface.co/hexgrad/Kokoro-82M) and [kokoro-onnx](https://github.com/thewh1teagle/kokoro-onnx), with `af_heart` at speed `0.82` by default. The script can set a slower `speed` for an individual segment; the opening uses `0.72` and the counterexample uses `0.76` so judges have more time to read the visible evidence. The model card lists Apache 2.0 weights; the ONNX wrapper is MIT licensed. The official voice list grades `af_heart` highest among its American English choices. This is pre-event media preparation, not an IBM Bob contribution.
 
+The three Bob-specific slots now use `0.76` too. A private timing-only render with neutral, explicitly non-event text measured 55 words in 27.81 seconds, 45 in 21.16 seconds, and 29 in 14.46 seconds. Their slots are 39, 28, and 21 seconds, leaving room to read the real Bob summary and replay. A full 180-second timing render ended its final spoken line at 179.25 seconds without overlap. These measurements guide length only: write the final Bob lines from observed evidence, rerender, and review the actual timings and voice quality before submission. The timing-only WAV must never be submitted.
+
 The model and voices are not in Git. Download the v1.0 English files from the [wrapper's model-files-v1.1 release](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.1) into `work/voice-model/`. The release SHA-256 values are:
 
 | File | SHA-256 |

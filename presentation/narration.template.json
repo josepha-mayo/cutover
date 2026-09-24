@@ -21,16 +21,19 @@
     {
       "id": "bob_diagnosis",
       "start_sec": 66,
+      "speed": 0.76,
       "text": "PENDING: Describe the actual event-period Bob diagnostic calls, reasoning, and candidate attempts."
     },
     {
       "id": "bob_replay",
       "start_sec": 105,
+      "speed": 0.76,
       "text": "PENDING: State the independently observed counts for Bob's saved candidate and the real browser replay."
     },
     {
       "id": "review_artifact",
       "start_sec": 133,
+      "speed": 0.76,
       "text": "PENDING: Describe Bob's verified review report if built; otherwise describe the existing JSON evidence export without attributing it to Bob."
     },
     {
