@@ -40,11 +40,16 @@ A developer can supply a bounded single-table SQLite contract and candidate plan
 ```powershell
 python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/late_bridge.json --output work/warehouse-late.json --markdown work/warehouse-late.md --repro work/warehouse-late-replay.py
 python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/bridge.json --output work/warehouse-safe.json --markdown work/warehouse-safe.md
+python -m cutover.audit_report --contract examples/warehouse/contract.json --plan examples/warehouse/late_bridge.json --report work/warehouse-late.json
 ```
 
 Contract import checks that the fixed old reader, updater, and inserter work with every declared payload on fresh databases before attributing failures to a migration.
 
-The first command exits 1 with a blocked 108/124 verdict; its shortest observed witness has `R-07` expected and `A-01` observed. The second exits 0 with 124/124 on this particular contract. The Markdown file is generated from the same executed report object as JSON, with a trace, bound inputs, expected/observed values, hashes and limitations. Run `python work/warehouse-late-replay.py` to reproduce its recorded data gap without Cutover installed. The imported contract must define `project`, `summary`, `table`, distinct `old_column`/`new_column`, initial `schema`, `seed_sql`, 1–16 `[id, value]` seed rows, an `old` read/write/insert adapter, and 2–8 domain-specific `payloads`. SQL identifiers and input sizes are bounded. The initial schema must contain exactly the named table, with no views or triggers. The old adapter must pass reads, updates of every seed ID, and an insert before migration evidence is produced. Run private schemas locally. This is a contract importer, not automatic extraction from a repository or a production-database connector.
+The first command exits 1 with a blocked 108/124 verdict; its shortest observed witness has `R-07` expected and `A-01` observed. The second exits 0 with 124/124 on this particular contract. The Markdown file is generated from the same executed report object as JSON, with a trace, bound inputs, expected/observed values, hashes and limitations. Run `python work/warehouse-late-replay.py` to reproduce its recorded data gap without Cutover installed.
+
+The audit command reruns the checked-in contract and plan in a fresh bounded worker. It compares every replayable report field and checks any attached Markdown review or standalone witness against the report. Creation time, runtime and host SQLite version are self-reported. It exits 0 for a verified pass, 1 for a verified block, and 2 if the report differs or cannot be replayed. Changing the shown passing replay or Bob attribution invalidates the report.
+
+The imported contract must define `project`, `summary`, `table`, distinct `old_column`/`new_column`, initial `schema`, `seed_sql`, 1–16 `[id, value]` seed rows, an `old` read/write/insert adapter, and 2–8 domain-specific `payloads`. SQL identifiers and input sizes are bounded. The initial schema must contain exactly the named table, with no views or triggers. The old adapter must pass reads, updates of every seed ID, and an insert before migration evidence is produced. Run private schemas locally. This is a contract importer, not automatic extraction from a repository or a production-database connector.
 
 ## What executes
 

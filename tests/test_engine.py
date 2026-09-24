@@ -3,7 +3,9 @@ import json
 import re
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from cutover.engine import load_case, load_plan, migration_statements, rehearse, replay, validate_plan
+from cutover.reporting import render_markdown, render_reproduction
 from cutover.service import run_rehearsal, verify_report_against_replay
 
 
@@ -367,10 +369,29 @@ END;
         plan = load_plan('parcel', 'late_bridge')
         report = run_rehearsal('parcel', plan)
         verify_report_against_replay('parcel', plan, report)
-        tampered = copy.deepcopy(report)
-        tampered['results'][0]['trace'][0]['detail'] = 'A plausible but unexecuted claim.'
-        with self.assertRaisesRegex(ValueError, 'fresh replay: results'):
-            verify_report_against_replay('parcel', plan, tampered)
+        changes = {
+            'results': lambda item: item['results'][0]['trace'][0].update(detail='Unexecuted claim'),
+            'example_passing_migration_window': lambda item: item.update(example_passing_migration_window=None),
+            'bob': lambda item: item['bob'].update(verified=True),
+            'fields': lambda item: item.update(extra_claim='unverified'),
+        }
+        with patch('cutover.service.run_rehearsal', return_value=report):
+            for field, change in changes.items():
+                with self.subTest(field=field):
+                    tampered = copy.deepcopy(report)
+                    change(tampered)
+                    with self.assertRaises(ValueError):
+                        verify_report_against_replay('parcel', plan, tampered)
+            api_report = copy.deepcopy(report)
+            api_report['review_markdown'] = render_markdown(report)
+            api_report['reproduction_python'] = render_reproduction(report, load_case('parcel'))
+            verify_report_against_replay('parcel', plan, api_report)
+            for field in ('review_markdown', 'reproduction_python'):
+                with self.subTest(field=field):
+                    tampered = copy.deepcopy(api_report)
+                    tampered[field] += '\nUnexecuted claim'
+                    with self.assertRaises(ValueError):
+                        verify_report_against_replay('parcel', plan, tampered)
 
 
 if __name__ == '__main__':

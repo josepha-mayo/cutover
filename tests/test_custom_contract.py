@@ -3,6 +3,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -138,14 +139,23 @@ class CustomContractTests(unittest.TestCase):
             rehearse('custom', fixture('bridge.json'), temporary)
 
     def test_cli_accepts_custom_contract_and_keeps_blocked_exit_code(self):
-        command = [sys.executable, '-m', 'cutover', '--contract',
-                   str(WAREHOUSE / 'contract.json'), '--plan',
-                   str(WAREHOUSE / 'late_bridge.json')]
-        result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True,
-                                encoding='utf-8', timeout=20)
-        self.assertEqual(result.returncode, 1)
-        self.assertIn('BLOCKED: 108/124', result.stdout)
-        self.assertIn('window', result.stdout)
+        contract = WAREHOUSE / 'contract.json'
+        plan = WAREHOUSE / 'late_bridge.json'
+        with tempfile.TemporaryDirectory() as temporary:
+            report = Path(temporary) / 'report.json'
+            command = [sys.executable, '-m', 'cutover', '--contract', str(contract),
+                       '--plan', str(plan), '--output', str(report)]
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True,
+                                    encoding='utf-8', timeout=20)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('BLOCKED: 108/124', result.stdout)
+            self.assertIn('window', result.stdout)
+            audited = subprocess.run(
+                [sys.executable, '-m', 'cutover.audit_report', '--contract', str(contract),
+                 '--plan', str(plan), '--report', str(report)], cwd=ROOT,
+                capture_output=True, text=True, encoding='utf-8', timeout=20)
+            self.assertEqual(audited.returncode, 1, audited.stderr)
+            self.assertIn('VERIFIED BLOCKED: 108/124', audited.stdout)
 
     def test_cli_refuses_to_replace_its_candidate_input(self):
         plan_path = WAREHOUSE / 'bridge.json'

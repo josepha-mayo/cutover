@@ -2,6 +2,7 @@ import json
 import subprocess
 import sys
 from .engine import ROOT, load_case, load_plan, repair_brief, validate_contract, validate_plan
+from .reporting import render_markdown, render_reproduction
 
 WORKER_TIMEOUT_SECONDS = 90
 
@@ -42,16 +43,30 @@ def run_worker(request):
 
 def verify_report_against_replay(case, plan, report, contract=None):
     """Reject a final artifact whose claimed evidence differs from a fresh worker run."""
+    if not isinstance(report, dict):
+        raise ValueError('Candidate report must be a JSON object')
     fresh = run_rehearsal(case, plan, contract)
-    deterministic_fields = (
-        'schema_version', 'engine_version', 'engine_sha256', 'case', 'project',
-        'plan', 'plan_hash', 'contract_hash', 'suite_hash', 'status', 'passed',
-        'failed', 'total', 'baseline', 'categories', 'witness', 'results',
-        'scope', 'limitations',
-    )
-    for field in deterministic_fields:
+    presentation_fields = {'review_markdown', 'reproduction_python'}
+    if (fresh.keys() - report.keys() or
+            report.keys() - fresh.keys() - presentation_fields):
+        raise ValueError('Candidate report fields differ from a fresh replay')
+    # Time, duration and the host SQLite version are observations, not claims
+    # that can be reproduced on a different machine. All evidence and Bob
+    # attribution fields, including the shown passing replay, must match.
+    for field in fresh:
+        if field in ('created_at', 'duration_ms', 'sqlite_version'):
+            continue
         if report.get(field) != fresh.get(field):
             raise ValueError(f'Candidate report differs from a fresh replay: {field}')
+    if 'review_markdown' in report and report['review_markdown'] != render_markdown(report):
+        raise ValueError('Candidate report differs from its rendered Markdown review')
+    if 'reproduction_python' in report:
+        try:
+            reproduction = render_reproduction(report, contract if contract is not None else load_case(case))
+        except ValueError as exc:
+            raise ValueError('Candidate report has no replayable data mismatch witness') from exc
+        if report['reproduction_python'] != reproduction:
+            raise ValueError('Candidate report differs from its standalone reproduction')
 
 
 def catalog():

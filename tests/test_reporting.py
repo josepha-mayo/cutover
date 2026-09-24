@@ -72,6 +72,33 @@ class ReviewReportTests(unittest.TestCase):
                                         encoding='utf-8', timeout=15)
             self.assertEqual(reproduced.returncode, 0, reproduced.stderr)
             self.assertEqual(json.loads(reproduced.stdout)['probe'], data['witness']['id'])
+            audited = subprocess.run(
+                [sys.executable, '-m', 'cutover.audit_report', '--report', str(report),
+                 '--plan', str(ROOT / 'examples' / 'parcel' / 'late_bridge.json')],
+                cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=25)
+            self.assertEqual(audited.returncode, 1, audited.stderr)
+            self.assertIn('VERIFIED BLOCKED: 108/124', audited.stdout)
+
+    def test_audit_cli_accepts_replayed_safe_report_and_rejects_forged_bob_claim(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            report = Path(temporary) / 'safe.json'
+            plan = ROOT / 'examples' / 'parcel' / 'bridge.json'
+            generated = subprocess.run(
+                [sys.executable, '-m', 'cutover', '--plan', str(plan), '--output', str(report)],
+                cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=25)
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            command = [sys.executable, '-m', 'cutover.audit_report', '--report', str(report), '--plan', str(plan)]
+            audited = subprocess.run(command, cwd=ROOT, capture_output=True, text=True,
+                                     encoding='utf-8', timeout=25)
+            self.assertEqual(audited.returncode, 0, audited.stderr)
+            self.assertIn('VERIFIED PASS: 124/124', audited.stdout)
+            data = json.loads(report.read_text(encoding='utf-8'))
+            data['bob']['verified'] = True
+            report.write_text(json.dumps(data), encoding='utf-8')
+            forged = subprocess.run(command, cwd=ROOT, capture_output=True, text=True,
+                                    encoding='utf-8', timeout=25)
+            self.assertEqual(forged.returncode, 2)
+            self.assertIn('fresh replay: bob', forged.stderr)
 
     def test_downloadable_witness_reexecutes_the_failure(self):
         for case in ('parcel', 'contacts'):
