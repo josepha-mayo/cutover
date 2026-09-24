@@ -296,12 +296,22 @@ def deck(evidence=None, output=None):
     text(c, 51, 350, 'Candidate', 14, MUTED, 'ConsolasBold')
     text(c, 528, 350, 'Completed', 14, MUTED, 'ConsolasBold')
     text(c, 733, 350, 'Windows', 14, MUTED, 'ConsolasBold')
-    rows = [
-        ('Direct rename', '16/76', '8/16'),
-        ('One-time backfill', '32/76', '16/24'),
-        ('Late bridge', '76/76', '32/48'),
-        ('Window-safe bridge (reference)', '76/76', '48/48'),
-    ]
+    rows = []
+    sample_reports = []
+    for label, candidate in (
+        ('Direct rename', 'rename'),
+        ('One-time backfill', 'backfill'),
+        ('Late bridge', 'late_bridge'),
+        ('Window-safe bridge (reference)', 'bridge'),
+    ):
+        plan = json.loads((ROOT / 'examples' / 'parcel' / f'{candidate}.json').read_text(encoding='utf-8'))
+        report = run_rehearsal('parcel', plan)
+        completed = [row for row in report['results'] if row['category'] != 'migration_window']
+        windows = [row for row in report['results'] if row['category'] == 'migration_window']
+        rows.append((label,
+                     f"{sum(row['passed'] for row in completed)}/{len(completed)}",
+                     f"{sum(row['passed'] for row in windows)}/{len(windows)}"))
+        sample_reports.append(report)
     for i, (name, complete, windows) in enumerate(rows):
         y = 281 - i * 53
         box(c, 45, y, 870, 44, '#563c33' if i == 2 else PANEL)
@@ -309,7 +319,11 @@ def deck(evidence=None, output=None):
              CREAM, 'SegoeBold' if i in (2, 3) else 'Segoe')
         text(c, 540, y + 13, complete, 17, LIME, 'ConsolasBold')
         text(c, 748, y + 13, windows, 17, ORANGE if i == 2 else LIME, 'ConsolasBold')
-    text(c, 45, 81, 'Curated unsafe patterns caught: baseline 0/3  |  rollout 2/3  |  windows 3/3', 13, ORANGE, 'Consolas')
+    baseline_detected = sum(r['baseline']['passed'] < r['baseline']['total'] for r in sample_reports[:3])
+    completed_detected = sum(any(not row['passed'] for row in r['results']
+                                 if row['category'] != 'migration_window') for r in sample_reports[:3])
+    full_detected = sum(r['status'] == 'blocked' for r in sample_reports[:3])
+    text(c, 45, 81, f'Curated unsafe patterns caught: baseline {baseline_detected}/3  |  rollout {completed_detected}/3  |  windows {full_detected}/3', 13, ORANGE, 'Consolas')
     text(c, 45, 59, 'Pre-event reference; curated samples, not Bob output or a customer benchmark.', 11, MUTED)
     c.showPage()
 
@@ -335,7 +349,7 @@ def deck(evidence=None, output=None):
     text(c, 298, 235, f"{safe['passed']}/{safe['total']}  PASS", 19, LIME, 'ConsolasBold')
     text(c, 45, 168, f'Old write acknowledged: {expected}   /   New read observed: {observed}', 18, ORANGE)
     text(c, 45, 119, 'JSON + Markdown carry the same executed report, SQL, inputs and hashes.', 16)
-    text(c, 45, 78, 'Pre-event Codex CLI work; browser import and Bob repair remain event tasks.', 13, MUTED)
+    text(c, 45, 78, 'Pre-event Codex importer and reference plans; Bob repair remains an event task.', 13, MUTED)
     c.showPage()
 
     if final:
