@@ -107,8 +107,9 @@ The fixed evaluator is identical to the source project's `cutover/engine.py`.
 Use the `Cutover release engineer` mode and the `cutover` MCP server. Call
 `inspect_release` and `diagnose_reference` with `reference=late_bridge` for
 Parcel. The late bridge passes completed-rollout checks but fails when old
-workers write between migration statements. Explain one concrete failing
-replay. Propose your own migration and new-version SQL adapter, then call
+workers write between migration statements. Keep old reads and writes correct
+after every completed migration statement, before migration resumes. Explain
+one concrete failing replay. Propose your own migration and new-version SQL adapter, then call
 `rehearse_candidate` until you have an honestly reported result. Keep any
 failed attempts. The new reader must read the target column without accessing
 the old column; new updates and inserts must put their values in the target
