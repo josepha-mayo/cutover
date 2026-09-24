@@ -7,12 +7,13 @@ import json
 import re
 import sqlite3
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.10"
+ENGINE_VERSION = "0.3.11"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -165,8 +166,8 @@ def migration_statements(script):
     return statements
 
 
-def connection(contract, access_log=None):
-    db = sqlite3.connect(":memory:", isolation_level=None)
+def connection(contract, access_log=None, database=":memory:", initialize=True):
+    db = sqlite3.connect(database, uri=database != ":memory:", isolation_level=None)
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA recursive_triggers=ON')
     # The exercise permits schema and data edits only in this ephemeral database.
@@ -193,12 +194,13 @@ def connection(contract, access_log=None):
     db.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED, 0)
     deadline = time.monotonic() + 0.15
     db.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
-    try:
-        db.executescript(contract["schema"])
-        db.executemany(contract["seed_sql"], contract["seed"])
-    except Exception:
-        db.close()
-        raise
+    if initialize:
+        try:
+            db.executescript(contract["schema"])
+            db.executemany(contract["seed_sql"], contract["seed"])
+        except Exception:
+            db.close()
+            raise
     return db
 
 
@@ -244,7 +246,11 @@ def schedules():
 
 def replay(contract, plan, actions, payload, statements=None, seed_id=None, insert_id=None, write_ids=None):
     access_log = []
-    db = connection(contract, access_log)
+    # A persistent migration must be visible to workers on their own sessions.
+    # The URI names one disposable in-memory database shared by three SQLite
+    # connections; statements are still interleaved sequentially, not raced.
+    database = f"file:cutover-{uuid.uuid4().hex}?mode=memory&cache=shared"
+    db = old_db = new_db = None
     oracle = {row[0]: row[1] for row in contract["seed"]}
     selected_id = contract["seed"][0][0] if seed_id is None else seed_id
     trace, failure = [], None
@@ -252,8 +258,12 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None, inse
     updates = 0
     checked_new_adapter = set()
     try:
+        db = connection(contract, database=database)
+        old_db = connection(contract, database=database, initialize=False)
+        new_db = connection(contract, access_log, database=database, initialize=False)
         for index, action in enumerate(actions):
-            event = {"step": index + 1, "action": action, "status": "pass"}
+            role = "migration" if action == "migrate" or action.startswith("migration.") else action.split(".")[0]
+            event = {"step": index + 1, "action": action, "connection": role, "status": "pass"}
             try:
                 if action == "migrate" or action.startswith("migration.statement."):
                     sql = plan["migration"] if action == "migrate" else statements[int(action.rsplit(".", 1)[-1])]
@@ -262,11 +272,12 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None, inse
                     event["detail"] = "Migration statement executed against a fresh in-memory database."
                 else:
                     version, operation = action.split(".")
+                    worker_db = old_db if version == "old" else new_db
                     adapter = contract["old"] if version == "old" else plan
                     event["sql"] = adapter[operation]
                     access_start = len(access_log)
                     if operation == "read":
-                        rows = db.execute(adapter["read"]).fetchmany(100)
+                        rows = worker_db.execute(adapter["read"]).fetchmany(100)
                         actual = {row["id"]: row["value"] for row in rows}
                         event.update(expected=dict(oracle), actual=actual)
                         if len(rows) != len(oracle) or actual != oracle:
@@ -285,8 +296,8 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None, inse
                         event["params"] = {"id": selected_id, "value": value}
                         direct_target_write = (version != "new" or
                                                writes_target_without_triggers(
-                                                   db, contract, adapter[operation], event["params"]))
-                        cursor = db.execute(adapter[operation], event["params"])
+                                                   worker_db, contract, adapter[operation], event["params"]))
+                        cursor = worker_db.execute(adapter[operation], event["params"])
                         if cursor.rowcount != 1:
                             failure = {"kind": "write_not_acknowledged", "message": f"Expected 1 affected row, got {cursor.rowcount}."}
                         elif not direct_target_write:
@@ -326,7 +337,8 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None, inse
         if not failure:
             target_sql = (f'SELECT id, "{contract["new_column"]}" AS value '
                           f'FROM "{contract["table"]}" ORDER BY id')
-            event = {"step": len(trace) + 1, "action": "target.check", "status": "pass", "sql": target_sql}
+            event = {"step": len(trace) + 1, "action": "target.check",
+                     "connection": "migration", "status": "pass", "sql": target_sql}
             try:
                 rows = db.execute(target_sql).fetchmany(100)
                 actual = {row["id"]: row["value"] for row in rows}
@@ -346,7 +358,9 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None, inse
             trace.append(event)
         return {"passed": failure is None, "trace": trace, "failure": failure}
     finally:
-        db.close()
+        for active in (new_db, old_db, db):
+            if active is not None:
+                active.close()
 
 
 def replay_seed_variants(contract, plan, actions, payload, statements=None):
@@ -460,6 +474,7 @@ def rehearse(case, plan, contract=None):
         "project": contract["project"], "created_at": datetime.now(timezone.utc).isoformat(),
         "plan": plan, "plan_hash": digest(plan), "contract_hash": digest(contract),
         "suite_hash": digest({"schedules": schedules(), "payloads": payloads,
+                              "connection_policy": "separate migration, old and new SQLite connections to one disposable database",
                               "migration_window_policy": "old update and insert after every SQLite statement boundary",
                               "write_seed_policy": "each seeded record for every update probe",
                               "cross_record_policy": "rotating directed offset; every ordered seed pair across the two-write suite",
@@ -470,7 +485,7 @@ def rehearse(case, plan, contract=None):
         "categories": categories, "witness": witness, "results": results,
         "duration_ms": round((time.perf_counter() - start) * 1000, 1),
         "scope": (("SQLite user-supplied contract" if case == "custom" else "SQLite sample contracts") +
-                  ", target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
+                  ", separate migration/old/new connections to one disposable in-memory database, target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
         "limitations": ["No concurrent transactions, lock timing or network failures modeled.",
                         "No PostgreSQL, MySQL or ORM behavior claimed.",
                         "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",

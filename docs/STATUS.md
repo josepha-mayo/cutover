@@ -1,6 +1,6 @@
 # Pre-event status — updated September 24, 2026
 
-The current engine is v0.3.10. It rejects connection-local `TEMP` schema objects: a candidate using only temporary synchronization triggers previously passed 124/124 even though other workers would not see them. Imported contracts also prove the fixed old updater and inserter work for every declared payload on separate fresh databases before a candidate gets a verdict. Its schema and identifier-access checks follow SQLite's case-insensitive table and column naming. These corrections were made by Codex before kickoff.
+The current engine is v0.3.11. Each probe now uses separate migration, old-worker, and new-worker SQLite connections to one disposable in-memory database; the standalone witness mirrors them. Operations remain sequential, without concurrent transaction or lock timing. It rejects connection-local `TEMP` schema objects: a candidate using only temporary synchronization triggers previously passed 124/124 even though other workers would not see them. Imported contracts prove the fixed old updater and inserter work for every declared payload on separate fresh databases before a candidate gets a verdict. Its schema and identifier-access checks follow SQLite's case-insensitive table and column naming. These corrections were made by Codex before kickoff.
 
 ## Working and verified
 

@@ -111,6 +111,22 @@ END;
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads(result.stdout)['status'], 'REPRODUCED')
 
+    def test_standalone_witness_uses_separate_worker_connections(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['read'] = ('SELECT id, CAST(last_insert_rowid() AS TEXT) || '
+                        'substr(shipping_address, 1, 0) AS value FROM orders ORDER BY id')
+        report = rehearse('parcel', plan)
+        self.assertEqual(report['witness']['failure']['kind'], 'data_mismatch')
+        with tempfile.TemporaryDirectory() as temporary:
+            script = Path(temporary) / 'reproduce.py'
+            script.write_text(render_reproduction(report, load_case('parcel')), encoding='utf-8')
+            result = subprocess.run([sys.executable, '-I', str(script)], cwd=temporary,
+                                    capture_output=True, text=True, encoding='utf-8', timeout=15)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            outcome = json.loads(result.stdout)
+            self.assertEqual(outcome['probe'], report['witness']['id'])
+            self.assertEqual(outcome['actual']['101'], '0')
+
     def test_passing_report_has_no_failure_reproduction(self):
         report = rehearse('parcel', load_plan('parcel', 'bridge'))
         with self.assertRaisesRegex(ValueError, 'data mismatch'):

@@ -35,7 +35,7 @@ def render_reproduction(report, contract):
               if key in event} for event in witness['trace']]
     constants = ('#!/usr/bin/env python3\n'
                  '# Cutover standalone witness. Runs candidate SQL in disposable in-memory SQLite.\n'
-                 'import json\nimport sqlite3\nimport time\n\n'
+                 'import json\nimport sqlite3\nimport time\nimport uuid\n\n'
                  f'PROBE = {witness["id"]!r}\n'
                  f'FAILURE_KIND = {kind!r}\n'
                  f'PLAN_HASH = {report["plan_hash"]!r}\n'
@@ -44,9 +44,8 @@ def render_reproduction(report, contract):
                  f'SEED = {contract["seed"]!r}\n'
                  f'STEPS = {steps!r}\n\n')
     runner = '''def reproduce():
-    db = sqlite3.connect(':memory:', isolation_level=None)
-    db.row_factory = sqlite3.Row
-    db.execute('PRAGMA recursive_triggers=ON')
+    database = f"file:cutover-{uuid.uuid4().hex}?mode=memory&cache=shared"
+    deadline = time.monotonic() + 3
     denied = {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH, sqlite3.SQLITE_PRAGMA,
               sqlite3.SQLITE_TRANSACTION, sqlite3.SQLITE_SAVEPOINT,
               sqlite3.SQLITE_CREATE_TEMP_TABLE, sqlite3.SQLITE_CREATE_TEMP_VIEW,
@@ -60,25 +59,36 @@ def render_reproduction(report, contract):
             return sqlite3.SQLITE_DENY
         return sqlite3.SQLITE_OK
 
-    db.set_authorizer(authorize)
-    db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, 1000000)
-    db.setlimit(sqlite3.SQLITE_LIMIT_SQL_LENGTH, 20000)
-    db.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED, 0)
-    deadline = time.monotonic() + 3
-    db.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+    def open_connection():
+        db = sqlite3.connect(database, uri=True, isolation_level=None)
+        db.row_factory = sqlite3.Row
+        db.execute('PRAGMA recursive_triggers=ON')
+        db.set_authorizer(authorize)
+        db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, 1000000)
+        db.setlimit(sqlite3.SQLITE_LIMIT_SQL_LENGTH, 20000)
+        db.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED, 0)
+        db.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+        return db
+
+    db = old_db = new_db = None
     try:
+        db = open_connection()
         db.executescript(SCHEMA)
         db.executemany(SEED_SQL, SEED)
+        old_db = open_connection()
+        new_db = open_connection()
         for step in STEPS:
             action = step['action']
+            worker_db = (old_db if action.startswith('old.') else
+                         new_db if action.startswith('new.') else db)
             if action == 'migrate' or action.startswith('migration.statement.'):
                 db.executescript(step['sql'])
             elif action.endswith('.write') or action.endswith('.insert'):
-                count = db.execute(step['sql'], step['params']).rowcount
+                count = worker_db.execute(step['sql'], step['params']).rowcount
                 if count != 1:
                     raise AssertionError(f'{action} affected {count} records instead of one')
             else:
-                rows = db.execute(step['sql']).fetchmany(100)
+                rows = worker_db.execute(step['sql']).fetchmany(100)
                 actual = {str(row['id']): row['value'] for row in rows}
                 recorded = {str(key): value for key, value in step['actual'].items()}
                 expected = {str(key): value for key, value in step['expected'].items()}
@@ -97,7 +107,9 @@ def render_reproduction(report, contract):
                     raise AssertionError(f'{action} diverged before the recorded failure')
         raise AssertionError('The recorded failure step was not reached')
     finally:
-        db.close()
+        for active in (new_db, old_db, db):
+            if active is not None:
+                active.close()
 
 
 if __name__ == '__main__':
@@ -122,6 +134,8 @@ def replay_section(probe, title):
                   'Insert IDs checked before this verdict:', '', structured(probe['insert_ids_tested']), '']
     for event in probe['trace']:
         lines += [f'### {event["step"]}. {inline(event["action"])} — {inline(event["status"])}', '']
+        if event.get('connection'):
+            lines += [f'Connection: **{inline(event["connection"])}**.', '']
         if event.get('sql'):
             lines += ['Executed SQL:', '', fenced(event['sql'], 'sql'), '']
         if event.get('params'):

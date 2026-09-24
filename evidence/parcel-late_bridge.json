@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "engine_version": "0.3.10",
+  "engine_version": "0.3.11",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "5d3627808707ea0556d1d3cf11c8dc5f5c6bb0fed39b1fe6ed5404f64a3df895",
+  "engine_sha256": "632f6c7dc1599a1cfc69aa0df0f34a3b57f8d2074664cf3967f270341309d118",
   "case": "parcel",
   "project": "Parcel / delivery service",
-  "created_at": "2026-09-24T09:45:42.783282+00:00",
+  "created_at": "2026-09-24T10:17:22.518039+00:00",
   "plan": {
     "read": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
     "write": "UPDATE orders SET shipping_address = :value WHERE id = :id",
@@ -15,7 +15,7 @@
   },
   "plan_hash": "7e7bc349a783c824777fa99a4e2fdf1c245aa7f1f1e404421fa62541cf2ff252",
   "contract_hash": "c8d6f17e2b9963eac3b3fd2a5201b82c5ae922c7a43a72af26ec0096696cc7a6",
-  "suite_hash": "1c6df5fd906033a34a6c1fa1869544763098ec560ff1dcdcec52dff1ef24a9f3",
+  "suite_hash": "e56da77168873b764ed5678e17a06c312091bb76d8e11156eacfd63744d14df4",
   "status": "blocked",
   "passed": 108,
   "failed": 16,
@@ -67,6 +67,7 @@
       {
         "step": 1,
         "action": "migration.statement.0",
+        "connection": "migration",
         "status": "pass",
         "sql": "ALTER TABLE orders ADD COLUMN shipping_address TEXT;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -74,6 +75,7 @@
       {
         "step": 2,
         "action": "migration.statement.1",
+        "connection": "migration",
         "status": "pass",
         "sql": "UPDATE orders SET shipping_address = delivery_address;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -81,6 +83,7 @@
       {
         "step": 3,
         "action": "old.write",
+        "connection": "old",
         "status": "pass",
         "sql": "UPDATE orders SET delivery_address = :value WHERE id = :id",
         "params": {
@@ -92,6 +95,7 @@
       {
         "step": 4,
         "action": "migration.statement.2",
+        "connection": "migration",
         "status": "pass",
         "sql": "-- Triggers arrive only after the backfill window.\n-- Preserve both reader contracts throughout the rollback window.\nCREATE TRIGGER sync_old_update AFTER UPDATE OF delivery_address ON orders\nWHEN NEW.delivery_address IS NOT NEW.shipping_address\nBEGIN\n  UPDATE orders SET shipping_address = NEW.delivery_address WHERE id = NEW.id;\nEND;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -99,6 +103,7 @@
       {
         "step": 5,
         "action": "migration.statement.3",
+        "connection": "migration",
         "status": "pass",
         "sql": "CREATE TRIGGER sync_new_update AFTER UPDATE OF shipping_address ON orders\nWHEN NEW.shipping_address IS NOT NEW.delivery_address\nBEGIN\n  UPDATE orders SET delivery_address = NEW.shipping_address WHERE id = NEW.id;\nEND;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -106,6 +111,7 @@
       {
         "step": 6,
         "action": "migration.statement.4",
+        "connection": "migration",
         "status": "pass",
         "sql": "CREATE TRIGGER sync_old_insert AFTER INSERT ON orders\nWHEN NEW.shipping_address IS NULL\nBEGIN\n  UPDATE orders SET shipping_address = NEW.delivery_address WHERE id = NEW.id;\nEND;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -113,6 +119,7 @@
       {
         "step": 7,
         "action": "new.read",
+        "connection": "new",
         "status": "fail",
         "sql": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
         "expected": {
@@ -159,8 +166,8 @@
     ],
     "migration_boundary": 2
   },
-  "duration_ms": 513.4,
-  "scope": "SQLite sample contracts, target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+  "duration_ms": 618.5,
+  "scope": "SQLite sample contracts, separate migration/old/new connections to one disposable in-memory database, target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",
     "No PostgreSQL, MySQL or ORM behavior claimed.",
@@ -179,6 +186,7 @@
       {
         "step": 1,
         "action": "old.write",
+        "connection": "old",
         "status": "pass",
         "sql": "UPDATE orders SET delivery_address = :value WHERE id = :id",
         "params": {
@@ -190,6 +198,7 @@
       {
         "step": 2,
         "action": "migration.statement.0",
+        "connection": "migration",
         "status": "pass",
         "sql": "ALTER TABLE orders ADD COLUMN shipping_address TEXT;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -197,6 +206,7 @@
       {
         "step": 3,
         "action": "migration.statement.1",
+        "connection": "migration",
         "status": "pass",
         "sql": "UPDATE orders SET shipping_address = delivery_address;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -204,6 +214,7 @@
       {
         "step": 4,
         "action": "migration.statement.2",
+        "connection": "migration",
         "status": "pass",
         "sql": "-- Triggers arrive only after the backfill window.\n-- Preserve both reader contracts throughout the rollback window.\nCREATE TRIGGER sync_old_update AFTER UPDATE OF delivery_address ON orders\nWHEN NEW.delivery_address IS NOT NEW.shipping_address\nBEGIN\n  UPDATE orders SET shipping_address = NEW.delivery_address WHERE id = NEW.id;\nEND;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -211,6 +222,7 @@
       {
         "step": 5,
         "action": "migration.statement.3",
+        "connection": "migration",
         "status": "pass",
         "sql": "CREATE TRIGGER sync_new_update AFTER UPDATE OF shipping_address ON orders\nWHEN NEW.shipping_address IS NOT NEW.delivery_address\nBEGIN\n  UPDATE orders SET delivery_address = NEW.shipping_address WHERE id = NEW.id;\nEND;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -218,6 +230,7 @@
       {
         "step": 6,
         "action": "migration.statement.4",
+        "connection": "migration",
         "status": "pass",
         "sql": "CREATE TRIGGER sync_old_insert AFTER INSERT ON orders\nWHEN NEW.shipping_address IS NULL\nBEGIN\n  UPDATE orders SET shipping_address = NEW.delivery_address WHERE id = NEW.id;\nEND;",
         "detail": "Migration statement executed against a fresh in-memory database."
@@ -225,6 +238,7 @@
       {
         "step": 7,
         "action": "new.read",
+        "connection": "new",
         "status": "pass",
         "sql": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
         "expected": {
@@ -240,6 +254,7 @@
       {
         "step": 8,
         "action": "target.check",
+        "connection": "migration",
         "status": "pass",
         "sql": "SELECT id, \"shipping_address\" AS value FROM \"orders\" ORDER BY id",
         "expected": {

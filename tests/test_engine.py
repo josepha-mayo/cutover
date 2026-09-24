@@ -289,6 +289,17 @@ END;
                 self.assertEqual(result['witness']['failure']['kind'], 'sql_error')
                 self.assertIn('not authorized', result['witness']['failure']['message'])
 
+    def test_new_reader_does_not_inherit_old_workers_last_insert_id(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['read'] = ('SELECT id, CAST(last_insert_rowid() AS TEXT) || '
+                        'substr(shipping_address, 1, 0) AS value FROM orders ORDER BY id')
+        result = replay(load_case('parcel'), plan,
+                        ['migrate', 'old.insert', 'new.read'], 'x', insert_id=103)
+        self.assertEqual(result['failure']['kind'], 'data_mismatch')
+        self.assertEqual([event['connection'] for event in result['trace']],
+                         ['migration', 'old', 'new'])
+        self.assertEqual(result['trace'][-1]['actual'][103], '0')
+
     def test_runaway_query_is_interrupted(self):
         plan = load_plan('parcel', 'bridge')
         plan['migration'] = 'WITH RECURSIVE forever(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM forever) SELECT sum(x) FROM forever;'
