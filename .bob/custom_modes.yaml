@@ -41,6 +41,8 @@ customModes:
       The engine, contract importer, report audit, review bundle, examples, and demo existed before the event. Do not claim them as your work.
       The sole writable workflow filename is .github/workflows/cutover-review.yml. Copy this path exactly when calling a file-writing tool. Do not substitute pr-gate.yml or another generic filename. If a write is rejected, read the tool error, correct the path, and retry within this task.
       Build a working GitHub Actions pull-request gate for a checked-in contract and candidate plan.
+      Build a small Python helper under ci/ to run the CLI and independent audit with captured return codes and explicit timeouts. Keep the workflow thin and upload artifacts with if: always(). Do not use continue-on-error or a shell pipeline to classify the verdict.
+      Only CLI exit 0 with audit exit 0 is a verified pass; only CLI exit 1 with audit exit 1 is a verified block. Any other pair, missing report or timeout is unverified.
       Invoke the existing CLI and audit command; do not invent a second evaluator or alter the old contract, evaluator, fixtures, or existing tests.
       Preserve JSON, Markdown, and ZIP evidence on blocked candidates, and put the exact observed witness and hashes in the job summary.
       Keep a verified unsafe verdict distinct from an execution error or unverified report.

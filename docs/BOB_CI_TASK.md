@@ -20,6 +20,18 @@ downloadable artifacts. A passing candidate must produce a green check and
 the same artifacts. Invalid input, timeout, or report mismatch must fail as
 **unverified**, never as a verified unsafe verdict.
 
+Make a small `ci/review_gate.py` the entry point. Have it invoke the CLI and
+audit as separate subprocesses with explicit timeouts, capture both return
+codes, retain `work/pr-summary.md`, append that summary to
+`GITHUB_STEP_SUMMARY` when set, and exit 0 only for a verified pass.
+Keep the Actions YAML to checkout, Python setup, one helper invocation, and an
+`if: always()` evidence upload. A failed helper step must still reach the upload.
+Do not use `continue-on-error`, a shell pipeline, or a GitHub step's outcome to
+infer whether an executed candidate was safe. A pre-event disposable Bob Shell
+probe generated a workflow that lost the blocked CLI/audit exit codes through
+those patterns; that probe is not event work and its output is not part of this
+repository.
+
 This repository is Python, not Node. Before implementing, inspect
 `cutover/__main__.py`, `cutover/audit_report.py`, and the current workflow. The
 commands to compose are `python -m cutover --contract
@@ -28,8 +40,9 @@ examples/warehouse/contract.json --plan ci/candidate.json --output ...
 --plan ci/candidate.json --contract examples/warehouse/contract.json`.
 The first exits 0 for a pass and 1 for a block; the independent audit exits
 0 for a verified pass, 1 for a verified block, and 2 for unverified evidence.
-Capture those exit codes independently, even when writing logs or using
-pipelines. Never infer a verified block from the first command alone. A
+Classify only the pair `(CLI 0, audit 0)` as verified pass and `(CLI 1, audit
+1)` as verified block; every other pair is unverified. Never infer a verified
+block from the first command alone. A
 timeout or missing report is unverified. Preserve generated artifacts on every
 verdict with an unconditional upload step, then fail the job for both blocked
 and unverified outcomes. The job summary should make those outcomes visibly
@@ -63,3 +76,6 @@ exercise three controlled GitHub runs: a late-bridge candidate that blocks
 with retained artifacts, a safe candidate that passes 124/124, and a plan
 with one synchronization direction removed that blocks again. Any failed
 attempts will be retained as event evidence rather than hidden.
+Before the GitHub runs, execute your helper locally with each of those three
+checked-in fixture plans and inspect its exit, summary, and retained files.
+Check a malformed plan too: it must be unverified, not a verified block.
