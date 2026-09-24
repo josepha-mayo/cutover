@@ -43,7 +43,7 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 - 1:04–1:45: Show the real Bob task, diagnostic tool calls, candidate files, and task summary. Describe actual attempts, including any failures, without inventing a repair.
 - 1:45–2:12: Import and independently run Bob's saved candidate. State only its observed counts and show a migration-window replay.
 - 2:12–2:33: Show the pre-event browser import of the warehouse contract and its blocked Markdown review, clearly attributed to Codex preparation; show the event-period CI gate only if Bob actually built and verified it.
-- 2:33–2:50: Rerun a negative control with one synchronization direction removed and show the actual changed verdict, then restore Bob's genuine candidate.
+- 2:33–2:50: Show the separately attributed, prewritten cross-record trap. Its migration windows pass 56/56, but the second write erases the first; the full browser result blocks at 100/132 and shows the exact expected and observed values.
 - 2:50–3:00: End with the source and live demo, and name the bounded SQLite scope and untested concurrency/production-database work.
 
 ## Deck outline

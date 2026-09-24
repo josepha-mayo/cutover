@@ -36,7 +36,7 @@
     {
       "id": "negative_control",
       "start_sec": 154,
-      "text": "Remove one synchronization direction and run it again. The verdict changes because Cutover executes the SQL against a fixed old contract and an independent write ledger."
+      "text": "This prewritten trap passes every migration window. Then a second write erases the first. Cutover catches that cross-record loss."
     },
     {
       "id": "close",
