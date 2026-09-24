@@ -74,13 +74,14 @@ def assemble(manifest_path: Path, narration: Path, output: Path,
     target = float(manifest["duration_sec"])
     if not 0 < target <= 180 or not clips:
         raise ValueError("Expected a nonempty demo of at most 180 seconds")
-    test_assembly = bool(manifest.get("assembly_test_only")) or any(
+    test_assembly = (bool(manifest.get("assembly_test_only")) or any(
         "assembly-test" in str(clip.get("path", "")).lower() for clip in clips
-    )
+    ) or any(marker in narration.name.lower() for marker in
+             ("test-only", "timing-test", "negative-control")))
     if test_assembly and not allow_test_assembly:
-        raise ValueError("Test slate manifest requires --test-assembly")
+        raise ValueError("Test footage or narration requires --test-assembly")
     if test_assembly and "assembly-test" not in output.name.lower():
-        raise ValueError("Test slate output filename must contain assembly-test")
+        raise ValueError("Test output filename must contain assembly-test")
     if not narration.is_file():
         raise FileNotFoundError(narration)
     if output.exists():
