@@ -506,6 +506,7 @@ def repair_brief(report):
                         "Preserve every record and the latest acknowledged write across both versions.",
                         "The new reader must not read the old column. New updates and inserts must carry their values into the fixed target without triggers; explicit dual-writes are valid.",
                         "The target column must preserve every acknowledged ledger value.",
+                        "Old readers must remain correct between completed migration statements, not only after migration finishes.",
                         "Cover old/new inserts as well as updates; keep the old column during the rollback window.",
                         "Propose a candidate with name, migration, read, write, insert. Call rehearse_candidate.",
                         "Report the exact coverage and limitations. Do not claim production safety."],

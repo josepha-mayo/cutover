@@ -2,10 +2,10 @@
   "schema_version": 1,
   "engine_version": "0.3.12",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "ff45322968260e408d4b44d6893162f058a79e805a13f133336bb07fb2b253d9",
+  "engine_sha256": "7463c784bb100bdf80f3daafb5ad11578c88a6cb0607aa41782f0d50e1a1b58e",
   "case": "contacts",
   "project": "Relay / contact service",
-  "created_at": "2026-09-24T10:28:08.263785+00:00",
+  "created_at": "2026-09-24T10:41:18.784837+00:00",
   "plan": {
     "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
     "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
@@ -62,7 +62,7 @@
     }
   ],
   "witness": null,
-  "duration_ms": 594.0,
+  "duration_ms": 704.3,
   "scope": "SQLite sample contracts, separate migration/old/new connections to one disposable in-memory database, target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and old-worker read checks at every completed statement boundary. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",

@@ -88,6 +88,28 @@ class ReviewReportTests(unittest.TestCase):
                 self.assertEqual(outcome['probe'], report['witness']['id'])
                 self.assertEqual(outcome['failure_kind'], report['witness']['failure']['kind'])
 
+    def test_standalone_witness_reexecutes_mid_migration_old_read_failure(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['migration'] = plan['migration'].replace(
+            'WHEN NEW.delivery_address IS NOT NEW.shipping_address',
+            "WHEN NEW.delivery_address IS NOT NEW.shipping_address AND NEW.delivery_address != 'temporary'")
+        plan['migration'] += "\nUPDATE orders SET delivery_address = 'temporary' WHERE id = 102;"
+        plan['migration'] += '\nUPDATE orders SET delivery_address = shipping_address WHERE id = 102;'
+        report = rehearse('parcel', plan)
+        self.assertEqual(report['witness']['failure']['action'], 'old.read')
+        review = render_markdown(report)
+        self.assertIn('old.read', review)
+        with tempfile.TemporaryDirectory() as temporary:
+            script = Path(temporary) / 'reproduce.py'
+            script.write_text(render_reproduction(report, load_case('parcel')), encoding='utf-8')
+            result = subprocess.run([sys.executable, '-I', str(script)], cwd=temporary,
+                                    capture_output=True, text=True, encoding='utf-8', timeout=15)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            outcome = json.loads(result.stdout)
+            self.assertEqual(outcome['status'], 'REPRODUCED')
+            self.assertEqual(outcome['probe'], report['witness']['id'])
+            self.assertEqual(outcome['actual']['102'], 'temporary')
+
     def test_cross_record_witness_reexecutes_both_write_targets(self):
         plan = load_plan('parcel', 'bridge')
         plan['migration'] += '''
