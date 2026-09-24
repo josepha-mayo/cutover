@@ -1,6 +1,6 @@
 # Pre-event status — updated September 24, 2026
 
-The current engine is v0.3.7. Its identifier-access check now follows SQLite's case-insensitive column naming for imported contracts: a safe plan previously failed when the contract spelled the target column in different case. All 60 local tests and Windows/Ubuntu CI pass; the public Render service returned 124/124 on that formerly blocked contract. This correction was made by Codex before kickoff.
+The current engine is v0.3.8. Its schema and identifier-access checks now follow SQLite's case-insensitive table and column naming for imported contracts: a safe plan previously failed when the target column used different case, and an uppercase table name was rejected before execution. This correction was made by Codex before kickoff.
 
 ## Working and verified
 

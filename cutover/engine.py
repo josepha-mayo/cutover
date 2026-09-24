@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.7"
+ENGINE_VERSION = "0.3.8"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -75,7 +75,8 @@ def validate_old_contract_behavior(contract):
         schema_objects = db.execute(
             "SELECT type, name FROM sqlite_master "
             "WHERE type IN ('table', 'view', 'trigger') AND name NOT LIKE 'sqlite_%'").fetchall()
-        if [(row['type'], row['name']) for row in schema_objects] != [('table', contract['table'])]:
+        if (len(schema_objects) != 1 or schema_objects[0]['type'] != 'table' or
+                schema_objects[0]['name'].casefold() != contract['table'].casefold()):
             raise ValueError("Initial schema must contain exactly the named table and no views or triggers")
         columns = {column[0].casefold() for column in db.execute(
             f'SELECT * FROM "{contract["table"]}" LIMIT 0').description}
