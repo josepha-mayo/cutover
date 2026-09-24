@@ -11,6 +11,9 @@ Use this file only after the September 25 kickoff in a fresh IBM Bob task using
 the **Cutover CI builder** mode. The evaluator, imported warehouse fixture,
 `cutover.audit_report`, and `--bundle` export were written before the event by
 Codex. They are available tools, not Bob contributions.
+The mode permits terminal execution for local Python checks. Keep all writes
+inside its file allowlist; do not use terminal commands to edit protected files,
+access credentials, deploy, push, or publish.
 
 Build a reusable GitHub Actions pull-request gate for a repository with a
 checked-in SQLite contract JSON and candidate plan JSON. Invoke the existing

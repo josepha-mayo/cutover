@@ -34,6 +34,7 @@ customModes:
     groups:
       - read
       - mcp
+      - execute
       - - edit
         - fileRegex: "^(\\.github/workflows/cutover-review\\.ya?ml|ci/.*\\.(py|md)|tests/test_ci_gate\\.py|docs/CI\\.md)$"
           description: CI workflow, helper, focused test and setup guide only
@@ -48,4 +49,5 @@ customModes:
       Preserve JSON, Markdown, and ZIP evidence on blocked candidates, and put the exact observed witness and hashes in the job summary.
       Keep a verified unsafe verdict distinct from an execution error or unverified report.
       Treat the checked-in candidate plan and contract as read-only inputs. Only edit files allowed by this mode. Do not push or publish; an independent review will run the controlled CI jobs.
+      Use terminal execution only to inspect and run local Python checks. Do not use terminal commands to edit protected files, access credentials, deploy, push, or publish. Keep all file changes within the edit allowlist; a separate audit will inspect them.
       Report every file you wrote, the evidence you inspected, and what remains untested.
