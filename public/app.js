@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
-let importedContract = null, importedMeta = null, customPlan = null;
+let importedContract = null, importedMeta = null, customPlan = null, customPlanSource = null;
+let candidateSource = '', candidateProvenance = 'custom candidate', customPlanProvenance = null;
 const fields = {name: 'plan-name', migration: 'migration', read: 'read', write: 'write', insert: 'insert'};
 const labels = {compatibility: 'Old worker alive', mixed_versions: 'Mixed versions', rollback: 'Rollback reads', new_records: 'New records', interleaving: 'Write order', in_flight: 'Before migration', migration_window: 'Migration windows'};
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -45,14 +46,16 @@ function invalidate() {
   $('finding').innerHTML='<span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div>';
   $('export').disabled=true; $('export-review').disabled=true; $('export-repro').disabled=true; $('brief').disabled=true;
 }
-function setPlan(plan, source) {
+function setPlan(plan, source, provenance='custom candidate') {
   Object.entries(fields).forEach(([key,id])=>$(id).value=plan[key]);
+  candidateSource=source;
+  candidateProvenance=provenance;
   $('source-label').textContent=source;
   document.querySelectorAll('[data-plan]').forEach(button=>{ const chosen=button.dataset.plan===reference; button.classList.toggle('selected',chosen); button.setAttribute('aria-pressed',String(chosen)); });
   invalidate();
 }
 function chooseCase() {
-  if(activeCase?.id==='custom'&&$('case').value!=='custom')customPlan=currentPlan();
+  if(activeCase?.id==='custom'&&$('case').value!=='custom') {customPlan=currentPlan();customPlanSource=candidateSource;customPlanProvenance=candidateProvenance;}
   const custom=$('case').value==='custom';
   activeCase=custom?{id:'custom',...importedContract}:catalog.cases.find(c=>c.id===$('case').value);
   reference=custom?null:'late_bridge';
@@ -60,7 +63,8 @@ function chooseCase() {
   $('old-contract').textContent=pretty(activeCase.old);
   $('variant-count').textContent=`${custom?activeCase.payloads.length:4} INPUT VARIANTS`;
   setPlan(custom?(customPlan||emptyPlan()):activeCase.plans[reference],
-          custom?'Imported contract · candidate not yet executed':'Editable reference · not AI generated');
+          custom?(customPlanSource||'Imported contract · candidate not yet executed'):'Editable reference · not AI generated',
+          custom?(customPlanProvenance||'custom candidate'):'prewritten reference');
   updateModeControls();
 }
 
@@ -85,7 +89,7 @@ function renderReport() {
   const completeTotal=complete.reduce((n,c)=>n+c.total,0);
   const completePassed=complete.reduce((n,c)=>n+c.passed,0);
   const windows=report.categories.find(c=>c.id==='migration_window');
-  const provenance=reference==='cross_record'?'prewritten negative control':reference?'prewritten reference':activeCase.id==='custom'?'imported candidate':'custom candidate';
+  const provenance=reference==='cross_record'?'prewritten negative control':reference?'prewritten reference':candidateProvenance;
   $('source-label').textContent=`Executed ${provenance} · ${report.plan_hash.slice(0,10)}`;
   $('status-badge').textContent=passed?'SUITE PASSED':'BLOCKED'; $('status-badge').className=`status-badge ${report.status}`;
   $('verdict-title').textContent=passed?'The handover holds.':'The handover breaks.';
@@ -151,8 +155,8 @@ function renderTrace(probe) {
 }
 async function showBob() {
   if(activeCase?.id==='custom') {
-    if(!candidateReady()) {
-      briefText='Import or enter a five-field candidate plan, run a rehearsal, then prepare the Bob repair task. The imported contract remains available in this browser session.';
+    if(!candidateReady()||!report) {
+      briefText='Import or enter a five-field candidate plan and run a fresh rehearsal before preparing the Bob repair task. The imported contract remains available in this browser session.';
       $('bob-task').value=briefText; $('download-brief').disabled=true; $('bob-dialog').showModal(); return;
     }
     briefText=`Repair this imported SQLite contract in IBM Bob. First call inspect_imported_contract with the contract object below. Call rehearse_candidate with case="custom", this same complete contract object, and your five candidate SQL fields on every attempt. Preserve the fixed old adapter, seed data, and evaluator. Save your own final plan to work/bob-candidate.json and retain Bob's actual tool calls, task summary, failed attempts and screenshots. Any browser verdict is deterministic evidence, not proof Bob did this work. Use a local Bob session for private schemas. Report measured coverage and untested boundaries.\n\n`+pretty({contract:importedContract,contract_hash:importedMeta?.contract_hash,candidate:currentPlan(),plan_hash:report?.plan_hash||null,shortest_observed_witness:report?.witness||null});
@@ -170,7 +174,7 @@ $('run').addEventListener('click',run);
 $('case').addEventListener('change',chooseCase);
 document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference=button.dataset.plan;setPlan(activeCase.plans[reference],'Editable reference · not AI generated');}));
 $('try-cross-record').addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference='cross_record';setPlan(activeCase.plans.cross_record,'Prewritten negative control · not AI generated');run();});
-Object.values(fields).forEach(id=>$(id).addEventListener('input',()=>{reference=null;$('source-label').textContent='Custom candidate · not yet executed';document.querySelectorAll('[data-plan]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});invalidate();updateModeControls();}));
+Object.values(fields).forEach(id=>$(id).addEventListener('input',()=>{reference=null;candidateSource='Custom candidate · not yet executed';candidateProvenance='custom candidate';$('source-label').textContent=candidateSource;document.querySelectorAll('[data-plan]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});invalidate();updateModeControls();}));
 $('failures-only').addEventListener('change',renderMatrix);
 $('brief').addEventListener('click',showBob); $('bob-nav').addEventListener('click',showBob);
 $('export').addEventListener('click',()=>{if(!report)return;const {review_markdown,reproduction_python,...evidence}=report;download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.json`,pretty(evidence));});
@@ -183,7 +187,7 @@ $('import-plan').addEventListener('change',async event=>{
   if(busy)return;
   const file=event.target.files[0]; if(!file)return;
   invalidate();
-  try {if(file.size>65536)throw Error('Plan is larger than 64 KiB.'); const plan=JSON.parse(await file.text()); if(!plan||typeof plan!=='object'||Array.isArray(plan)||Object.keys(plan).sort().join(',')!==Object.keys(fields).sort().join(',')||Object.values(plan).some(v=>typeof v!=='string'||!v.trim()||v.length>12000)||plan.name.length>100) throw Error('Expected a plan with name, migration, read, write and insert strings.');reference=null;setPlan(plan,'Imported candidate · not yet executed');updateModeControls();notify('Candidate imported. Run a rehearsal to verify it.');}
+  try {if(file.size>65536)throw Error('Plan is larger than 64 KiB.'); const plan=JSON.parse(await file.text()); if(!plan||typeof plan!=='object'||Array.isArray(plan)||Object.keys(plan).sort().join(',')!==Object.keys(fields).sort().join(',')||Object.values(plan).some(v=>typeof v!=='string'||!v.trim()||v.length>12000)||plan.name.length>100) throw Error('Expected a plan with name, migration, read, write and insert strings.');reference=null;setPlan(plan,'Imported candidate · not yet executed','imported candidate');updateModeControls();notify('Candidate imported. Run a rehearsal to verify it.');}
   catch(error){$('status-badge').textContent='IMPORT ERROR';$('verdict-title').textContent='Plan not imported.';$('verdict-description').textContent=error.message;notify(error.message);}finally{event.target.value='';}
 });
 async function activateContract(contract, source) {
@@ -192,7 +196,7 @@ async function activateContract(contract, source) {
   if(new Blob([body]).size>65536)throw Error('Contract exceeds the 64 KiB hosted request limit. Use the local CLI.');
   const response=await fetch('/api/contract/validate',{method:'POST',headers:{'Content-Type':'application/json'},body});
   const result=await response.json(); if(!response.ok)throw Error(result.error||'Contract validation failed.');
-  importedContract=contract; importedMeta=result; customPlan=null;
+  importedContract=contract; importedMeta=result; customPlan=null; customPlanSource=null; customPlanProvenance=null;
   let option=$('case').querySelector('option[value="custom"]');
   if(!option){option=document.createElement('option');option.value='custom';$('case').append(option);}
   option.textContent=`${contract.project} · ${source==='example'?'example':'imported'}`;
@@ -223,7 +227,7 @@ $('try-warehouse').addEventListener('click',async()=>{
     const data=await response.json(); if(!response.ok)throw Error(data.error||'Warehouse example unavailable.');
     await activateContract(data.contract,'example');
     reference=null;
-    setPlan(data.plan,'Prewritten warehouse example · not AI generated');
+    setPlan(data.plan,'Prewritten warehouse example · not AI generated','prewritten warehouse example');
     notify('Warehouse example loaded. Run the SQL rehearsal to see the unsafe migration window.');
   } catch(error) {
     $('status-badge').textContent='EXAMPLE ERROR'; $('verdict-title').textContent='Example not loaded.';
