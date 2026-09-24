@@ -68,6 +68,14 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 400)
         self.assertNotIn('passed', json.loads(body))
 
+    def test_non_object_json_returns_client_error(self):
+        for endpoint in ('/api/rehearse', '/api/brief', '/api/contract/validate'):
+            for payload in ([], 42):
+                with self.subTest(endpoint=endpoint, payload=payload):
+                    code, body = self.request(endpoint, payload)
+                    self.assertEqual(code, 400)
+                    self.assertEqual(json.loads(body), {'error': 'Expected a JSON object'})
+
     def test_imported_contract_blocks_late_bridge_and_exports_matching_review(self):
         contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
         late = json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))

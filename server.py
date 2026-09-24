@@ -63,6 +63,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(429, {'error': 'Two rehearsals are already running; retry shortly.'})
             try:
                 body = json.loads(self.rfile.read(size))
+                if not isinstance(body, dict):
+                    raise ValueError('Expected a JSON object')
                 if self.path == '/api/contract/validate':
                     self.send(200, validate_imported_contract(body['contract']))
                 else:
