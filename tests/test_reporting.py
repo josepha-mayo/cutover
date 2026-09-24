@@ -3,6 +3,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from cutover.engine import load_case, load_plan, rehearse
@@ -56,9 +57,11 @@ class ReviewReportTests(unittest.TestCase):
             report = Path(temporary) / 'report.json'
             review = Path(temporary) / 'review.md'
             replay = Path(temporary) / 'replay.py'
+            bundle = Path(temporary) / 'review.zip'
             result = subprocess.run(
                 [sys.executable, '-m', 'cutover', '--reference', 'late_bridge',
-                 '--output', str(report), '--markdown', str(review), '--repro', str(replay)],
+                 '--output', str(report), '--markdown', str(review), '--repro', str(replay),
+                 '--bundle', str(bundle)],
                 cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=20)
             self.assertEqual(result.returncode, 1)
             data = json.loads(report.read_text(encoding='utf-8'))
@@ -72,9 +75,18 @@ class ReviewReportTests(unittest.TestCase):
                                         encoding='utf-8', timeout=15)
             self.assertEqual(reproduced.returncode, 0, reproduced.stderr)
             self.assertEqual(json.loads(reproduced.stdout)['probe'], data['witness']['id'])
+            extracted = Path(temporary) / 'extracted'
+            with zipfile.ZipFile(bundle) as archive:
+                self.assertEqual(set(archive.namelist()),
+                                 {'README.md', 'contract.json', 'plan.json', 'report.json',
+                                  'review.md', 'witness.py'})
+                self.assertEqual(archive.read('report.json'), report.read_bytes())
+                self.assertEqual(archive.read('review.md'), review.read_bytes())
+                self.assertEqual(archive.read('witness.py'), replay.read_bytes())
+                archive.extractall(extracted)
             audited = subprocess.run(
-                [sys.executable, '-m', 'cutover.audit_report', '--report', str(report),
-                 '--plan', str(ROOT / 'examples' / 'parcel' / 'late_bridge.json')],
+                [sys.executable, '-m', 'cutover.audit_report', '--report', str(extracted / 'report.json'),
+                 '--plan', str(extracted / 'plan.json')],
                 cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=25)
             self.assertEqual(audited.returncode, 1, audited.stderr)
             self.assertIn('VERIFIED BLOCKED: 108/124', audited.stdout)
@@ -82,9 +94,11 @@ class ReviewReportTests(unittest.TestCase):
     def test_audit_cli_accepts_replayed_safe_report_and_rejects_forged_bob_claim(self):
         with tempfile.TemporaryDirectory() as temporary:
             report = Path(temporary) / 'safe.json'
+            bundle = Path(temporary) / 'safe.zip'
             plan = ROOT / 'examples' / 'parcel' / 'bridge.json'
             generated = subprocess.run(
-                [sys.executable, '-m', 'cutover', '--plan', str(plan), '--output', str(report)],
+                [sys.executable, '-m', 'cutover', '--plan', str(plan), '--output', str(report),
+                 '--bundle', str(bundle)],
                 cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=25)
             self.assertEqual(generated.returncode, 0, generated.stderr)
             command = [sys.executable, '-m', 'cutover.audit_report', '--report', str(report), '--plan', str(plan)]
@@ -92,6 +106,8 @@ class ReviewReportTests(unittest.TestCase):
                                      encoding='utf-8', timeout=25)
             self.assertEqual(audited.returncode, 0, audited.stderr)
             self.assertIn('VERIFIED PASS: 124/124', audited.stdout)
+            with zipfile.ZipFile(bundle) as archive:
+                self.assertNotIn('witness.py', archive.namelist())
             data = json.loads(report.read_text(encoding='utf-8'))
             data['bob']['verified'] = True
             report.write_text(json.dumps(data), encoding='utf-8')

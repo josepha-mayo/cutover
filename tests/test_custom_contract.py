@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from cutover.engine import rehearse, validate_contract
@@ -143,8 +144,9 @@ class CustomContractTests(unittest.TestCase):
         plan = WAREHOUSE / 'late_bridge.json'
         with tempfile.TemporaryDirectory() as temporary:
             report = Path(temporary) / 'report.json'
+            bundle = Path(temporary) / 'review.zip'
             command = [sys.executable, '-m', 'cutover', '--contract', str(contract),
-                       '--plan', str(plan), '--output', str(report)]
+                       '--plan', str(plan), '--output', str(report), '--bundle', str(bundle)]
             result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True,
                                     encoding='utf-8', timeout=20)
             self.assertEqual(result.returncode, 1)
@@ -156,6 +158,9 @@ class CustomContractTests(unittest.TestCase):
                 capture_output=True, text=True, encoding='utf-8', timeout=20)
             self.assertEqual(audited.returncode, 1, audited.stderr)
             self.assertIn('VERIFIED BLOCKED: 108/124', audited.stdout)
+            with zipfile.ZipFile(bundle) as archive:
+                self.assertEqual(json.loads(archive.read('contract.json')), fixture('contract.json'))
+                self.assertIn('--contract contract.json', archive.read('README.md').decode('utf-8'))
 
     def test_cli_refuses_to_replace_its_candidate_input(self):
         plan_path = WAREHOUSE / 'bridge.json'
