@@ -23,8 +23,15 @@ the same artifacts. Invalid input, timeout, or report mismatch must fail as
 
 Make a small `ci/review_gate.py` the entry point. Have it invoke the CLI and
 audit as separate subprocesses with explicit timeouts, capture both return
-codes, retain `work/pr-summary.md`, append that summary to
-`GITHUB_STEP_SUMMARY` when set, and exit 0 only for a verified pass.
+codes, and exit 0 only for a verified pass. Give it a stable local interface:
+`python ci/review_gate.py --contract PATH --plan PATH --output-dir DIR`.
+The workflow should use the default checked-in input paths below and
+`work/ci-review` as DIR. For an executed candidate, write `report.json`,
+`review.md`, and `review.zip` in DIR. Write `summary.md` and `verdict.json` on
+every run, including invalid input or timeout. Set `classification` to exactly
+`verified_pass`, `verified_block`, or `unverified`, plus the captured
+`cli_exit` and `audit_exit` (null when a command could not run). Append the
+same summary text to `GITHUB_STEP_SUMMARY` when set.
 Keep the Actions YAML to checkout, Python setup, one helper invocation, and an
 `if: always()` evidence upload. A failed helper step must still reach the upload.
 Do not use `continue-on-error`, a shell pipeline, or a GitHub step's outcome to
@@ -44,8 +51,8 @@ The first exits 0 for a pass and 1 for a block; the independent audit exits
 Classify only the pair `(CLI 0, audit 0)` as verified pass and `(CLI 1, audit
 1)` as verified block; every other pair is unverified. Never infer a verified
 block from the first command alone. A
-timeout or missing report is unverified. Preserve generated artifacts on every
-verdict with an unconditional upload step, then fail the job for both blocked
+timeout or missing report is unverified. Preserve whatever artifacts were
+generated with an unconditional upload step, then fail the job for both blocked
 and unverified outcomes. The job summary should make those outcomes visibly
 different.
 
