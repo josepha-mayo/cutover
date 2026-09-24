@@ -8,6 +8,8 @@ from pathlib import Path
 
 from .service import verify_report_against_replay
 
+MAX_REPORT_BYTES = 128 * 1024 * 1024
+
 
 def read_json(parser, path, label, limit):
     try:
@@ -30,7 +32,10 @@ def main():
     if args.contract and args.case != 'parcel':
         parser.error('--case selects a bundled example and cannot be combined with --contract')
 
-    report = read_json(parser, args.report, 'Report', 16 * 1024 * 1024)
+    # A bounded contract can contain sixteen 1 KiB seed values and eight 1 KiB
+    # payloads. Its full replay trace can exceed 16 MiB, especially with 32
+    # migration-statement windows; the auditor must accept reports we generate.
+    report = read_json(parser, args.report, 'Report', MAX_REPORT_BYTES)
     plan = read_json(parser, args.plan, 'Plan', 64 * 1024)
     contract = read_json(parser, args.contract, 'Contract', 64 * 1024) if args.contract else None
     case = 'custom' if contract is not None else args.case
