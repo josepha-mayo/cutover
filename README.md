@@ -8,7 +8,7 @@ Cutover rehearses schema-changing releases while old and new application version
 
 This is a documented release problem, not a hypothetical one. [GitLab's account of mixed-version incidents](https://docs.gitlab.com/development/multi_version_compatibility/#examples-of-previous-incidents) describes a migration that passed canary QA while older production instances still failed to insert records. [Its migration guidance](https://docs.gitlab.com/development/database/avoiding_downtime_in_migrations/#renaming-columns) explains why a direct column rename requires downtime when old application code may still use the old name. Cutover tests a narrower, original SQLite sample of that failure class; it has not analyzed GitLab's repository or prevented those incidents.
 
-The prototype is functional and [the public demo](https://cutover-rehearsal.onrender.com/) is live on Render's free tier. [The source](https://github.com/josepha-mayo/cutover) is public, and the IBM Bob MCP transport has been checked with a real SDK client. An actual Bob session and submission assets remain outstanding. This is pre-event preparation created on September 23, 2026 with Codex, not a claim of work performed by Bob during the event. The free demo may take around a minute to wake after inactivity.
+The prototype is functional and [the public demo](https://cutover-rehearsal.onrender.com/) is live on Render's free tier. [The source](https://github.com/josepha-mayo/cutover) is public. The IBM Bob MCP transport has been checked with a real SDK client and a read-only Bob Shell call before kickoff. An event-period Bob contribution and final submission assets remain outstanding. This is pre-event preparation created with Codex, not a claim of work performed by Bob during the event. The free demo may take around a minute to wake after inactivity.
 
 ## Run
 
@@ -101,6 +101,6 @@ The test suite includes negative controls: removing each synchronization trigger
 
 Passing is bounded evidence, not a deployment certificate. There is no concurrent transaction/lock simulation, network-failure model, mid-statement interruption, PostgreSQL/MySQL claim, performance estimate, automatic repository extractor, or completed final column removal. Statement-boundary probes model a successful old write between autocommitted SQLite migration statements, then completion of the remaining statements. Keep the bridge while old workers and rollback remain possible; removing it requires a later contract phase and further verification.
 
-Current HTTP/browser results are not persisted server-side; download the report before refreshing. Bob provenance is intentionally unverified until a real host session is captured. See [the pre-event baseline and evidence gate](docs/PROVENANCE.md), [STATUS.md](docs/STATUS.md), [the decision record](docs/DECISION.md), and [submission preparation](docs/SUBMISSION.md).
+Current HTTP/browser results are not persisted server-side; download the report before refreshing. Event-period Bob provenance remains unverified until the qualifying task and its artifacts are captured. See [the pre-event baseline and evidence gate](docs/PROVENANCE.md), [STATUS.md](docs/STATUS.md), [the decision record](docs/DECISION.md), and [submission preparation](docs/SUBMISSION.md).
 
 MIT licensed. Independent prototype; not an IBM product.
