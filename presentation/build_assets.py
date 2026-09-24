@@ -197,6 +197,18 @@ def verified_ci_evidence(source, manifest_dir):
         if screenshot.format != 'PNG':
             raise ValueError('CI task summary must be a PNG')
         screenshot.verify()
+    task_records = []
+    for record_path in (ROOT / 'bob_sessions').glob('*_evidence.json'):
+        record = json.loads(record_path.read_text(encoding='utf-8'))
+        if record.get('bob_task_id') == task_id:
+            task_records.append(record)
+    if (len(task_records) != 1 or
+            task_records[0].get('ide_summary') != image.relative_to(ROOT).as_posix() or
+            task_records[0].get('ide_summary_sha256') !=
+            hashlib.sha256(image.read_bytes()).hexdigest()):
+        raise ValueError('CI Bob task summary has no matching staged IDE task record')
+    if task_id not in (ROOT / 'docs/PROVENANCE.md').read_text(encoding='utf-8'):
+        raise ValueError('CI Bob task ID is missing from public provenance')
     if not (ROOT / '.github/workflows/cutover-review.yml').is_file():
         raise ValueError('Verified CI slide requires the saved Cutover PR workflow')
 
