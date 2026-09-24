@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.12"
+ENGINE_VERSION = "0.3.13"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -172,14 +172,16 @@ def connection(contract, access_log=None, database=":memory:", initialize=True):
     db.execute('PRAGMA recursive_triggers=ON')
     # The exercise permits schema and data edits only in this ephemeral database.
     # ATTACH, pragmas, extensions, transactions, and connection-local schema
-    # objects from user SQL are denied. TEMP triggers would not reach workers
-    # on other connections, so accepting them could yield a false pass.
+    # objects and virtual-table modules from user SQL are denied. TEMP triggers
+    # would not reach other workers; virtual tables are outside this bounded
+    # ordinary-table contract and can invoke module-specific behavior.
     denied = {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH, sqlite3.SQLITE_PRAGMA,
               sqlite3.SQLITE_TRANSACTION, sqlite3.SQLITE_SAVEPOINT,
               sqlite3.SQLITE_CREATE_TEMP_TABLE, sqlite3.SQLITE_CREATE_TEMP_VIEW,
               sqlite3.SQLITE_CREATE_TEMP_TRIGGER, sqlite3.SQLITE_CREATE_TEMP_INDEX,
               sqlite3.SQLITE_DROP_TEMP_TABLE, sqlite3.SQLITE_DROP_TEMP_VIEW,
-              sqlite3.SQLITE_DROP_TEMP_TRIGGER, sqlite3.SQLITE_DROP_TEMP_INDEX}
+              sqlite3.SQLITE_DROP_TEMP_TRIGGER, sqlite3.SQLITE_DROP_TEMP_INDEX,
+              sqlite3.SQLITE_CREATE_VTABLE, sqlite3.SQLITE_DROP_VTABLE}
 
     def authorize(action, a, b, database, source):
         if access_log is not None:

@@ -321,6 +321,14 @@ END;
                 self.assertEqual(result['witness']['failure']['kind'], 'sql_error')
                 self.assertIn('not authorized', result['witness']['failure']['message'])
 
+    def test_virtual_table_sidecar_is_outside_the_bounded_contract(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['migration'] += '\nCREATE VIRTUAL TABLE cutover_fts_sidecar USING fts5(content);'
+        result = replay(load_case('parcel'), plan, ['migrate'], 'x')
+        self.assertFalse(result['passed'])
+        self.assertEqual(result['failure']['kind'], 'sql_error')
+        self.assertIn('not authorized', result['failure']['message'])
+
     def test_new_reader_does_not_inherit_old_workers_last_insert_id(self):
         plan = load_plan('parcel', 'bridge')
         plan['read'] = ('SELECT id, CAST(last_insert_rowid() AS TEXT) || '
