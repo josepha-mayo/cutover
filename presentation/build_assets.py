@@ -278,6 +278,13 @@ def verified_ci_evidence(source, manifest_dir):
         if not started <= report_time <= finished:
             raise ValueError(f'{control} report falls outside its GitHub run')
         plan = json.loads((ROOT / 'work/ci-controls-20260924' / f'{control}.json').read_text(encoding='utf-8'))
+        checked_in_hash = hashlib.sha256(
+            (ROOT / 'work/ci-controls-20260924' / f'{control}.json').read_bytes()
+        ).hexdigest()
+        if (receipt.get('checked_in_candidate_sha256') != checked_in_hash or
+                not re.fullmatch(r'[0-9a-f]{40}', str(
+                    receipt.get('checked_in_candidate_git_blob_sha', '')))):
+            raise ValueError(f'{control} receipt does not bind its PR head to the checked-in candidate')
         actual_witness = report.get('witness')
         actual_witness = actual_witness.get('id') if isinstance(actual_witness, dict) else None
         if (report.get('case') != 'custom' or report.get('plan') != plan or
