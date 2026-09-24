@@ -93,7 +93,10 @@ python -m cutover --reference rename --output work/rename.json
 python -m cutover --reference bridge --output work/bridge.json
 python -m cutover --plan work/bob-candidate.json --output work/bob-result.json
 python -m cutover --reference late_bridge --output work/late.json --markdown work/late-review.md
+python -m evidence.verify_hosted
 ```
+
+The hosted verifier fetches the public warehouse failure, compares its complete deterministic report with a fresh local worker run, and executes a locally rendered standalone witness. It requires network access and proves neither Bob authorship nor production safety.
 
 The CLI returns exit code 1 for a failing rehearsal and 0 for a passing suite. The hosted app and MCP server execute candidates in a subprocess with a 90-second overall deadline. SQLite interrupts long queries and denies external database attachment, pragmas, extension loading, explicit transaction control, and connection-local `TEMP` schema objects. Temporary triggers cannot stand in for synchronization visible to workers on other connections. Those restrictions are active before imported schema or seed SQL executes. All data enters a disposable in-memory database; no production connection or shell-command tool is exposed.
 
