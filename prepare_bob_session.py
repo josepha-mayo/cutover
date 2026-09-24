@@ -109,8 +109,9 @@ plans, presentation materials and prior repair notes are intentionally absent.
 The fixed evaluator is identical to the source project's `cutover/engine.py`.
 
 Use the `Cutover release engineer` mode and the `cutover` MCP server. Call
-`inspect_release` and `diagnose_reference` with `reference=late_bridge` for
-Parcel. The late bridge passes completed-rollout checks but fails when old
+`inspect_release(case="parcel")`, then
+`diagnose_reference(case="parcel", reference="late_bridge")`.
+The late bridge passes completed-rollout checks but fails when old
 workers write between migration statements. Keep old reads and writes correct
 after every completed migration statement, before migration resumes. Explain
 one concrete failing replay. Propose your own migration and new-version SQL adapter, then call
