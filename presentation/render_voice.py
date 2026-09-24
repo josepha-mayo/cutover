@@ -36,8 +36,11 @@ def render_segments(
         start = float(item["start_sec"])
         if start < 0:
             raise ValueError("Narration start times must be nonnegative")
+        segment_speed = item.get("speed", speed)
+        if type(segment_speed) not in (int, float) or not 0.6 <= segment_speed <= 1.15:
+            raise ValueError(f"Segment {item['id']} speed must be between 0.6 and 1.15")
         samples, sample_rate = synthesizer.create(
-            item["text"], voice=voice, speed=speed, lang="en-us"
+            item["text"], voice=voice, speed=segment_speed, lang="en-us"
         )
         samples = np.asarray(samples, dtype=np.float32).reshape(-1)
         if rate is None:

@@ -4,6 +4,7 @@
     {
       "id": "opening",
       "start_sec": 4,
+      "speed": 0.72,
       "text": "A green build can still be a broken handover. All eight new-version checks pass. But an old worker is still writing while the database changes."
     },
     {
@@ -14,6 +15,7 @@
     {
       "id": "counterexample",
       "start_sec": 44,
+      "speed": 0.76,
       "text": "Here is the missed window. We add the new column, copy existing rows, then an old worker writes before synchronization starts. The write is accepted, but the new reader sees a stale value."
     },
     {
