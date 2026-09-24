@@ -35,6 +35,8 @@ def sources():
         Path('requirements-mcp.txt'),
         Path('cutover/__init__.py'),
         Path('cutover/__main__.py'),
+        Path('cutover/audit_report.py'),
+        Path('cutover/bundle.py'),
         Path('cutover/engine.py'),
         Path('cutover/reporting.py'),
         Path('cutover/service.py'),
