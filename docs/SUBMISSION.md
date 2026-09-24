@@ -59,6 +59,7 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 9. If Bob builds the PR gate and all three controlled pull-request runs verify, add a page with its IDE task summary and linked unsafe-red, safe-green, regressed-red runs. Otherwise the deck remains eight pages and calls the gate proposed.
 
 The final deck renderer accepts an optional `ci_evidence` object inside its observed Bob evidence JSON. It must contain `bob_ci_task_id`, the staged `bob_ci_summary_image`, and `run_receipts` with `unsafe`, `safe_reference`, and `regressed` paths. Save each private receipt using `work/verify-cutover-gh-run.py --receipt PATH` after it downloads and independently replays that actual GitHub run. `presentation/build_assets.py --evidence PATH` checks the receipts against the downloaded reports, reruns the evaluator, and confirms the three live GitHub conclusions before adding the CI page. The pre-event fixture plans are identified as controls, not Bob-authored repairs.
+If the Parcel IDE task produces no verifiable saved candidate, the same renderer can show its staged task summary and say the repair remains unresolved, but only when the Bob-built CI gate meets the full three-run evidence check. It cannot produce a final deck from an unverified repair attempt alone.
 
 ## Final artifacts
 

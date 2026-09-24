@@ -134,46 +134,70 @@ def base(c, number, title, kicker, final=False):
 def event_evidence(path):
     """Require observed Bob artifacts; this is a consistency check, not authorship proof."""
     evidence = json.loads(Path(path).read_text(encoding='utf-8'))
-    required = ('bob_task_id', 'bob_summary_image', 'bob_candidate', 'candidate_report',
-                'bob_contribution', 'session_time_utc')
+    required = ('bob_task_id', 'bob_summary_image', 'bob_contribution', 'session_time_utc')
     if any(not isinstance(evidence.get(key), str) or not evidence[key].strip() for key in required):
-        raise ValueError('Bob evidence must name a real task, screenshot, candidate, report, contribution and time')
+        raise ValueError('Bob evidence must name a real task, screenshot, contribution and time')
+    if not re.fullmatch(r'[0-9a-f]{32}', evidence['bob_task_id']):
+        raise ValueError('Bob evidence needs the full IDE task ID')
+    has_candidate = bool(evidence.get('bob_candidate'))
+    has_report = bool(evidence.get('candidate_report'))
+    if has_candidate != has_report:
+        raise ValueError('A Bob candidate and its executed report must appear together')
+    if not has_candidate and not evidence.get('ci_evidence'):
+        raise ValueError('Without a saved Bob candidate, a verified Bob-built CI gate is required')
     session_time = parse_time(evidence['session_time_utc'], 'session_time_utc')
     if not (datetime(2026, 9, 25, 15, tzinfo=timezone.utc) <= session_time <=
             datetime(2026, 9, 27, 15, tzinfo=timezone.utc)):
         raise ValueError('Bob session time must fall within the advertised hackathon window')
-    for key in ('bob_summary_image', 'bob_candidate', 'candidate_report'):
+    paths = ('bob_summary_image', 'bob_candidate', 'candidate_report') if has_candidate else ('bob_summary_image',)
+    for key in paths:
         file = (ROOT / evidence[key]).resolve()
         if not file.is_relative_to(ROOT) or not file.is_file():
             raise ValueError(f'{key} must be an existing project file')
         evidence[key] = file
+    if (not evidence['bob_summary_image'].is_relative_to(ROOT / 'bob_sessions') or
+            evidence['bob_task_id'][:8] not in evidence['bob_summary_image'].name):
+        raise ValueError('Bob repair summary must be a staged PNG for its IDE task')
     with Image.open(evidence['bob_summary_image']) as screenshot:
+        if screenshot.format != 'PNG':
+            raise ValueError('Bob repair task summary must be PNG')
         screenshot.verify()
-    plan = json.loads(evidence['bob_candidate'].read_text(encoding='utf-8'))
-    report = json.loads(evidence['candidate_report'].read_text(encoding='utf-8'))
-    if report.get('plan') != plan or report.get('status') not in ('pass', 'blocked'):
-        raise ValueError('Candidate report must be an executed verdict for the named Bob candidate')
-    if report.get('case') != 'parcel':
-        raise ValueError('This deck currently describes the Parcel sample')
-    results = report.get('results')
-    if not isinstance(results, list):
-        raise ValueError('Candidate report must be the full CLI report with executed probe results')
-    if (report.get('total') != len(results) or
-            report.get('passed') != sum(result.get('passed') is True for result in results) or
-            report.get('failed') != sum(result.get('passed') is False for result in results) or
-            (report['status'] == 'pass') != (report['failed'] == 0)):
-        raise ValueError('Candidate report verdict and probe counts disagree')
-    report_time = parse_time(report.get('created_at'), 'report.created_at')
-    if not session_time <= report_time <= datetime(2026, 9, 27, 15, tzinfo=timezone.utc):
-        raise ValueError('Candidate report must be generated after the Bob task and before submission close')
-    plan_hash = hashlib.sha256(json.dumps(plan, ensure_ascii=False, sort_keys=True,
-                                          separators=(',', ':')).encode()).hexdigest()
-    engine_source = (ROOT / 'cutover' / 'engine.py').read_bytes().replace(b'\r\n', b'\n')
-    engine_hash = hashlib.sha256(engine_source).hexdigest()
-    if report.get('plan_hash') != plan_hash or report.get('engine_sha256') != engine_hash:
-        raise ValueError('Candidate report must match the current plan and evaluator source')
-    verify_report_against_replay('parcel', plan, report)
-    evidence['report'] = report
+    if not has_candidate:
+        records = [json.loads(record.read_text(encoding='utf-8')) for record in
+                   (ROOT / 'bob_sessions').glob('*_evidence.json')]
+        if not any(record.get('bob_task_id') == evidence['bob_task_id'] and
+                   record.get('ide_summary') ==
+                   evidence['bob_summary_image'].relative_to(ROOT).as_posix() and
+                   record.get('ide_summary_sha256') ==
+                   hashlib.sha256(evidence['bob_summary_image'].read_bytes()).hexdigest()
+                   for record in records):
+            raise ValueError('Unresolved Bob repair needs a staged IDE task record')
+    if has_candidate:
+        plan = json.loads(evidence['bob_candidate'].read_text(encoding='utf-8'))
+        report = json.loads(evidence['candidate_report'].read_text(encoding='utf-8'))
+        if report.get('plan') != plan or report.get('status') not in ('pass', 'blocked'):
+            raise ValueError('Candidate report must be an executed verdict for the named Bob candidate')
+        if report.get('case') != 'parcel':
+            raise ValueError('This deck currently describes the Parcel sample')
+        results = report.get('results')
+        if not isinstance(results, list):
+            raise ValueError('Candidate report must be the full CLI report with executed probe results')
+        if (report.get('total') != len(results) or
+                report.get('passed') != sum(result.get('passed') is True for result in results) or
+                report.get('failed') != sum(result.get('passed') is False for result in results) or
+                (report['status'] == 'pass') != (report['failed'] == 0)):
+            raise ValueError('Candidate report verdict and probe counts disagree')
+        report_time = parse_time(report.get('created_at'), 'report.created_at')
+        if not session_time <= report_time <= datetime(2026, 9, 27, 15, tzinfo=timezone.utc):
+            raise ValueError('Candidate report must be generated after the Bob task and before submission close')
+        plan_hash = hashlib.sha256(json.dumps(plan, ensure_ascii=False, sort_keys=True,
+                                              separators=(',', ':')).encode()).hexdigest()
+        engine_source = (ROOT / 'cutover' / 'engine.py').read_bytes().replace(b'\r\n', b'\n')
+        engine_hash = hashlib.sha256(engine_source).hexdigest()
+        if report.get('plan_hash') != plan_hash or report.get('engine_sha256') != engine_hash:
+            raise ValueError('Candidate report must match the current plan and evaluator source')
+        verify_report_against_replay('parcel', plan, report)
+        evidence['report'] = report
     if evidence.get('ci_evidence'):
         evidence['ci_evidence'] = verified_ci_evidence(evidence['ci_evidence'], Path(path).parent)
     return evidence
@@ -281,9 +305,11 @@ def parse_time(value, label):
 
 
 def bob_slide(c, evidence):
-    report = evidence['report']
-    passing = report['status'] == 'pass'
-    title = 'Bob repaired the missed window.' if passing else 'Bob exposed a remaining gap.'
+    report = evidence.get('report')
+    passing = report is not None and report['status'] == 'pass'
+    title = ('Bob repaired the missed window.' if passing else
+             'Bob exposed a remaining gap.' if report else
+             'Bob session: repair remains open.')
     base(c, 7, title, '06  /  OBSERVED IBM BOB WORK', final=True)
     box(c, 45, 94, 506, 286, PANEL, '#516452')
     with Image.open(evidence['bob_summary_image']) as screenshot:
@@ -295,16 +321,24 @@ def bob_slide(c, evidence):
     text(c, 59, 372, 'ACTUAL BOB TASK SUMMARY', 11, LIME, 'ConsolasBold')
     box(c, 573, 94, 342, 286)
     text(c, 591, 344, f"Task: {evidence['bob_task_id'][:33]}", 12, CREAM, 'Consolas')
-    text(c, 591, 315, f"Candidate: {plan_label(report['plan'])}", 12, CREAM, 'Consolas')
-    text(c, 591, 277, f"Verdict: {report['passed']}/{report['total']} probes", 17,
-         LIME if passing else ORANGE, 'ConsolasBold')
-    windows = next((item for item in report['categories'] if item['id'] == 'migration_window'), None)
-    if windows:
-        text(c, 591, 249, f"Windows: {windows['passed']}/{windows['total']}", 13, CREAM, 'Consolas')
+    if report:
+        text(c, 591, 315, f"Candidate: {plan_label(report['plan'])}", 12, CREAM, 'Consolas')
+        text(c, 591, 277, f"Verdict: {report['passed']}/{report['total']} probes", 17,
+             LIME if passing else ORANGE, 'ConsolasBold')
+        windows = next((item for item in report['categories'] if item['id'] == 'migration_window'), None)
+        if windows:
+            text(c, 591, 249, f"Windows: {windows['passed']}/{windows['total']}", 13, CREAM, 'Consolas')
+    else:
+        text(c, 591, 315, 'No verified saved repair plan', 13, CREAM, 'Consolas')
+        text(c, 591, 277, 'Repair: unresolved', 17, ORANGE, 'ConsolasBold')
+        text(c, 591, 249, 'CI gate verified separately', 13, CREAM, 'Consolas')
     text(c, 591, 215, 'BOB CONTRIBUTION', 11, LIME, 'ConsolasBold')
     for index, line in enumerate(wrap_lines(evidence['bob_contribution'], 36, 3)):
         text(c, 591, 190 - index * 20, line, 12, CREAM)
-    text(c, 591, 112, f"Plan SHA: {report['plan_hash'][:15]}...", 10, MUTED, 'Consolas')
+    if report:
+        text(c, 591, 112, f"Plan SHA: {report['plan_hash'][:15]}...", 10, MUTED, 'Consolas')
+    else:
+        text(c, 591, 112, 'No Parcel pass claimed.', 10, MUTED, 'Consolas')
     c.showPage()
 
 
