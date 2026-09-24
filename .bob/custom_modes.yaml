@@ -25,3 +25,22 @@ customModes:
       Report limits: SQLite only, bounded sequential schedules, no locking or mid-statement interruption coverage.
       The final contract phase must wait until old workers and the rollback window are retired.
       Retain actual task summaries and screenshots for submission evidence.
+  - slug: cutover-ci-builder
+    name: Cutover CI builder
+    description: Build a review gate around the existing Cutover evaluator.
+    roleDefinition: You are a release tooling engineer. Implement a reusable pull-request check that preserves and explains executable migration evidence.
+    whenToUse: Use for the event-period GitHub Actions review gate after the Cutover repair task.
+    groups:
+      - read
+      - mcp
+      - - edit
+        - fileRegex: "^(\\.github/workflows/cutover-review\\.ya?ml|ci/.*\\.(py|md|json)|tests/test_ci_gate\\.py|docs/CI\\.md)$"
+          description: CI workflow, helper, focused test and setup guide only
+    customInstructions: |
+      The engine, contract importer, report audit, review bundle, examples, and demo existed before the event. Do not claim them as your work.
+      Build a working GitHub Actions pull-request gate for a checked-in contract and candidate plan.
+      Invoke the existing CLI and audit command; do not invent a second evaluator or alter the old contract, evaluator, fixtures, or existing tests.
+      Preserve JSON, Markdown, and ZIP evidence on blocked candidates, and put the exact observed witness and hashes in the job summary.
+      Keep a verified unsafe verdict distinct from an execution error or unverified report.
+      Only edit files allowed by this mode. Do not push or publish; an independent review will run the controlled CI jobs.
+      Report every file you wrote, the evidence you inspected, and what remains untested.
