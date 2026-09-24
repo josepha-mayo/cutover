@@ -22,12 +22,12 @@ Open http://127.0.0.1:8765. The server binds only to loopback by default. The sa
 
 ## Try the three-minute story
 
-1. **Late bridge** is selected on first load. Press **Run release rehearsal**. All 76 completed-rollout probes pass, yet 16 of 48 migration-window probes fail. An old write after the backfill and before the triggers silently leaves the new column stale. Select a red square to inspect the shortest observed failing replay, executed SQL, and expected/observed values.
+1. **Late bridge** is selected on first load. Press **Run selected migration** in the first screen. All 76 completed-rollout probes pass, yet 16 of 48 migration-window probes fail. An old write after the backfill and before the triggers silently leaves the new column stale. Select a red square to inspect the shortest observed failing replay, executed SQL, and expected/observed values. Pin this result as a baseline before trying another plan.
 2. Select **Direct rename**, then run. All 8 new-version checks pass, but Cutover catches 60 failing completed-rollout probes, including an old worker querying a removed column.
 3. Select **Expand & backfill**, then run. New-version checks still pass. A write is acknowledged but the other version reads stale data.
 4. Select **Window-safe bridge**. Moving synchronization before backfill preserves data through all 124 tested probes. Append `DROP TRIGGER sync_new_update;` to its migration and rerun; 12 failures return. Results are computed from SQL, never chosen by candidate name.
 5. Click **Run the cross-record trap**. It starts from the window-safe bridge but adds a prewritten trigger that silently resets row 101 after a write to row 102. The same-version baseline and every migration-window probe pass, yet cross-record write replays block the candidate and show both write IDs plus the lost value. This is a synthetic negative control, not a real incident or Bob result.
-6. Export evidence and its Markdown review, save/import a candidate, or prepare a repair task for IBM Bob.
+6. Compare the pinned baseline with the current run. Cutover counts resolved and regressed probes only where the contract and evaluator match; if migration SQL changes, it reports each plan's window failures separately because their statement boundaries cannot be paired. Export evidence and its Markdown review, save/import a candidate, or prepare a repair task for IBM Bob.
 
 The browser includes two curated contracts: Parcel's address migration and Relay's contact-field migration. They demonstrate the same structural failure on different identifiers and seed data. They are sample SQL adapters, not claims of integration with production services or full ORM applications. Inputs deliberately stress string preservation and do not validate contact syntax.
 

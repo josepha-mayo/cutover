@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
+let pinnedReport = null;
 let importedContract = null, importedMeta = null, customPlan = null, customPlanSource = null;
 let candidateSource = '', candidateProvenance = 'custom candidate', customPlanProvenance = null;
 const fields = {name: 'plan-name', migration: 'migration', read: 'read', write: 'write', insert: 'insert'};
@@ -29,7 +30,7 @@ function setBusy(value, label='Executing SQL rehearsals…') {
   $('try-warehouse').disabled=value;
   $('quick-run').disabled=value;
   $('run').innerHTML=value?`<span>${escape(label)}</span><span>◌</span>`:'<span>Run release rehearsal</span><span>↗</span>';
-  if(!value)updateModeControls();
+  if(!value){updateModeControls();renderComparison();}
 }
 
 function invalidate() {
@@ -47,6 +48,46 @@ function invalidate() {
   $('window-map').hidden=true; $('window-stages').replaceChildren();
   $('finding').innerHTML='<span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div>';
   $('export').disabled=true; $('export-review').disabled=true; $('export-repro').disabled=true; $('brief').disabled=true;
+  renderComparison();
+}
+function renderComparison() {
+  const tools=$('comparison-tools'), panel=$('comparison-panel');
+  tools.hidden=!report&&!pinnedReport;
+  $('pin-baseline').disabled=!report||busy;
+  $('clear-baseline').hidden=!pinnedReport;
+  panel.hidden=!pinnedReport;
+  if(!pinnedReport)return;
+  const pinnedName=pinnedReport.plan.name;
+  const comparing=report&&report!==pinnedReport;
+  $('comparison-title').textContent=comparing?`${pinnedName} → ${report.plan.name}`:`Pinned: ${pinnedName}`;
+  const baseHash=pinnedReport.plan_hash.slice(0,10);
+  if(!comparing) {
+    $('comparison-detail').textContent=`Baseline ${pinnedReport.passed}/${pinnedReport.total} · plan ${baseHash}. Run another candidate to compare.`;
+    $('comparison-metrics').replaceChildren();
+    return;
+  }
+  if(pinnedReport.contract_hash!==report.contract_hash||pinnedReport.engine_sha256!==report.engine_sha256||pinnedReport.suite_hash!==report.suite_hash) {
+    $('comparison-detail').textContent='These reports use different contracts or evaluator versions. Pin the current result to start a comparable baseline.';
+    $('comparison-metrics').replaceChildren();
+    return;
+  }
+  const sameMigration=pinnedReport.plan.migration===report.plan.migration;
+  const before=new Map(pinnedReport.results.filter(item=>sameMigration||item.category!=='migration_window').map(item=>[item.id,item]));
+  let paired=0, resolved=0, regressed=0;
+  for(const item of report.results) {
+    if(!sameMigration&&item.category==='migration_window')continue;
+    const old=before.get(item.id);
+    if(!old||old.payload!==item.payload||JSON.stringify(old.actions)!==JSON.stringify(item.actions))continue;
+    paired++;
+    if(!old.passed&&item.passed)resolved++;
+    if(old.passed&&!item.passed)regressed++;
+  }
+  const oldWindows=pinnedReport.categories.find(item=>item.id==='migration_window');
+  const newWindows=report.categories.find(item=>item.id==='migration_window');
+  $('comparison-detail').textContent=sameMigration
+    ?`Same migration and contract · paired ${paired} probes. Plans ${baseHash} → ${report.plan_hash.slice(0,10)}.`
+    :`Same contract, different migration. Paired ${paired} completed-rollout probes; statement-boundary probes cannot be paired across different SQL sequences. Plans ${baseHash} → ${report.plan_hash.slice(0,10)}.`;
+  $('comparison-metrics').innerHTML=`<div><span>RESOLVED IN PAIRED PROBES</span><strong>${resolved}</strong></div><div><span>REGRESSED IN PAIRED PROBES</span><strong class="${regressed?'red':''}">${regressed}</strong></div><div><span>MIGRATION WINDOW FAILURES</span><strong>${oldWindows.total-oldWindows.passed} → ${newWindows.total-newWindows.passed}</strong><small>${oldWindows.total} → ${newWindows.total} boundary probes, ${sameMigration?'paired':'evaluated separately'}</small></div>`;
 }
 function setPlan(plan, source, provenance='custom candidate') {
   Object.entries(fields).forEach(([key,id])=>$(id).value=plan[key]);
@@ -107,6 +148,7 @@ function renderReport() {
   $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p></div>`;
   $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('brief').disabled=false;
   $('hashes').textContent=`Plan SHA-256: ${report.plan_hash} · Contract SHA-256: ${report.contract_hash} · Suite SHA-256: ${report.suite_hash}`;
+  renderComparison();
   renderWindowMap(); renderMatrix(); renderTrace(witness || report.results.find(r=>r.id==='new_to_old-0'));
 }
 function renderWindowMap() {
@@ -179,6 +221,8 @@ async function showBob() {
 }
 
 $('run').addEventListener('click',run);
+$('pin-baseline').addEventListener('click',()=>{if(!report||busy)return;pinnedReport=report;renderComparison();notify('Baseline pinned in this browser tab. Run another candidate to compare.');});
+$('clear-baseline').addEventListener('click',()=>{pinnedReport=null;renderComparison();notify('Comparison baseline cleared.');});
 $('quick-run').addEventListener('click',async()=>{
   if(busy||$('run').disabled)return;
   await run();
