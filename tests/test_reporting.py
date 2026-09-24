@@ -88,6 +88,29 @@ class ReviewReportTests(unittest.TestCase):
                 self.assertEqual(outcome['probe'], report['witness']['id'])
                 self.assertEqual(outcome['failure_kind'], report['witness']['failure']['kind'])
 
+    def test_cross_record_witness_reexecutes_both_write_targets(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['migration'] += '''
+CREATE TRIGGER reset_first AFTER UPDATE OF delivery_address ON orders
+WHEN NEW.id = 102
+BEGIN
+  UPDATE orders SET delivery_address = '4 Broad Street',
+                    shipping_address = '4 Broad Street' WHERE id = 101;
+END;
+'''
+        report = rehearse('parcel', plan)
+        self.assertEqual(report['witness']['write_targets'], [101, 102])
+        review = render_markdown(report)
+        self.assertIn('Cross-record paths checked before this verdict:', review)
+        with tempfile.TemporaryDirectory() as temporary:
+            script = Path(temporary) / 'reproduce.py'
+            script.write_text(render_reproduction(report, load_case('parcel')), encoding='utf-8')
+            result = subprocess.run([sys.executable, '-I', str(script)],
+                                    cwd=temporary, capture_output=True, text=True,
+                                    encoding='utf-8', timeout=15)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)['status'], 'REPRODUCED')
+
     def test_passing_report_has_no_failure_reproduction(self):
         report = rehearse('parcel', load_plan('parcel', 'bridge'))
         with self.assertRaisesRegex(ValueError, 'data mismatch'):

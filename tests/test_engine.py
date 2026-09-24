@@ -94,6 +94,38 @@ class RehearsalTests(unittest.TestCase):
         plan['write'] = 'UPDATE orders SET shipping_address = :value'
         self.assertEqual(rehearse('parcel', plan)['status'], 'blocked')
 
+    def test_second_record_write_cannot_erase_first_acknowledged_write(self):
+        plan = load_plan('parcel', 'bridge')
+        # Same-row and single-write replays pass this trigger. The corruption
+        # exists only when an earlier acknowledged write touched another row.
+        plan['migration'] += '''
+CREATE TRIGGER reset_first AFTER UPDATE OF delivery_address ON orders
+WHEN NEW.id = 102
+BEGIN
+  UPDATE orders SET delivery_address = '4 Broad Street',
+                    shipping_address = '4 Broad Street' WHERE id = 101;
+END;
+'''
+        report = rehearse('parcel', plan)
+        self.assertEqual(report['status'], 'blocked')
+        witness = report['witness']
+        self.assertEqual(witness['write_targets'], [101, 102])
+        self.assertEqual(witness['failure']['kind'], 'data_mismatch')
+        self.assertEqual(witness['failure']['expected'][101], '18 Marina Road')
+        self.assertEqual(witness['failure']['actual'][101], '4 Broad Street')
+        self.assertEqual([event['params']['id'] for event in witness['trace']
+                          if event['action'].endswith('.write')], [101, 102])
+
+    def test_safe_bridge_checks_each_seed_as_both_cross_record_targets(self):
+        contract = load_case('parcel')
+        contract['seed'] = [[401, 'alpha'], [607, 'beta'], [999, 'third']]
+        contract['payloads'] = ['new address', '']
+        report = rehearse('custom', load_plan('parcel', 'bridge'), contract)
+        self.assertEqual(report['status'], 'pass')
+        probe = next(row for row in report['results'] if row['id'] == 'old_new_old-0')
+        self.assertEqual(probe['cross_record_paths_tested'],
+                         [[401, 607], [607, 999], [999, 401]])
+
     def test_sync_limited_to_first_seed_row_cannot_pass(self):
         plan = load_plan('parcel', 'bridge')
         plan['migration'] = plan['migration'].replace(

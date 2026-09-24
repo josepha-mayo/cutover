@@ -109,6 +109,10 @@ def replay_section(probe, title):
     if 'seed_id' in probe:
         lines += [f'Row shown in this replay: `{probe["seed_id"]}`.', '',
                   'Seed IDs checked before this verdict:', '', structured(probe['seed_ids_tested']), '']
+    if 'write_targets' in probe:
+        lines += ['Write targets shown in this replay:', '', structured(probe['write_targets']), '',
+                  'Cross-record paths checked before this verdict:', '',
+                  structured(probe['cross_record_paths_tested']), '']
     if 'insert_id' in probe:
         lines += [f'Inserted ID shown in this replay: `{probe["insert_id"]}`.', '',
                   'Insert IDs checked before this verdict:', '', structured(probe['insert_ids_tested']), '']

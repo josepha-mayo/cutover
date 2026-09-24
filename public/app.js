@@ -139,7 +139,8 @@ function renderTrace(probe) {
   $('trace-label').textContent=report.witness?.id===probe.id?'SHORTEST OBSERVED FAILURE':'EXECUTED REPLAY';
   $('trace-id').textContent=probe.passed?'PASS':'FAIL'; $('trace-title').textContent=probe.title;
   const seededWrite=probe.actions?.some(action=>action.endsWith('.write'));
-  const rowNote=seededWrite?` · ${probe.passed?'Shown':'Failed'} row ID ${probe.seed_id} · ${probe.seed_ids_tested.length}/${activeCase.seed.length} seeded IDs checked`:'';
+  const pathNote=probe.write_targets?` · write IDs ${probe.write_targets.join(' → ')} · ${probe.cross_record_paths_tested.length} cross-record paths checked`:'';
+  const rowNote=seededWrite?` · ${probe.passed?'Shown':'Failed'} row ID ${probe.seed_id} · ${probe.seed_ids_tested.length}/${activeCase.seed.length} seeded IDs checked${pathNote}`:'';
   const inserted=probe.actions?.some(action=>action.endsWith('.insert'));
   const insertNote=inserted?` · ${probe.passed?'Shown':'Failed'} inserted ID ${probe.insert_id} · checked IDs ${probe.insert_ids_tested.join(', ')}`:'';
   $('trace-payload').textContent=`Input: ${JSON.stringify(probe.payload)}${rowNote}${insertNote}`;

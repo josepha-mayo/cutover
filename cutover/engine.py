@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.3"
+ENGINE_VERSION = "0.3.4"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -235,13 +235,14 @@ def schedules():
     return values
 
 
-def replay(contract, plan, actions, payload, statements=None, seed_id=None, insert_id=None):
+def replay(contract, plan, actions, payload, statements=None, seed_id=None, insert_id=None, write_ids=None):
     access_log = []
     db = connection(contract, access_log)
     oracle = {row[0]: row[1] for row in contract["seed"]}
     selected_id = contract["seed"][0][0] if seed_id is None else seed_id
     trace, failure = [], None
     writes = 0
+    updates = 0
     checked_new_adapter = set()
     try:
         for index, action in enumerate(actions):
@@ -271,6 +272,9 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None, inse
                         value = payload if writes == 1 else payload + " [updated]"
                         if operation == "insert":
                             selected_id = max(oracle) + 1 if insert_id is None else insert_id
+                        elif write_ids is not None:
+                            selected_id = write_ids[updates]
+                            updates += 1
                         event["params"] = {"id": selected_id, "value": value}
                         direct_target_write = (version != "new" or
                                                writes_target_without_triggers(
@@ -338,10 +342,11 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None, inse
 
 
 def replay_seed_variants(contract, plan, actions, payload, statements=None):
-    """Exercise every existing record and two distinct new-record IDs.
+    """Exercise every record alone, adjacent cross-record paths, and two insert IDs.
 
     A trigger can accidentally protect one fixed row ID. A passing probe must
-    survive each relevant ID; a failure retains the precise exposing replay.
+    survive each relevant ID. Two-write schedules also move around the seeded
+    records so a write to one row can expose corruption of another row.
     """
     ids = ([row[0] for row in contract["seed"]]
            if any(action.endswith(".write") for action in actions)
@@ -350,6 +355,7 @@ def replay_seed_variants(contract, plan, actions, payload, statements=None):
                if any(action.endswith(".insert") for action in actions) else [None])
     attempted_seeds = []
     attempted_inserts = []
+    cross_paths = []
     first_pass = None
     for seed_id, insert_id in itertools.product(ids, inserts):
         result = replay(contract, plan, actions, payload, statements, seed_id, insert_id)
@@ -366,7 +372,26 @@ def replay_seed_variants(contract, plan, actions, payload, statements=None):
             return result
         if first_pass is None:
             first_pass = result
+    write_count = sum(action.endswith(".write") for action in actions)
+    if write_count == 2 and len(ids) > 1:
+        # A directed ring uses each seeded record once as the first and second
+        # target. This bounds the extra work for user-supplied contracts.
+        for index, first_id in enumerate(ids):
+            second_id = ids[(index + 1) % len(ids)]
+            path = [first_id, second_id]
+            result = replay(contract, plan, actions, payload, statements,
+                            seed_id=first_id, write_ids=path)
+            cross_paths.append(path)
+            result["seed_id"] = first_id
+            result["seed_ids_tested"] = list(attempted_seeds)
+            result["write_targets"] = path
+            result["cross_record_paths_tested"] = list(cross_paths)
+            if not result["passed"]:
+                return result
     first_pass["seed_ids_tested"] = attempted_seeds
+    if cross_paths:
+        first_pass["write_targets"] = [ids[0], ids[0]]
+        first_pass["cross_record_paths_tested"] = cross_paths
     if attempted_inserts:
         first_pass["insert_ids_tested"] = attempted_inserts
     return first_pass
@@ -422,6 +447,7 @@ def rehearse(case, plan, contract=None):
         "suite_hash": digest({"schedules": schedules(), "payloads": payloads,
                               "migration_window_policy": "old update and insert after every SQLite statement boundary",
                               "write_seed_policy": "each seeded record for every update probe",
+                              "cross_record_policy": "directed adjacent ring for every two-write schedule",
                               "insert_id_policy": "two distinct IDs beyond the highest seed for every insert probe"}),
         "status": "pass" if not failures else "blocked",
         "passed": len(results) - len(failures), "failed": len(failures), "total": len(results),
@@ -429,11 +455,12 @@ def rehearse(case, plan, contract=None):
         "categories": categories, "witness": witness, "results": results,
         "duration_ms": round((time.perf_counter() - start) * 1000, 1),
         "scope": (("SQLite user-supplied contract" if case == "custom" else "SQLite sample contracts") +
-                  ", target-column postconditions, every seeded record for update probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
+                  ", target-column postconditions, every seeded record for update probes, adjacent directed cross-record two-write paths, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
         "limitations": ["No concurrent transactions, lock timing or network failures modeled.",
                         "No PostgreSQL, MySQL or ORM behavior claimed.",
                         "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",
                         "Contract/drop-column phase is deferred until old workers and rollback windows are retired.",
+                        "Cross-record probes cover adjacent directed seed pairs, not every possible pair when more than two seeds exist.",
                         "Passing covers only the fixed adapters, seed data and reported schedules."],
         "bob": {"verified": False, "note": "This execution is deterministic. Bob session evidence must be captured separately."},
     }

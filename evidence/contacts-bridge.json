@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "engine_version": "0.3.3",
+  "engine_version": "0.3.4",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "3376339f578970ccb377b2a582b27ba6716ae967567cda27487dccac8da9c716",
+  "engine_sha256": "317333b124b2fc94bd17bffc695a905395165610ac05ebbe0b7961eccfacaca4",
   "case": "contacts",
   "project": "Relay / contact service",
-  "created_at": "2026-09-23T20:23:02.894008+00:00",
+  "created_at": "2026-09-23T20:47:02.596967+00:00",
   "plan": {
     "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
     "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
@@ -15,7 +15,7 @@
   },
   "plan_hash": "bc638f4be4e25f842ff64d696f8247d41db9ad207822302f33c9c594170a32bb",
   "contract_hash": "aa0246f83469d2389e58e5daa4894c35fa8e9455db6c711d47091a56bdab72cd",
-  "suite_hash": "9141f5107769c0efb8d22232fb0f2bef856accc6176e91139f93bfc26bc946ea",
+  "suite_hash": "ad54478df191670fc83a1b72c4bbcd95044bd4464fbaeb8125f5afec6b4f2f37",
   "status": "pass",
   "passed": 124,
   "failed": 0,
@@ -62,13 +62,14 @@
     }
   ],
   "witness": null,
-  "duration_ms": 258.1,
-  "scope": "SQLite sample contracts, target-column postconditions, every seeded record for update probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+  "duration_ms": 804.0,
+  "scope": "SQLite sample contracts, target-column postconditions, every seeded record for update probes, adjacent directed cross-record two-write paths, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",
     "No PostgreSQL, MySQL or ORM behavior claimed.",
     "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",
     "Contract/drop-column phase is deferred until old workers and rollback windows are retired.",
+    "Cross-record probes cover adjacent directed seed pairs, not every possible pair when more than two seeds exist.",
     "Passing covers only the fixed adapters, seed data and reported schedules."
   ],
   "bob": {
