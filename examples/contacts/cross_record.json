@@ -1,0 +1,7 @@
+{
+  "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
+  "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
+  "insert": "INSERT INTO contacts (id, email, contact_email) VALUES (:id, :value, :value)",
+  "name": "Cross-record reset trap",
+  "migration": "ALTER TABLE contacts ADD COLUMN contact_email TEXT;\n\n-- Preserve both reader contracts throughout the rollback window.\nCREATE TRIGGER sync_old_update AFTER UPDATE OF email ON contacts\nWHEN NEW.email IS NOT NEW.contact_email\nBEGIN\n  UPDATE contacts SET contact_email = NEW.email WHERE id = NEW.id;\nEND;\n\nCREATE TRIGGER sync_new_update AFTER UPDATE OF contact_email ON contacts\nWHEN NEW.contact_email IS NOT NEW.email\nBEGIN\n  UPDATE contacts SET email = NEW.contact_email WHERE id = NEW.id;\nEND;\n\nCREATE TRIGGER sync_old_insert AFTER INSERT ON contacts\nWHEN NEW.contact_email IS NULL\nBEGIN\n  UPDATE contacts SET contact_email = NEW.email WHERE id = NEW.id;\nEND;\n\n-- Backfill only after the synchronization triggers are active.\nUPDATE contacts SET contact_email = email;\n\n-- Adversarial fixture: a later write silently erases an earlier record.\nCREATE TRIGGER reset_other_record AFTER UPDATE OF email ON contacts\nWHEN NEW.id = 102\nBEGIN\n  UPDATE contacts SET email = 'ada@example.test', contact_email = 'ada@example.test' WHERE id = 101;\nEND;\n"
+}

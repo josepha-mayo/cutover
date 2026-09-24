@@ -8,3 +8,4 @@
 @media(max-width:700px){.window-map-head{align-items:start;flex-direction:column;gap:7px}.window-map-head p{text-align:left}.window-stage{min-width:110px}.import-path-actions{justify-content:flex-start}}
 
 .result-actions{flex-wrap:wrap}
+.trap-option{display:block;width:100%;margin:10px 0 0;padding:11px 13px;border:1px dashed #b9c9ae;border-radius:5px;background:#f4f7ef;color:#3b6047;text-align:left}.trap-option:hover{background:#eaf1e5}.trap-option strong{display:block;font-size:11px;font-weight:600}.trap-option small{display:block;margin-top:3px;font-size:10px;line-height:1.4;color:#6c806c}

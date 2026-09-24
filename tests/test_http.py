@@ -117,6 +117,23 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(example['plan'], json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8')))
         self.assertEqual(example['source'], 'prewritten warehouse example')
 
+    def test_cross_record_control_is_available_and_exposes_its_write_path(self):
+        code, body = self.request('/api/catalog')
+        self.assertEqual(code, 200)
+        for case in json.loads(body)['cases']:
+            with self.subTest(case=case['id']):
+                plan = case['plans']['cross_record']
+                self.assertEqual(plan, load_plan(case['id'], 'cross_record'))
+                code, body = self.request('/api/rehearse', {'case': case['id'], 'plan': plan})
+                self.assertEqual(code, 200)
+                result = json.loads(body)
+                self.assertEqual((result['status'], result['baseline']['passed']), ('blocked', 8))
+                self.assertEqual((result['passed'], result['total']), (100, 132))
+                self.assertEqual(result['witness']['write_targets'], [101, 102])
+                self.assertEqual(result['witness']['failure']['kind'], 'data_mismatch')
+                self.assertEqual(next(row for row in result['categories']
+                                      if row['id'] == 'migration_window')['passed'], 56)
+
     def test_import_validation_rejects_broken_old_contract_and_no_green_result(self):
         contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
         plan = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))

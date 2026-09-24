@@ -16,6 +16,7 @@ function updateModeControls() {
   const custom=activeCase?.id==='custom';
   $('plan-options').hidden=custom; $('custom-plan-intro').hidden=!custom; $('save-contract').hidden=!custom;
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||custom);
+  $('try-cross-record').disabled=busy||custom;
   $('run').disabled=busy||!activeCase||(custom&&!candidateReady());
   $('save-plan').disabled=busy||!activeCase||(custom&&!candidateReady());
   $('try-warehouse').disabled=busy;
@@ -84,7 +85,8 @@ function renderReport() {
   const completeTotal=complete.reduce((n,c)=>n+c.total,0);
   const completePassed=complete.reduce((n,c)=>n+c.passed,0);
   const windows=report.categories.find(c=>c.id==='migration_window');
-  $('source-label').textContent=`Executed · ${report.plan_hash.slice(0,10)}`;
+  const provenance=reference==='cross_record'?'prewritten negative control':reference?'prewritten reference':activeCase.id==='custom'?'imported candidate':'custom candidate';
+  $('source-label').textContent=`Executed ${provenance} · ${report.plan_hash.slice(0,10)}`;
   $('status-badge').textContent=passed?'SUITE PASSED':'BLOCKED'; $('status-badge').className=`status-badge ${report.status}`;
   $('verdict-title').textContent=passed?'The handover holds.':'The handover breaks.';
   $('verdict-description').textContent=passed?'Both versions observed the expected data in every tested schedule and migration window. Keep the compatibility path through the rollback window.':completePassed===completeTotal&&windows?.passed<windows?.total?`All ${completeTotal} completed-rollout probes passed. ${windows.total-windows.passed} migration-window probes failed: an old write can arrive before synchronization is in place.`:`${report.failed} probes failed. ${report.baseline.passed===report.baseline.total?'A green new-version baseline does not establish that old and new workers can safely share the data.':'The new-version baseline also fails; this candidate does not meet the required target-column contract.'}`;
@@ -163,6 +165,7 @@ async function showBob() {
 $('run').addEventListener('click',run);
 $('case').addEventListener('change',chooseCase);
 document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference=button.dataset.plan;setPlan(activeCase.plans[reference],'Editable reference · not AI generated');}));
+$('try-cross-record').addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference='cross_record';setPlan(activeCase.plans.cross_record,'Prewritten negative control · not AI generated');run();});
 Object.values(fields).forEach(id=>$(id).addEventListener('input',()=>{reference=null;$('source-label').textContent='Custom candidate · not yet executed';document.querySelectorAll('[data-plan]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});invalidate();updateModeControls();}));
 $('failures-only').addEventListener('change',renderMatrix);
 $('brief').addEventListener('click',showBob); $('bob-nav').addEventListener('click',showBob);

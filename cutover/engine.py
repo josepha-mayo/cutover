@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.4"
+ENGINE_VERSION = "0.3.5"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -113,7 +113,7 @@ def validate_old_contract_behavior(contract):
 
 
 def load_plan(case="parcel", name="rename"):
-    if name not in ("rename", "backfill", "late_bridge", "bridge"):
+    if name not in ("rename", "backfill", "late_bridge", "bridge", "cross_record"):
         raise ValueError("Unknown reference plan")
     load_case(case)
     return json.loads((CASES / case / f"{name}.json").read_text(encoding="utf-8"))

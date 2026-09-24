@@ -56,5 +56,5 @@ def verify_report_against_replay(case, plan, report, contract=None):
 
 def catalog():
     return {'cases': [{'id': name, **load_case(name),
-                       'plans': {p: load_plan(name, p) for p in ('rename', 'backfill', 'late_bridge', 'bridge')}}
+                       'plans': {p: load_plan(name, p) for p in ('rename', 'backfill', 'late_bridge', 'bridge', 'cross_record')}}
                       for name in ('parcel', 'contacts')]}

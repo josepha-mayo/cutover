@@ -26,7 +26,8 @@ Open http://127.0.0.1:8765. The server binds only to loopback by default. The sa
 2. Select **Direct rename**, then run. All 8 new-version checks pass, but Cutover catches 60 failing completed-rollout probes, including an old worker querying a removed column.
 3. Select **Expand & backfill**, then run. New-version checks still pass. A write is acknowledged but the other version reads stale data.
 4. Select **Window-safe bridge**. Moving synchronization before backfill preserves data through all 124 tested probes. Append `DROP TRIGGER sync_new_update;` to its migration and rerun; 12 failures return. Results are computed from SQL, never chosen by candidate name.
-5. Export evidence and its Markdown review, save/import a candidate, or prepare a repair task for IBM Bob.
+5. Click **Run the cross-record trap**. It starts from the window-safe bridge but adds a prewritten trigger that silently resets row 101 after a write to row 102. The same-version baseline and every migration-window probe pass, yet cross-record write replays block the candidate and show both write IDs plus the lost value. This is a synthetic negative control, not a real incident or Bob result.
+6. Export evidence and its Markdown review, save/import a candidate, or prepare a repair task for IBM Bob.
 
 The browser includes two curated contracts: Parcel's address migration and Relay's contact-field migration. They demonstrate the same structural failure on different identifiers and seed data. They are sample SQL adapters, not claims of integration with production services or full ORM applications. Inputs deliberately stress string preservation and do not validate contact syntax.
 
@@ -55,7 +56,7 @@ The smallest failure shown is the **shortest observed failing prefix in this sui
 
 ## Measured impact in the sample challenge
 
-Among three deliberately unsafe rollout patterns, the new-version baseline detects 0/3, completed-rollout checks detect 2/3, and adding migration-statement windows detects 3/3. The late bridge alone passes 76/76 completed-rollout probes but fails 16 window probes. This is a [controlled fixture ablation](docs/IMPACT.md), repeated on two structurally similar examples; it is not a customer benchmark or measured time saving. Recompute it with `python -m evidence.build_ablation`.
+Among the original three unsafe rollout patterns in the controlled ablation, the new-version baseline detects 0/3, completed-rollout checks detect 2/3, and adding migration-statement windows detects 3/3. The late bridge alone passes 76/76 completed-rollout probes but fails 16 window probes. The separate cross-record trap adds a fourth negative control: 8/8 baseline and 56/56 windows pass, but two-write probes find 32 failures in both bundled contracts. These are [curated fixture results](docs/IMPACT.md), not a customer benchmark or measured time saving. Recompute the original ablation with `python -m evidence.build_ablation`.
 
 ## Bob integration
 
@@ -80,7 +81,7 @@ Open the printed `cutover-bob-session-<commit>` folder in Bob and select **Cutov
 
 Run `python verify_bob_session.py --workspace PATH_TO_SIBLING` before and after the Bob task. The freezer copies committed Git blob bytes, and the verifier checks every copied hash against that commit, the evaluator hash, MCP settings, and the absence of passing references. Before prompting Bob, also run `.venv\Scripts\python.exe verify_bob_mcp.py --workspace PATH_TO_SIBLING` to check the exact configured server through the official MCP SDK. These local checks prove workspace integrity and connectivity, not Bob authorship.
 
-Use [BOB_TASK.md](docs/BOB_TASK.md). Capture the real task summary and screenshots, retain Bob's actual candidate, copy its `work/bob-candidate.json` into this full project's `work/`, and replay it with `python -m cutover --plan work/bob-candidate.json`. The interface's four reference plans are prewritten; loading the bridge is not an AI repair. The MVP intentionally does not invent an IBM Bob inference API.
+Use [BOB_TASK.md](docs/BOB_TASK.md). Capture the real task summary and screenshots, retain Bob's actual candidate, copy its `work/bob-candidate.json` into this full project's `work/`, and replay it with `python -m cutover --plan work/bob-candidate.json`. The interface's four primary reference plans and cross-record negative control are prewritten; loading them is not an AI repair. The MVP intentionally does not invent an IBM Bob inference API.
 
 ## CLI and verification
 
