@@ -35,6 +35,20 @@ class BobSessionNamingTests(unittest.TestCase):
                                             cwd=workspace, env=env, capture_output=True,
                                             text=True, encoding='utf-8', timeout=15)
                     self.assertEqual(result.returncode, 0, result.stderr)
+            report = workspace / 'work' / 'late.json'
+            replayed = subprocess.run(
+                [sys.executable, '-m', 'cutover', '--reference', 'late_bridge',
+                 '--output', str(report)], cwd=workspace, env=env,
+                capture_output=True, text=True, encoding='utf-8', timeout=20)
+            self.assertEqual(replayed.returncode, 1, replayed.stderr)
+            self.assertIn('BLOCKED: 108/124', replayed.stdout)
+            audited = subprocess.run(
+                [sys.executable, '-m', 'cutover.audit_report', '--case', 'parcel',
+                 '--plan', str(workspace / 'examples' / 'parcel' / 'late_bridge.json'),
+                 '--report', str(report)], cwd=workspace, env=env,
+                capture_output=True, text=True, encoding='utf-8', timeout=20)
+            self.assertEqual(audited.returncode, 1, audited.stderr)
+            self.assertIn('VERIFIED BLOCKED: 108/124', audited.stdout)
 
 
 if __name__ == '__main__':

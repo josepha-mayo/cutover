@@ -1,10 +1,12 @@
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
-from .engine import load_case, load_plan, rehearse
+from .engine import load_case, load_plan
 from .bundle import render_bundle
 from .reporting import render_markdown, render_reproduction
+from .service import WORKER_TIMEOUT_SECONDS, run_rehearsal
 
 parser = argparse.ArgumentParser(description="Rehearse old/new application contracts on disposable SQLite databases.")
 parser.add_argument("--case", choices=["parcel", "contacts"], default="parcel")
@@ -41,7 +43,9 @@ def read_json(path, label):
 contract = read_json(args.contract, 'Contract') if args.contract else None
 plan = read_json(args.plan, 'Plan') if args.plan else load_plan(args.case, args.reference)
 try:
-    report = rehearse('custom' if contract is not None else args.case, plan, contract)
+    report = run_rehearsal('custom' if contract is not None else args.case, plan, contract)
+except subprocess.TimeoutExpired:
+    parser.error(f'Rehearsal exceeded its {WORKER_TIMEOUT_SECONDS} second budget; no verdict was produced')
 except ValueError as exc:
     parser.error(str(exc))
 try:

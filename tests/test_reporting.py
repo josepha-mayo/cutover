@@ -1,10 +1,14 @@
+import contextlib
+import io
 import json
+import runpy
 import subprocess
 import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 from cutover.engine import load_case, load_plan, rehearse
 from cutover.reporting import fenced, render_markdown, render_reproduction
@@ -14,6 +18,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReviewReportTests(unittest.TestCase):
+    def test_cli_timeout_cannot_be_reported_as_a_blocked_candidate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            report = Path(temporary) / 'report.json'
+            stderr = io.StringIO()
+            timed_out = subprocess.TimeoutExpired(['python', '-m', 'cutover.worker'], 90)
+            with patch('cutover.service.run_rehearsal', side_effect=timed_out), \
+                    patch.object(sys, 'argv', ['cutover', '--output', str(report)]), \
+                    contextlib.redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as stopped:
+                    runpy.run_module('cutover', run_name='__main__')
+            self.assertEqual(stopped.exception.code, 2)
+            self.assertIn('no verdict was produced', stderr.getvalue())
+            self.assertFalse(report.exists())
+
     def test_blocked_and_passing_reports_show_actual_replays(self):
         blocked = rehearse('parcel', load_plan('parcel', 'late_bridge'))
         blocked_md = render_markdown(blocked)
