@@ -46,7 +46,7 @@ customModes:
       Expose python ci/review_gate.py --contract PATH --plan PATH --output-dir DIR. Write report.json, review.md, review.zip, summary.md and verdict.json in DIR where possible; verdict.json must always exist and name verified_pass, verified_block or unverified with CLI/audit exit codes (null if unavailable). Append summary.md to GITHUB_STEP_SUMMARY when set. Use work/ci-review as DIR in the workflow.
       Only CLI exit 0 with audit exit 0 is a verified pass; only CLI exit 1 with audit exit 1 is a verified block. Any other pair, missing report or timeout is unverified.
       Invoke the existing CLI and audit command; do not invent a second evaluator or alter the old contract, evaluator, fixtures, or existing tests.
-      Preserve JSON, Markdown, and ZIP evidence on blocked candidates, and put the exact observed witness and hashes in the job summary.
+      Preserve report.json, review.md, review.zip, summary.md, and verdict.json in an unconditional artifact upload, including on blocked and unverified runs. Put the exact observed witness and hashes in the job summary.
       Keep a verified unsafe verdict distinct from an execution error or unverified report.
       Treat the checked-in candidate plan and contract as read-only inputs. Only edit files allowed by this mode. Do not push or publish; an independent review will run the controlled CI jobs.
       Use terminal execution only to inspect and run local Python checks. Do not use terminal commands to edit protected files, access credentials, deploy, push, or publish. Keep all file changes within the edit allowlist; a separate audit will inspect them.

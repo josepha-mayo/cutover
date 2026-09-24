@@ -270,6 +270,8 @@ def verified_ci_evidence(source, manifest_dir):
                 receipt.get('independent_audit_exit') != audit_exit or
                 receipt.get('matching_markdown_artifacts', 0) < 1 or
                 receipt.get('matching_zip_artifacts') != 1 or
+                receipt.get('downloaded_summary_verified') is not True or
+                receipt.get('downloaded_verdict_verified') is not True or
                 not re.fullmatch(r'[0-9a-f]{40}', str(receipt.get('head_sha', '')))):
             raise ValueError(f'{control} receipt is not a verified Cutover PR run')
         report_path = Path(receipt['report'])

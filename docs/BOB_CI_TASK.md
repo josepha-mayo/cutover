@@ -36,7 +36,9 @@ every run, including invalid input or timeout. Set `classification` to exactly
 `cli_exit` and `audit_exit` (null when a command could not run). Append the
 same summary text to `GITHUB_STEP_SUMMARY` when set.
 Keep the Actions YAML to checkout, Python setup, one helper invocation, and an
-`if: always()` evidence upload. A failed helper step must still reach the upload.
+`if: always()` evidence upload. Upload `report.json`, `review.md`, `review.zip`,
+`summary.md`, and `verdict.json` together whenever they exist. A failed helper
+step must still reach the upload.
 Do not use `continue-on-error`, a shell pipeline, or a GitHub step's outcome to
 infer whether an executed candidate was safe. A pre-event disposable Bob Shell
 probe generated a workflow that lost the blocked CLI/audit exit codes through
