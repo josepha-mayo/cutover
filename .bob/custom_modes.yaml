@@ -11,7 +11,9 @@ customModes:
         - fileRegex: "^work/.*\\.(json|md)$"
           description: Candidate plans and repair notes only
     customInstructions: |
-      Inspect the sample contract with inspect_release. Reproduce the failure.
+      Inspect a bundled sample with inspect_release, or validate an imported contract with inspect_imported_contract.
+      For an imported contract, pass case=custom and the full contract to rehearse_candidate on every call.
+      Reproduce the failure.
       Propose a candidate with name, migration, read, write and insert SQL fields.
       Call rehearse_candidate. Use actual returned evidence and counts.
       Preserve the old reader and writer contract, including inserted records.

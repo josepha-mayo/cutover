@@ -25,7 +25,8 @@ async def check(workspace):
             await session.initialize()
             listed = await session.list_tools()
             names = {tool.name for tool in listed.tools}
-            assert names == {'inspect_release', 'diagnose_reference', 'rehearse_candidate'}, names
+            assert names == {'inspect_release', 'inspect_imported_contract',
+                             'diagnose_reference', 'rehearse_candidate'}, names
             inspected = await session.call_tool('inspect_release', {'case': 'parcel'})
             assert not inspected.isError
             diagnosis = await session.call_tool(

@@ -99,7 +99,7 @@ function renderReport() {
   $('coverage').innerHTML=report.categories.map(c=>`<div class="coverage-row"><span>${escape(labels[c.id])}</span><div class="meter" aria-label="${c.passed} of ${c.total} passed">${Array.from({length:c.total},(_,i)=>`<i class="${i<c.passed?'good':'bad'}"></i>`).join('')}</div><span>${c.passed}/${c.total}</span></div>`).join('');
   const witness=report.witness;
   $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p></div>`;
-  $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('brief').disabled=activeCase.id==='custom';
+  $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('brief').disabled=false;
   $('hashes').textContent=`Plan SHA-256: ${report.plan_hash} · Contract SHA-256: ${report.contract_hash} · Suite SHA-256: ${report.suite_hash}`;
   renderWindowMap(); renderMatrix(); renderTrace(witness || report.results.find(r=>r.id==='new_to_old-0'));
 }
@@ -151,8 +151,12 @@ function renderTrace(probe) {
 }
 async function showBob() {
   if(activeCase?.id==='custom') {
-    briefText='The current Cutover MCP tools inspect the bundled Parcel and Relay contracts only. This imported contract was rehearsed by the browser worker, not passed to IBM Bob. Switch to a bundled case to prepare a Bob MCP repair task.';
-    $('bob-task').value=briefText; $('download-brief').disabled=true; $('bob-dialog').showModal(); return;
+    if(!candidateReady()) {
+      briefText='Import or enter a five-field candidate plan, run a rehearsal, then prepare the Bob repair task. The imported contract remains available in this browser session.';
+      $('bob-task').value=briefText; $('download-brief').disabled=true; $('bob-dialog').showModal(); return;
+    }
+    briefText=`Repair this imported SQLite contract in IBM Bob. First call inspect_imported_contract with the contract object below. Call rehearse_candidate with case="custom", this same complete contract object, and your five candidate SQL fields on every attempt. Preserve the fixed old adapter, seed data, and evaluator. Save your own final plan to work/bob-candidate.json and retain Bob's actual tool calls, task summary, failed attempts and screenshots. Any browser verdict is deterministic evidence, not proof Bob did this work. Use a local Bob session for private schemas. Report measured coverage and untested boundaries.\n\n`+pretty({contract:importedContract,contract_hash:importedMeta?.contract_hash,candidate:currentPlan(),plan_hash:report?.plan_hash||null,shortest_observed_witness:report?.witness||null});
+    $('bob-task').value=briefText; $('download-brief').disabled=false; $('bob-dialog').showModal(); return;
   }
   $('download-brief').disabled=false;
   const intro=`Inspect this Cutover project and repair the ${activeCase?.id||'parcel'} rollout. Use inspect_release and rehearse_candidate through the Cutover MCP server. Preserve the fixed old contract and the evaluator. Save your candidate to work/bob-candidate.json. Explain each change and retain your actual Bob task summary and screenshots. Do not claim that prewritten reference solutions are your work.\n\n`;
