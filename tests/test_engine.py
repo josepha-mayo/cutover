@@ -126,6 +126,45 @@ END;
         self.assertEqual(probe['cross_record_paths_tested'],
                          [[401, 607], [607, 999], [999, 401]])
 
+    def test_two_write_suite_covers_every_ordered_pair_at_maximum_seed_count(self):
+        contract = load_case('parcel')
+        ids = list(range(201, 217))
+        contract['seed'] = [[row_id, f'address {row_id}'] for row_id in ids]
+        contract['payloads'] = ['new address', '']
+        report = rehearse('custom', load_plan('parcel', 'bridge'), contract)
+        self.assertEqual(report['status'], 'pass')
+        two_write = [row for row in report['results']
+                     if sum(action.endswith('.write') for action in row['actions']) == 2]
+        self.assertEqual(len(two_write), 16)
+        self.assertTrue(all(len(row['cross_record_paths_tested']) == len(ids)
+                            for row in two_write))
+        actual = {tuple(path) for row in two_write
+                  for path in row['cross_record_paths_tested']}
+        expected = {(first, second) for first in ids for second in ids
+                    if first != second}
+        self.assertEqual(actual, expected)
+
+    def test_nonadjacent_pair_corruption_is_detected(self):
+        contract = load_case('parcel')
+        contract['seed'] = [[101, '4 Broad Street'], [102, '9 Station Road'],
+                            [103, '8 Museum Lane']]
+        contract['payloads'] = ['18 Marina Road', '']
+        plan = load_plan('parcel', 'bridge')
+        # A directed adjacent ring omits 101 -> 103. The rotating suite
+        # reaches that path while retaining the same number of replays.
+        plan['migration'] += '''
+CREATE TRIGGER reset_first_nonadjacent AFTER UPDATE OF delivery_address ON orders
+WHEN NEW.id = 103
+BEGIN
+  UPDATE orders SET delivery_address = '4 Broad Street',
+                    shipping_address = '4 Broad Street' WHERE id = 101;
+END;
+'''
+        report = rehearse('custom', plan, contract)
+        self.assertEqual(report['status'], 'blocked')
+        failures = [row for row in report['results'] if not row['passed']]
+        self.assertTrue(any(row.get('write_targets') == [101, 103] for row in failures))
+
     def test_sync_limited_to_first_seed_row_cannot_pass(self):
         plan = load_plan('parcel', 'bridge')
         plan['migration'] = plan['migration'].replace(

@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.5"
+ENGINE_VERSION = "0.3.6"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -342,11 +342,12 @@ def replay(contract, plan, actions, payload, statements=None, seed_id=None, inse
 
 
 def replay_seed_variants(contract, plan, actions, payload, statements=None):
-    """Exercise every record alone, adjacent cross-record paths, and two insert IDs.
+    """Exercise every record alone, rotating cross-record paths, and two insert IDs.
 
     A trigger can accidentally protect one fixed row ID. A passing probe must
-    survive each relevant ID. Two-write schedules also move around the seeded
-    records so a write to one row can expose corruption of another row.
+    survive each relevant ID. Across the eight two-write schedules and at
+    least two payloads, a rotating offset covers every ordered pair of up to
+    sixteen seeded records without increasing the number of replays.
     """
     ids = ([row[0] for row in contract["seed"]]
            if any(action.endswith(".write") for action in actions)
@@ -374,10 +375,16 @@ def replay_seed_variants(contract, plan, actions, payload, statements=None):
             first_pass = result
     write_count = sum(action.endswith(".write") for action in actions)
     if write_count == 2 and len(ids) > 1:
-        # A directed ring uses each seeded record once as the first and second
-        # target. This bounds the extra work for user-supplied contracts.
+        two_write_actions = [candidate_actions for _, _, _, candidate_actions in schedules()
+                             if sum(action.endswith(".write") for action in candidate_actions) == 2]
+        schedule_index = two_write_actions.index(actions)
+        payloads = contract.get("payloads", PAYLOADS)
+        payload_index = payloads.index(payload)
+        offset = 1 + (schedule_index * len(payloads) + payload_index) % (len(ids) - 1)
+        # Each probe stays linear in seed count; offsets rotate across the
+        # full suite so every ordered pair occurs in at least one probe.
         for index, first_id in enumerate(ids):
-            second_id = ids[(index + 1) % len(ids)]
+            second_id = ids[(index + offset) % len(ids)]
             path = [first_id, second_id]
             result = replay(contract, plan, actions, payload, statements,
                             seed_id=first_id, write_ids=path)
@@ -447,7 +454,7 @@ def rehearse(case, plan, contract=None):
         "suite_hash": digest({"schedules": schedules(), "payloads": payloads,
                               "migration_window_policy": "old update and insert after every SQLite statement boundary",
                               "write_seed_policy": "each seeded record for every update probe",
-                              "cross_record_policy": "directed adjacent ring for every two-write schedule",
+                              "cross_record_policy": "rotating directed offset; every ordered seed pair across the two-write suite",
                               "insert_id_policy": "two distinct IDs beyond the highest seed for every insert probe"}),
         "status": "pass" if not failures else "blocked",
         "passed": len(results) - len(failures), "failed": len(failures), "total": len(results),
@@ -455,12 +462,12 @@ def rehearse(case, plan, contract=None):
         "categories": categories, "witness": witness, "results": results,
         "duration_ms": round((time.perf_counter() - start) * 1000, 1),
         "scope": (("SQLite user-supplied contract" if case == "custom" else "SQLite sample contracts") +
-                  ", target-column postconditions, every seeded record for update probes, adjacent directed cross-record two-write paths, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
+                  ", target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
         "limitations": ["No concurrent transactions, lock timing or network failures modeled.",
                         "No PostgreSQL, MySQL or ORM behavior claimed.",
                         "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",
                         "Contract/drop-column phase is deferred until old workers and rollback windows are retired.",
-                        "Cross-record probes cover adjacent directed seed pairs, not every possible pair when more than two seeds exist.",
+                        "Each ordered seed pair is covered somewhere in a passing full suite, but not under every schedule and payload combination.",
                         "Passing covers only the fixed adapters, seed data and reported schedules."],
         "bob": {"verified": False, "note": "This execution is deterministic. Bob session evidence must be captured separately."},
     }
