@@ -42,6 +42,8 @@ python -m cutover --contract examples/warehouse/contract.json --plan examples/wa
 python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/bridge.json --output work/warehouse-safe.json --markdown work/warehouse-safe.md
 ```
 
+Contract import checks that the fixed old reader, updater, and inserter work with every declared payload on fresh databases before attributing failures to a migration.
+
 The first command exits 1 with a blocked 108/124 verdict; its shortest observed witness has `R-07` expected and `A-01` observed. The second exits 0 with 124/124 on this particular contract. The Markdown file is generated from the same executed report object as JSON, with a trace, bound inputs, expected/observed values, hashes and limitations. Run `python work/warehouse-late-replay.py` to reproduce its recorded data gap without Cutover installed. The imported contract must define `project`, `summary`, `table`, distinct `old_column`/`new_column`, initial `schema`, `seed_sql`, 1–16 `[id, value]` seed rows, an `old` read/write/insert adapter, and 2–8 domain-specific `payloads`. SQL identifiers and input sizes are bounded. The initial schema must contain exactly the named table, with no views or triggers. The old adapter must pass reads, updates of every seed ID, and an insert before migration evidence is produced. Run private schemas locally. This is a contract importer, not automatic extraction from a repository or a production-database connector.
 
 ## What executes

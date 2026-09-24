@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.8"
+ENGINE_VERSION = "0.3.9"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -69,48 +69,48 @@ def validate_contract(contract):
 
 def validate_old_contract_behavior(contract):
     """Prove the supplied old adapter works before attributing failures to a migration."""
-    db = None
-    try:
-        db = connection(contract)
-        schema_objects = db.execute(
-            "SELECT type, name FROM sqlite_master "
-            "WHERE type IN ('table', 'view', 'trigger') AND name NOT LIKE 'sqlite_%'").fetchall()
-        if (len(schema_objects) != 1 or schema_objects[0]['type'] != 'table' or
-                schema_objects[0]['name'].casefold() != contract['table'].casefold()):
-            raise ValueError("Initial schema must contain exactly the named table and no views or triggers")
-        columns = {column[0].casefold() for column in db.execute(
-            f'SELECT * FROM "{contract["table"]}" LIMIT 0').description}
-        if ({'id', contract['old_column'].casefold()} - columns or
-                contract['new_column'].casefold() in columns):
-            raise ValueError("Initial table must have id and old column, but not the new column")
-        expected = {row[0]: row[1] for row in contract["seed"]}
+    for payload_index, update_value in enumerate(contract["payloads"]):
+        db = None
+        try:
+            db = connection(contract)
+            schema_objects = db.execute(
+                "SELECT type, name FROM sqlite_master "
+                "WHERE type IN ('table', 'view', 'trigger') AND name NOT LIKE 'sqlite_%'").fetchall()
+            if (len(schema_objects) != 1 or schema_objects[0]['type'] != 'table' or
+                    schema_objects[0]['name'].casefold() != contract['table'].casefold()):
+                raise ValueError("Initial schema must contain exactly the named table and no views or triggers")
+            columns = {column[0].casefold() for column in db.execute(
+                f'SELECT * FROM "{contract["table"]}" LIMIT 0').description}
+            if ({'id', contract['old_column'].casefold()} - columns or
+                    contract['new_column'].casefold() in columns):
+                raise ValueError("Initial table must have id and old column, but not the new column")
+            expected = {row[0]: row[1] for row in contract["seed"]}
 
-        def check_read():
-            rows = db.execute(contract["old"]["read"]).fetchmany(100)
-            try:
-                actual = {row["id"]: row["value"] for row in rows}
-            except (IndexError, KeyError) as exc:
-                raise ValueError("Old reader must return id and value columns") from exc
-            if len(rows) != len(expected) or actual != expected:
-                raise ValueError("Old reader does not match the supplied seed and writes")
+            def check_read():
+                rows = db.execute(contract["old"]["read"]).fetchmany(100)
+                try:
+                    actual = {row["id"]: row["value"] for row in rows}
+                except (IndexError, KeyError) as exc:
+                    raise ValueError("Old reader must return id and value columns") from exc
+                if len(rows) != len(expected) or actual != expected:
+                    raise ValueError("Old reader does not match the supplied seed and writes")
 
-        check_read()
-        update_value = contract["payloads"][0]
-        for seed_id, _ in contract["seed"]:
-            if db.execute(contract["old"]["write"], {"id": seed_id, "value": update_value}).rowcount != 1:
-                raise ValueError("Old updater must acknowledge exactly one row for every seed ID")
-            expected[seed_id] = update_value
             check_read()
-        new_id = max(expected) + 1
-        if db.execute(contract["old"]["insert"], {"id": new_id, "value": update_value}).rowcount != 1:
-            raise ValueError("Old inserter must acknowledge exactly one row")
-        expected[new_id] = update_value
-        check_read()
-    except sqlite3.Error as exc:
-        raise ValueError(f"Old contract SQL failed: {exc}") from exc
-    finally:
-        if db is not None:
-            db.close()
+            for seed_id, _ in contract["seed"]:
+                if db.execute(contract["old"]["write"], {"id": seed_id, "value": update_value}).rowcount != 1:
+                    raise ValueError("Old updater must acknowledge exactly one row for every seed ID")
+                expected[seed_id] = update_value
+                check_read()
+            new_id = max(expected) + 1
+            if db.execute(contract["old"]["insert"], {"id": new_id, "value": update_value}).rowcount != 1:
+                raise ValueError("Old inserter must acknowledge exactly one row")
+            expected[new_id] = update_value
+            check_read()
+        except sqlite3.Error as exc:
+            raise ValueError(f"Old contract SQL failed for payload index {payload_index}: {exc}") from exc
+        finally:
+            if db is not None:
+                db.close()
 
 
 def load_plan(case="parcel", name="rename"):

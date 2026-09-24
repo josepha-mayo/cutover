@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from cutover.engine import rehearse, validate_contract
-from cutover.service import run_rehearsal, verify_report_against_replay
+from cutover.service import run_rehearsal, validate_imported_contract, verify_report_against_replay
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -92,6 +92,24 @@ class CustomContractTests(unittest.TestCase):
                                  'fulfillment_bin TEXT);')
         with self.assertRaisesRegex(ValueError, 'not the new column'):
             rehearse('custom', fixture('bridge.json'), preexisting)
+
+    def test_later_payload_must_work_for_old_updates_and_inserts(self):
+        base = fixture('contract.json')
+        base['payloads'][1] = 'LONG-BIN'
+        schemas = (
+            'CREATE TABLE stock_items (id INTEGER PRIMARY KEY, '
+            'pick_bin TEXT NOT NULL CHECK(length(pick_bin) <= 4));',
+            'CREATE TABLE stock_items (id INTEGER PRIMARY KEY, '
+            'pick_bin TEXT NOT NULL CHECK(id <= 33 OR length(pick_bin) <= 4));',
+        )
+        for schema in schemas:
+            with self.subTest(schema=schema):
+                contract = copy.deepcopy(base)
+                contract['schema'] = schema
+                with self.assertRaisesRegex(ValueError, 'payload index 1'):
+                    validate_imported_contract(contract)
+                with self.assertRaisesRegex(ValueError, 'payload index 1'):
+                    run_rehearsal('custom', fixture('bridge.json'), contract)
 
     def test_initial_schema_and_every_seed_update_are_checked(self):
         base = fixture('contract.json')

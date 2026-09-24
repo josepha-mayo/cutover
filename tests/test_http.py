@@ -156,6 +156,23 @@ class HttpTests(unittest.TestCase):
             self.assertIn('id and value', response['error'])
             self.assertNotIn('passed', response)
 
+    def test_import_validation_rejects_later_payload_before_a_verdict(self):
+        contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
+        contract['payloads'][1] = 'LONG-BIN'
+        contract['schema'] = ('CREATE TABLE stock_items (id INTEGER PRIMARY KEY, '
+                              'pick_bin TEXT NOT NULL CHECK(length(pick_bin) <= 4));')
+        plan = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))
+        for endpoint, request in (
+            ('/api/contract/validate', {'contract': contract}),
+            ('/api/rehearse', {'case': 'custom', 'contract': contract, 'plan': plan}),
+        ):
+            with self.subTest(endpoint=endpoint):
+                code, body = self.request(endpoint, request)
+                response = json.loads(body)
+                self.assertEqual(code, 400)
+                self.assertIn('payload index 1', response['error'])
+                self.assertNotIn('passed', response)
+
     def test_imported_contract_cannot_replace_bundled_case_or_bob_brief(self):
         contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
         plan = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))
