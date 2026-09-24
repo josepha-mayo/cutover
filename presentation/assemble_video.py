@@ -67,12 +67,20 @@ def validate_submission_media(path: Path) -> None:
         raise ValueError("Expected exactly one AAC narration stream")
 
 
-def assemble(manifest_path: Path, narration: Path, output: Path) -> None:
+def assemble(manifest_path: Path, narration: Path, output: Path,
+             allow_test_assembly: bool = False) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     clips = manifest["clips"]
     target = float(manifest["duration_sec"])
     if not 0 < target <= 180 or not clips:
         raise ValueError("Expected a nonempty demo of at most 180 seconds")
+    test_assembly = bool(manifest.get("assembly_test_only")) or any(
+        "assembly-test" in str(clip.get("path", "")).lower() for clip in clips
+    )
+    if test_assembly and not allow_test_assembly:
+        raise ValueError("Test slate manifest requires --test-assembly")
+    if test_assembly and "assembly-test" not in output.name.lower():
+        raise ValueError("Test slate output filename must contain assembly-test")
     if not narration.is_file():
         raise FileNotFoundError(narration)
     if output.exists():
@@ -157,8 +165,10 @@ def main() -> None:
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--narration", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--test-assembly", action="store_true",
+                        help="Allow clearly named assembly-test placeholder footage")
     args = parser.parse_args()
-    assemble(args.manifest, args.narration, args.output)
+    assemble(args.manifest, args.narration, args.output, args.test_assembly)
 
 
 if __name__ == "__main__":
