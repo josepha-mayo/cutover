@@ -1,6 +1,7 @@
 # Event-period Bob CI task — prompt, not completed work
 
-When creating the GitHub Actions file, write to **exactly**
+Implement and locally exercise `ci/review_gate.py` first. Then create the
+GitHub Actions file at **exactly**
 `.github/workflows/cutover-review.yml`. The mode rejects other workflow
 filenames, including `.github/workflows/pr-gate.yml`. If your file-writing
 tool reports a rejected path, correct that path and retry; a final explanation
@@ -79,3 +80,6 @@ attempts will be retained as event evidence rather than hidden.
 Before the GitHub runs, execute your helper locally with each of those three
 checked-in fixture plans and inspect its exit, summary, and retained files.
 Check a malformed plan too: it must be unverified, not a verified block.
+If the task budget ends before the workflow and tests are complete, leave the
+actual helper and partial files in place and state precisely what remains;
+the next IDE task can continue from those files with a separate summary PNG.
