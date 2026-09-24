@@ -54,6 +54,19 @@ class CustomContractTests(unittest.TestCase):
         self.assertEqual(original['results'][0]['payload'], 'R-07')
         self.assertEqual(revised['results'][0]['payload'], 'Q-99')
 
+    def test_largest_supported_matrix_keeps_export_reviewable(self):
+        contract = fixture('contract.json')
+        contract['seed'] = [[11 + i * 11, f'{i:02d}-' + 'S' * 997]
+                            for i in range(16)]
+        contract['payloads'] = [f'{i:02d}-' + 'P' * 997 for i in range(8)]
+        plan = fixture('bridge.json')
+        plan['migration'] += '\n' + '\n'.join('SELECT 1;' for _ in range(27))
+        report = rehearse('custom', plan, contract)
+        self.assertEqual((report['status'], report['passed'], report['total']),
+                         ('pass', 680, 680))
+        self.assertLess(len(json.dumps(report, ensure_ascii=False, indent=2).encode('utf-8')),
+                        16 * 1024 * 1024)
+
     def test_contract_identifier_case_follows_sqlite_semantics(self):
         contract = fixture('contract.json')
         contract['table'] = contract['table'].upper()

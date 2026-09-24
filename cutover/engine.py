@@ -1,6 +1,7 @@
 """SQLite contract replays. No repository code or shell commands are executed."""
 from __future__ import annotations
 
+import copy
 import hashlib
 import itertools
 import json
@@ -13,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.13"
+ENGINE_VERSION = "0.3.14"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -465,13 +466,27 @@ def rehearse(case, plan, contract=None):
                               migration_boundary=boundary)
                 results.append(result)
     failures = [r for r in results if not r["passed"]]
-    witness = min(failures, key=lambda r: len(r["trace"])) if failures else None
+    # Keep the complete shortest failure for a standalone reproduction. Other
+    # passing reads repeat the same seed-wide maps thousands of times for a
+    # large imported contract. Their checks have already run, and the auditor
+    # reruns them independently, so retain one full passing window example and
+    # compact only those redundant passing observations in the exported matrix.
+    witness = copy.deepcopy(min(failures, key=lambda r: len(r["trace"]))) if failures else None
+    passing_example = next((r for r in results
+                            if r["category"] == "migration_window" and r["passed"]), None)
+    for row in baseline + results:
+        if row is passing_example:
+            continue
+        for event in row["trace"]:
+            if event["status"] == "pass":
+                event.pop("expected", None)
+                event.pop("actual", None)
     categories = []
     for category in dict.fromkeys(r["category"] for r in results):
         group = [r for r in results if r["category"] == category]
         categories.append({"id": category, "passed": sum(r["passed"] for r in group), "total": len(group)})
     return {
-        "schema_version": 1, "engine_version": ENGINE_VERSION, "sqlite_version": sqlite3.sqlite_version,
+        "schema_version": 2, "engine_version": ENGINE_VERSION, "sqlite_version": sqlite3.sqlite_version,
         "engine_sha256": hashlib.sha256(Path(__file__).read_bytes().replace(b"\r\n", b"\n")).hexdigest(), "case": case,
         "project": contract["project"], "created_at": datetime.now(timezone.utc).isoformat(),
         "plan": plan, "plan_hash": digest(plan), "contract_hash": digest(contract),

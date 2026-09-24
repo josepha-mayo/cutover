@@ -32,9 +32,9 @@ def main():
     if args.contract and args.case != 'parcel':
         parser.error('--case selects a bundled example and cannot be combined with --contract')
 
-    # A bounded contract can contain sixteen 1 KiB seed values and eight 1 KiB
-    # payloads. Its full replay trace can exceed 16 MiB, especially with 32
-    # migration-statement windows; the auditor must accept reports we generate.
+    # Many failing probes or long SQL can still produce a large bounded report
+    # even after redundant passing row maps are removed. The auditor must not
+    # reject evidence solely because the supported contract is large.
     report = read_json(parser, args.report, 'Report', MAX_REPORT_BYTES)
     plan = read_json(parser, args.plan, 'Plan', 64 * 1024)
     contract = read_json(parser, args.contract, 'Contract', 64 * 1024) if args.contract else None
