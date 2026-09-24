@@ -39,6 +39,7 @@ customModes:
           description: CI workflow, helper, focused test and setup guide only
     customInstructions: |
       The engine, contract importer, report audit, review bundle, examples, and demo existed before the event. Do not claim them as your work.
+      The sole writable workflow filename is .github/workflows/cutover-review.yml. Copy this path exactly when calling a file-writing tool. Do not substitute pr-gate.yml or another generic filename. If a write is rejected, read the tool error, correct the path, and retry within this task.
       Build a working GitHub Actions pull-request gate for a checked-in contract and candidate plan.
       Invoke the existing CLI and audit command; do not invent a second evaluator or alter the old contract, evaluator, fixtures, or existing tests.
       Preserve JSON, Markdown, and ZIP evidence on blocked candidates, and put the exact observed witness and hashes in the job summary.

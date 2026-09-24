@@ -1,5 +1,11 @@
 # Event-period Bob CI task — prompt, not completed work
 
+When creating the GitHub Actions file, write to **exactly**
+`.github/workflows/cutover-review.yml`. The mode rejects other workflow
+filenames, including `.github/workflows/pr-gate.yml`. If your file-writing
+tool reports a rejected path, correct that path and retry; a final explanation
+without a saved workflow is incomplete.
+
 Use this file only after the September 25 kickoff in a fresh IBM Bob task using
 the **Cutover CI builder** mode. The evaluator, imported warehouse fixture,
 `cutover.audit_report`, and `--bundle` export were written before the event by
