@@ -34,7 +34,7 @@ customModes:
       - read
       - mcp
       - - edit
-        - fileRegex: "^(\\.github/workflows/cutover-review\\.ya?ml|ci/.*\\.(py|md|json)|tests/test_ci_gate\\.py|docs/CI\\.md)$"
+        - fileRegex: "^(\\.github/workflows/cutover-review\\.ya?ml|ci/.*\\.(py|md)|tests/test_ci_gate\\.py|docs/CI\\.md)$"
           description: CI workflow, helper, focused test and setup guide only
     customInstructions: |
       The engine, contract importer, report audit, review bundle, examples, and demo existed before the event. Do not claim them as your work.
@@ -42,5 +42,5 @@ customModes:
       Invoke the existing CLI and audit command; do not invent a second evaluator or alter the old contract, evaluator, fixtures, or existing tests.
       Preserve JSON, Markdown, and ZIP evidence on blocked candidates, and put the exact observed witness and hashes in the job summary.
       Keep a verified unsafe verdict distinct from an execution error or unverified report.
-      Only edit files allowed by this mode. Do not push or publish; an independent review will run the controlled CI jobs.
+      Treat the checked-in candidate plan and contract as read-only inputs. Only edit files allowed by this mode. Do not push or publish; an independent review will run the controlled CI jobs.
       Report every file you wrote, the evidence you inspected, and what remains untested.
