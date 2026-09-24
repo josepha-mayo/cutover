@@ -279,6 +279,16 @@ END;
             self.assertFalse(report['passed'])
             self.assertEqual(report['failure']['kind'], 'sql_error')
 
+    def test_connection_local_triggers_cannot_fake_a_rolling_release(self):
+        for case in ('parcel', 'contacts'):
+            with self.subTest(case=case):
+                plan = load_plan(case, 'bridge')
+                plan['migration'] = plan['migration'].replace('CREATE TRIGGER', 'CREATE TEMP TRIGGER')
+                result = rehearse(case, plan)
+                self.assertEqual(result['status'], 'blocked')
+                self.assertEqual(result['witness']['failure']['kind'], 'sql_error')
+                self.assertIn('not authorized', result['witness']['failure']['message'])
+
     def test_runaway_query_is_interrupted(self):
         plan = load_plan('parcel', 'bridge')
         plan['migration'] = 'WITH RECURSIVE forever(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM forever) SELECT sum(x) FROM forever;'

@@ -48,7 +48,11 @@ def render_reproduction(report, contract):
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA recursive_triggers=ON')
     denied = {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH, sqlite3.SQLITE_PRAGMA,
-              sqlite3.SQLITE_TRANSACTION, sqlite3.SQLITE_SAVEPOINT}
+              sqlite3.SQLITE_TRANSACTION, sqlite3.SQLITE_SAVEPOINT,
+              sqlite3.SQLITE_CREATE_TEMP_TABLE, sqlite3.SQLITE_CREATE_TEMP_VIEW,
+              sqlite3.SQLITE_CREATE_TEMP_TRIGGER, sqlite3.SQLITE_CREATE_TEMP_INDEX,
+              sqlite3.SQLITE_DROP_TEMP_TABLE, sqlite3.SQLITE_DROP_TEMP_VIEW,
+              sqlite3.SQLITE_DROP_TEMP_TRIGGER, sqlite3.SQLITE_DROP_TEMP_INDEX}
 
     def authorize(action, a, b, database, source):
         if action in denied or (action == sqlite3.SQLITE_FUNCTION and

@@ -132,6 +132,10 @@ class CustomContractTests(unittest.TestCase):
         contract['schema'] += "\nATTACH DATABASE ':memory:' AS forbidden;"
         with self.assertRaisesRegex(ValueError, 'not authorized'):
             rehearse('custom', fixture('bridge.json'), contract)
+        temporary = fixture('contract.json')
+        temporary['schema'] += '\nCREATE TEMP TABLE hidden (id INTEGER);'
+        with self.assertRaisesRegex(ValueError, 'not authorized'):
+            rehearse('custom', fixture('bridge.json'), temporary)
 
     def test_cli_accepts_custom_contract_and_keeps_blocked_exit_code(self):
         command = [sys.executable, '-m', 'cutover', '--contract',
