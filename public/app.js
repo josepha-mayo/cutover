@@ -150,7 +150,10 @@ function renderTrace(probe) {
   const inserted=probe.actions?.some(action=>action.endsWith('.insert'));
   const insertNote=inserted?` · ${probe.passed?'Shown':'Failed'} inserted ID ${probe.insert_id} · checked IDs ${probe.insert_ids_tested.join(', ')}`:'';
   $('trace-payload').textContent=`Input: ${JSON.stringify(probe.payload)}${rowNote}${insertNote}`;
-  $('trace').innerHTML=probe.trace.map(event=>`<div class="trace-step ${event.status}"><h4>${escape(event.action)}</h4><p>${escape(event.detail||'Executed.')}</p><details><summary>Executed SQL${event.params?' & inputs':''}</summary><pre>${escape(event.sql)}${event.params?'\n\n'+escape(pretty(event.params)):''}</pre></details>${event.status==='fail'&&event.actual?`<div class="comparison"><div class="expected">EXPECTED ${escape(pretty(event.expected))}</div><div class="actual">OBSERVED ${escape(pretty(event.actual))}</div></div>`:''}</div>`).join('');
+  $('trace').innerHTML=probe.trace.map(event=>{
+    const role=event.connection?`<span class="connection-role">${escape(String(event.connection).toUpperCase())} CONNECTION</span>`:'';
+    return `<div class="trace-step ${event.status}"><h4><span>${escape(event.action)}</span>${role}</h4><p>${escape(event.detail||'Executed.')}</p><details><summary>Executed SQL${event.params?' & inputs':''}</summary><pre>${escape(event.sql)}${event.params?'\n\n'+escape(pretty(event.params)):''}</pre></details>${event.status==='fail'&&event.actual?`<div class="comparison"><div class="expected">EXPECTED ${escape(pretty(event.expected))}</div><div class="actual">OBSERVED ${escape(pretty(event.actual))}</div></div>`:''}</div>`;
+  }).join('');
   document.querySelectorAll('[data-probe]').forEach(b=>b.classList.toggle('chosen',b.dataset.probe===selected));
 }
 async function showBob() {
