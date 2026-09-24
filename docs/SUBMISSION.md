@@ -56,6 +56,9 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 6. Validated browser and CLI import of a user-supplied warehouse contract, with its actual failing witness and separately attributed pre-event provenance.
 7. Real Bob contribution, shown only with task evidence and an independently replayed candidate.
 8. Backend/release engineers; CI report and PR review are the initial adoption path. A paid per-repository CI check is a revenue hypothesis, not observed demand.
+9. If Bob builds the PR gate and all three controlled pull-request runs verify, add a page with its IDE task summary and linked unsafe-red, safe-green, regressed-red runs. Otherwise the deck remains eight pages and calls the gate proposed.
+
+The final deck renderer accepts an optional `ci_evidence` object inside its observed Bob evidence JSON. It must contain `bob_ci_task_id`, the staged `bob_ci_summary_image`, and `run_receipts` with `unsafe`, `safe_reference`, and `regressed` paths. Save each private receipt using `work/verify-cutover-gh-run.py --receipt PATH` after it downloads and independently replays that actual GitHub run. `presentation/build_assets.py --evidence PATH` checks the receipts against the downloaded reports, reruns the evaluator, and confirms the three live GitHub conclusions before adding the CI page. The pre-event fixture plans are identified as controls, not Bob-authored repairs.
 
 ## Final artifacts
 

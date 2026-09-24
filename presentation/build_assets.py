@@ -2,6 +2,8 @@
 import argparse
 import hashlib
 import json
+import re
+import subprocess
 import sys
 import textwrap
 from datetime import datetime, timezone
@@ -172,7 +174,88 @@ def event_evidence(path):
         raise ValueError('Candidate report must match the current plan and evaluator source')
     verify_report_against_replay('parcel', plan, report)
     evidence['report'] = report
+    if evidence.get('ci_evidence'):
+        evidence['ci_evidence'] = verified_ci_evidence(evidence['ci_evidence'], Path(path).parent)
     return evidence
+
+
+def verified_ci_evidence(source, manifest_dir):
+    """Accept a CI slide only with three independently replayed PR-run receipts."""
+    if not isinstance(source, dict):
+        raise ValueError('CI evidence must be an object')
+    task_id = source.get('bob_ci_task_id')
+    if not isinstance(task_id, str) or not re.fullmatch(r'[0-9a-f]{32}', task_id):
+        raise ValueError('CI evidence needs the full Bob IDE task ID')
+    image_name = source.get('bob_ci_summary_image')
+    if not isinstance(image_name, str):
+        raise ValueError('CI evidence needs Bob task summary image')
+    image = (ROOT / image_name).resolve()
+    if (not image.is_relative_to(ROOT / 'bob_sessions') or not image.is_file() or
+            task_id[:8] not in image.name):
+        raise ValueError('CI summary must be a staged Bob PNG named for this task')
+    with Image.open(image) as screenshot:
+        if screenshot.format != 'PNG':
+            raise ValueError('CI task summary must be a PNG')
+        screenshot.verify()
+    if not (ROOT / '.github/workflows/cutover-review.yml').is_file():
+        raise ValueError('Verified CI slide requires the saved Cutover PR workflow')
+
+    receipt_names = source.get('run_receipts')
+    expected = {
+        'unsafe': ('blocked', 108, 124, 'window_write_after_2-0', 'failure', 1),
+        'safe_reference': ('pass', 124, 124, None, 'success', 0),
+        'regressed': ('blocked', 100, 116, 'new_to_old-0', 'failure', 1),
+    }
+    if not isinstance(receipt_names, dict) or set(receipt_names) != set(expected):
+        raise ValueError('CI slide requires unsafe, safe_reference and regressed run receipts')
+    contract = json.loads((ROOT / 'examples/warehouse/contract.json').read_text(encoding='utf-8'))
+    runs = {}
+    seen = set()
+    for control, (status, passed, total, witness, conclusion, audit_exit) in expected.items():
+        name = receipt_names[control]
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(f'{control} run receipt path is missing')
+        receipt_path = Path(name)
+        if not receipt_path.is_absolute():
+            receipt_path = manifest_dir / receipt_path
+        receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
+        run_id = receipt.get('run')
+        if (type(run_id) is not int or run_id <= 0 or run_id in seen or
+                receipt.get('url') != f'https://github.com/josepha-mayo/cutover/actions/runs/{run_id}' or
+                receipt.get('workflow_path', '').split('@', 1)[0] != '.github/workflows/cutover-review.yml' or
+                receipt.get('conclusion') != conclusion or receipt.get('status') != status or
+                receipt.get('passed') != passed or receipt.get('total') != total or
+                receipt.get('first_witness') != witness or
+                receipt.get('independent_audit_exit') != audit_exit or
+                receipt.get('matching_markdown_artifacts', 0) < 1 or
+                receipt.get('matching_zip_artifacts') != 1 or
+                not re.fullmatch(r'[0-9a-f]{40}', str(receipt.get('head_sha', '')))):
+            raise ValueError(f'{control} receipt is not a verified Cutover PR run')
+        report_path = Path(receipt['report'])
+        report = json.loads(report_path.read_text(encoding='utf-8'))
+        plan = json.loads((ROOT / 'work/ci-controls-20260924' / f'{control}.json').read_text(encoding='utf-8'))
+        actual_witness = report.get('witness')
+        actual_witness = actual_witness.get('id') if isinstance(actual_witness, dict) else None
+        if (report.get('case') != 'custom' or report.get('plan') != plan or
+                (report.get('status'), report.get('passed'), report.get('total')) !=
+                (status, passed, total) or
+                actual_witness != witness):
+            raise ValueError(f'{control} downloaded report disagrees with the receipt')
+        verify_report_against_replay('custom', plan, report, contract)
+        live = subprocess.run(
+            ['gh', 'run', 'view', str(run_id), '--json', 'status,conclusion,url,headSha'],
+            cwd=ROOT, text=True, capture_output=True, timeout=30, check=False,
+        )
+        if live.returncode != 0:
+            raise ValueError(f'Cannot confirm {control} GitHub run: {live.stderr[:180]}')
+        current = json.loads(live.stdout)
+        if (current.get('status') != 'completed' or current.get('conclusion') != conclusion or
+                current.get('url') != receipt['url'] or
+                current.get('headSha') != receipt['head_sha']):
+            raise ValueError(f'{control} GitHub run no longer matches its receipt')
+        seen.add(run_id)
+        runs[control] = receipt
+    return {'bob_ci_task_id': task_id, 'bob_ci_summary_image': image, 'runs': runs}
 
 
 def parse_time(value, label):
@@ -210,6 +293,41 @@ def bob_slide(c, evidence):
     for index, line in enumerate(wrap_lines(evidence['bob_contribution'], 36, 3)):
         text(c, 591, 190 - index * 20, line, 12, CREAM)
     text(c, 591, 112, f"Plan SHA: {report['plan_hash'][:15]}...", 10, MUTED, 'Consolas')
+    c.showPage()
+
+
+def ci_slide(c, evidence):
+    ci = evidence['ci_evidence']
+    base(c, 9, 'A PR gate that keeps the counterexample.',
+         '08  /  VERIFIED BOB-BUILT REVIEW WORKFLOW', final=True)
+    box(c, 45, 171, 438, 203, PANEL, '#516452')
+    with Image.open(ci['bob_ci_summary_image']) as screenshot:
+        width, height = screenshot.size
+    scale = min(410 / width, 173 / height)
+    drawn_w, drawn_h = width * scale, height * scale
+    c.drawImage(str(ci['bob_ci_summary_image']), 59 + (410 - drawn_w) / 2,
+                185 + (173 - drawn_h) / 2, width=drawn_w, height=drawn_h)
+    text(c, 59, 386, 'ACTUAL BOB IDE TASK SUMMARY', 10, LIME, 'ConsolasBold')
+    text(c, 48, 144, f"Task {ci['bob_ci_task_id']}", 11, MUTED, 'Consolas')
+    cards = [
+        ('unsafe', 'UNSAFE / RED', ORANGE),
+        ('safe_reference', 'SAFE REFERENCE / GREEN', LIME),
+        ('regressed', 'REGRESSION / RED', ORANGE),
+    ]
+    for index, (control, label, color) in enumerate(cards):
+        run = ci['runs'][control]
+        y = 301 - index * 91
+        box(c, 510, y, 405, 78)
+        text(c, 525, y + 49, label, 11, color, 'ConsolasBold')
+        text(c, 525, y + 21,
+             f"{run['passed']}/{run['total']} probes  |  run #{run['run']}",
+             12, CREAM, 'Consolas')
+        c.linkURL(run['url'], (510, y, 915, y + 78), relative=0)
+    text(c, 45, 93,
+         'Every run retained JSON, Markdown, ZIP and an independently replayed report.',
+         13, CREAM)
+    text(c, 45, 66, 'Controls use pre-event synthetic plans; the PR gate was built in Bob.',
+         12, MUTED)
     c.showPage()
 
 
@@ -374,7 +492,8 @@ def deck(evidence=None, output=None):
     text(c, 64, 298, 'Backend / release engineer', 21, CREAM, 'SegoeBold')
     text(c, 64, 269, 'Shipping a schema change with old workers alive.', 12, MUTED)
     box(c, 482, 247, 433, 117)
-    text(c, 501, 328, 'PROPOSED WORKFLOW', 13, LIME, 'ConsolasBold')
+    text(c, 501, 328, 'VERIFIED WORKFLOW' if final and evidence.get('ci_evidence')
+         else 'PROPOSED WORKFLOW', 13, LIME, 'ConsolasBold')
     text(c, 501, 298, 'PR review + CI rehearsal', 21, CREAM, 'SegoeBold')
     text(c, 501, 269, 'Attach a witness and bounded evidence.', 12, MUTED)
     text(c, 45, 210, 'Revenue hypothesis: paid per-repository CI checks; demand unvalidated.', 17)
@@ -383,6 +502,8 @@ def deck(evidence=None, output=None):
     text(c, 45, 116, 'mid-statement failure, performance or production safety claim.', 14, MUTED)
     text(c, 45, 68, 'github.com/josepha-mayo/cutover', 15, LIME, 'Consolas')
     c.showPage()
+    if final and evidence.get('ci_evidence'):
+        ci_slide(c, evidence)
     c.save()
     return dest
 
