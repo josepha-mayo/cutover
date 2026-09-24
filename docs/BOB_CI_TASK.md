@@ -20,6 +20,21 @@ downloadable artifacts. A passing candidate must produce a green check and
 the same artifacts. Invalid input, timeout, or report mismatch must fail as
 **unverified**, never as a verified unsafe verdict.
 
+This repository is Python, not Node. Before implementing, inspect
+`cutover/__main__.py`, `cutover/audit_report.py`, and the current workflow. The
+commands to compose are `python -m cutover --contract
+examples/warehouse/contract.json --plan ci/candidate.json --output ...
+--markdown ... --bundle ...` and `python -m cutover.audit_report --report ...
+--plan ci/candidate.json --contract examples/warehouse/contract.json`.
+The first exits 0 for a pass and 1 for a block; the independent audit exits
+0 for a verified pass, 1 for a verified block, and 2 for unverified evidence.
+Capture those exit codes independently, even when writing logs or using
+pipelines. Never infer a verified block from the first command alone. A
+timeout or missing report is unverified. Preserve generated artifacts on every
+verdict with an unconditional upload step, then fail the job for both blocked
+and unverified outcomes. The job summary should make those outcomes visibly
+different.
+
 Use `examples/warehouse/contract.json` and `ci/candidate.json` as the default
 checked-in inputs. The candidate will be staged before this task from Bob's
 separate, independently assessed Warehouse repair if it verifies, or from a
