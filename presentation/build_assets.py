@@ -256,6 +256,11 @@ def verified_ci_evidence(source, manifest_dir):
             receipt_path = manifest_dir / receipt_path
         receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
         run_id = receipt.get('run')
+        started = parse_time(receipt.get('created_at_utc'), f'{control} run start')
+        finished = parse_time(receipt.get('updated_at_utc'), f'{control} run finish')
+        if not (datetime(2026, 9, 25, 15, tzinfo=timezone.utc) <=
+                started <= finished < datetime(2026, 9, 27, 15, tzinfo=timezone.utc)):
+            raise ValueError(f'{control} PR run falls outside the event build window')
         if (type(run_id) is not int or run_id <= 0 or run_id in seen or
                 receipt.get('url') != f'https://github.com/josepha-mayo/cutover/actions/runs/{run_id}' or
                 receipt.get('workflow_path', '').split('@', 1)[0] != '.github/workflows/cutover-review.yml' or
@@ -269,6 +274,9 @@ def verified_ci_evidence(source, manifest_dir):
             raise ValueError(f'{control} receipt is not a verified Cutover PR run')
         report_path = Path(receipt['report'])
         report = json.loads(report_path.read_text(encoding='utf-8'))
+        report_time = parse_time(report.get('created_at'), f'{control} report time')
+        if not started <= report_time <= finished:
+            raise ValueError(f'{control} report falls outside its GitHub run')
         plan = json.loads((ROOT / 'work/ci-controls-20260924' / f'{control}.json').read_text(encoding='utf-8'))
         actual_witness = report.get('witness')
         actual_witness = actual_witness.get('id') if isinstance(actual_witness, dict) else None
@@ -279,7 +287,8 @@ def verified_ci_evidence(source, manifest_dir):
             raise ValueError(f'{control} downloaded report disagrees with the receipt')
         verify_report_against_replay('custom', plan, report, contract)
         live = subprocess.run(
-            ['gh', 'run', 'view', str(run_id), '--json', 'status,conclusion,url,headSha'],
+            ['gh', 'run', 'view', str(run_id), '--json',
+             'status,conclusion,url,headSha,createdAt,updatedAt'],
             cwd=ROOT, text=True, capture_output=True, timeout=30, check=False,
         )
         if live.returncode != 0:
@@ -287,7 +296,9 @@ def verified_ci_evidence(source, manifest_dir):
         current = json.loads(live.stdout)
         if (current.get('status') != 'completed' or current.get('conclusion') != conclusion or
                 current.get('url') != receipt['url'] or
-                current.get('headSha') != receipt['head_sha']):
+                current.get('headSha') != receipt['head_sha'] or
+                current.get('createdAt') != receipt['created_at_utc'] or
+                current.get('updatedAt') != receipt['updated_at_utc']):
             raise ValueError(f'{control} GitHub run no longer matches its receipt')
         seen.add(run_id)
         runs[control] = receipt
