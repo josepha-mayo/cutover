@@ -6,8 +6,8 @@ const { chromium } = require(process.env.CUTOVER_PLAYWRIGHT_MODULE || 'playwrigh
 const url = process.argv[2] || 'https://cutover-rehearsal.onrender.com/';
 const output = path.resolve(process.argv[3] || 'work/cutover-browser-draft.webm');
 const scene = process.argv[4] || 'late';
-const minSeconds = Number(process.argv[5] || (scene === 'direct' ? 23 : 52));
-if (!['direct', 'late'].includes(scene)) throw new Error('Scene must be direct or late');
+const minSeconds = Number(process.argv[5] || ({ direct: 23, late: 52, trap: 30 }[scene]));
+if (!['direct', 'late', 'trap'].includes(scene)) throw new Error('Scene must be direct, late, or trap');
 if (!Number.isFinite(minSeconds) || minSeconds < 8 || minSeconds > 120) {
   throw new Error('Capture duration must be 8–120 seconds');
 }
@@ -30,22 +30,33 @@ async function main() {
       await page.waitForFunction(() => !document.querySelector('#run').disabled, null, { timeout: 120000 });
       await page.locator('.plan-option.selected strong').waitFor({ state: 'visible' });
       if (scene === 'direct') await page.locator('[data-plan="rename"]').click();
-      const selected = await page.locator('.plan-option.selected strong').innerText();
-      const expected = scene === 'direct' ? 'Direct rename' : 'Late bridge';
+      const selected = scene === 'trap' ? 'Cross-record trap'
+        : await page.locator('.plan-option.selected strong').innerText();
+      const expected = { direct: 'Direct rename', late: 'Late bridge', trap: 'Cross-record trap' }[scene];
       if (selected !== expected) throw new Error(`Unexpected plan: ${selected}`);
       await page.waitForTimeout(3600);
-      await page.locator('#run').scrollIntoViewIfNeeded();
+      const trigger = page.locator(scene === 'trap' ? '#try-cross-record' : '#run');
+      await trigger.scrollIntoViewIfNeeded();
       await page.waitForTimeout(800);
-      await page.locator('#run').click();
+      await trigger.click();
       await page.locator('#verdict-title').filter({ hasText: 'The handover breaks.' })
         .waitFor({ timeout: 120000 });
       const count = (await page.locator('#probe-count').innerText()).replace(/\s+/g, ' ').trim();
-      const expectedCount = scene === 'direct' ? '24 / 92' : '108 / 124';
+      const expectedCount = { direct: '24 / 92', late: '108 / 124', trap: '100 / 132' }[scene];
       if (count !== expectedCount) throw new Error(`Unexpected live rehearsal: ${count}`);
+      if (scene === 'trap' && !(await page.locator('#source-label').innerText()).includes('negative control')) {
+        throw new Error('Cross-record result lacks its prewritten negative-control label');
+      }
       await page.locator('#verdict-title').scrollIntoViewIfNeeded();
-      await page.waitForTimeout(scene === 'direct' ? 7000 : 3500);
+      await page.waitForTimeout(scene === 'direct' ? 7000 : scene === 'trap' ? 4000 : 3500);
       await page.locator('#trace-title').scrollIntoViewIfNeeded();
-      await page.waitForTimeout(scene === 'late' ? 12000 : 3500);
+      if (scene === 'trap') {
+        await page.waitForTimeout(5500);
+        await page.locator('.trace-step.fail .comparison').evaluate(node => node.scrollIntoView({block: 'center'}));
+        await page.waitForTimeout(8000);
+      } else {
+        await page.waitForTimeout(scene === 'late' ? 12000 : 3500);
+      }
       if (scene === 'late') {
         await page.locator('.comparison').first().scrollIntoViewIfNeeded();
         await page.waitForTimeout(2200);
