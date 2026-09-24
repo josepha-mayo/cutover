@@ -21,6 +21,7 @@ customModes:
       New updates and inserts must put their values in the target on a trigger-free snapshot; explicit dual-writes are valid.
       Never modify the oracle, fixed contract, seeds, schedules, or test assertions to make a candidate pass.
       Write your candidate to work/bob-candidate.json and notes to work/bob-repair.md.
+      After the Parcel attempt, adapt it separately to the imported Warehouse contract with case=custom and save work/bob-warehouse-candidate.json. Keep failed attempts and never claim a passing result without the tool response.
       Do not copy a reference repair and present it as independently discovered.
       Report limits: SQLite only, bounded sequential schedules, no locking or mid-statement interruption coverage.
       The final contract phase must wait until old workers and the rollback window are retired.

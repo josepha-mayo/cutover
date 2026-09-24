@@ -45,6 +45,8 @@ def sources():
     for case in CASES:
         files.extend(Path('examples') / case / f'{name}.json'
                      for name in ('contract', 'rename', 'backfill', 'late_bridge'))
+    files.extend(Path('examples/warehouse') / f'{name}.json'
+                 for name in ('contract', 'late_bridge'))
     return files
 
 
@@ -119,8 +121,17 @@ on a trigger-free snapshot. Explicit dual-writes are valid. The
 target column must preserve every acknowledged value. Touching it only in a
 no-op expression while returning old-column data is not a repair.
 Save your final five-field plan to `work/bob-candidate.json`
-and your reasoning to `work/bob-repair.md`. Do not change the fixed contract,
-evaluator, seed data, schedules or oracle. State the untested boundaries.
+and your reasoning to `work/bob-repair.md`. Only after the Parcel attempt,
+inspect `examples/warehouse/contract.json` and its failing `late_bridge.json`.
+Use `inspect_imported_contract` and then `rehearse_candidate` with
+`case=custom` and the complete Warehouse contract on every call. Adapt the
+repair to its own table, columns, rows and payloads; do not paste Parcel SQL
+with renamed labels and claim it was tested. Save this separate attempt to
+`work/bob-warehouse-candidate.json`, including a blocked attempt if it remains
+blocked, and describe its actual tool result in `work/bob-repair.md`. If the
+task budget ends before the Warehouse attempt, say so; never invent a pass.
+Do not change either fixed contract, evaluator, seed data, schedules or oracle.
+State the untested boundaries.
 
 After the Bob session, the source project will independently replay the saved
 candidate and retain the actual Bob task summary and screenshots. This is a
@@ -132,7 +143,8 @@ reference-withheld exercise, not proof of a general or production-safe repair.
         'source_revision': revision,
         'purpose': 'Reference-withheld Bob repair session; no passing plan or presentation files copied.',
         'copied_sha256': copied,
-        'withheld': [f'examples/{case}/bridge.json' for case in CASES],
+        'withheld': [f'examples/{case}/bridge.json' for case in CASES]
+                    + ['examples/warehouse/bridge.json'],
         'evaluator_sha256': copied['cutover/engine.py'],
     }
     (destination / 'SESSION_MANIFEST.json').write_text(
@@ -140,6 +152,7 @@ reference-withheld exercise, not proof of a general or production-safe repair.
     subprocess.run([str(interpreter), str(destination / 'configure_bob.py'),
                     '--python', str(interpreter)], cwd=destination, check=True)
     assert not any((destination / 'examples' / case / 'bridge.json').exists() for case in CASES)
+    assert not (destination / 'examples/warehouse/bridge.json').exists()
     # Windows can check out CRLF working files from LF Git blobs. The session
     # inventory is defined by committed bytes, not working-tree line endings.
     assert digest(destination / 'cutover/engine.py') == hashlib.sha256(committed['cutover/engine.py']).hexdigest()

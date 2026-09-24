@@ -15,8 +15,10 @@ the same artifacts. Invalid input, timeout, or report mismatch must fail as
 **unverified**, never as a verified unsafe verdict.
 
 Use `examples/warehouse/contract.json` and `ci/candidate.json` as the default
-checked-in inputs. The candidate will be staged before this task from an
-independently assessed repair or clearly labeled reference plan. Treat both
+checked-in inputs. The candidate will be staged before this task from Bob's
+separate, independently assessed Warehouse repair if it verifies, or from a
+clearly labeled pre-event Warehouse reference plan if it does not. A Parcel
+plan is not valid for the Warehouse contract. Treat both
 input files as read-only; never adjust the plan or contract to make the gate
 green. Put the paths in obvious workflow variables so another repository can
 replace them. Trigger on `pull_request` with read-only repository permissions,

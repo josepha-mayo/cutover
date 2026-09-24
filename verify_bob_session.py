@@ -18,7 +18,8 @@ from prepare_bob_session import sources
 
 
 ROOT = Path(__file__).resolve().parent
-WITHHELD = {"examples/parcel/bridge.json", "examples/contacts/bridge.json"}
+WITHHELD = {"examples/parcel/bridge.json", "examples/contacts/bridge.json",
+            "examples/warehouse/bridge.json"}
 
 
 def sha256(data: bytes) -> str:
