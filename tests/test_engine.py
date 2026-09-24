@@ -51,6 +51,36 @@ class RehearsalTests(unittest.TestCase):
         phase = [r for r in report['results'] if r['category'] == 'migration_window']
         self.assertEqual(len(phase), 48)
         self.assertTrue(all(r['passed'] for r in phase))
+        self.assertTrue(all('old.read' in r['actions'] for r in phase))
+
+    def test_old_reader_stays_correct_during_each_migration_boundary(self):
+        plan = load_plan('parcel', 'bridge')
+        plan['migration'] = plan['migration'].replace(
+            'WHEN NEW.delivery_address IS NOT NEW.shipping_address',
+            "WHEN NEW.delivery_address IS NOT NEW.shipping_address AND NEW.delivery_address != 'temporary'")
+        plan['migration'] += "\nUPDATE orders SET delivery_address = 'temporary' WHERE id = 102;"
+        plan['migration'] += '\nUPDATE orders SET delivery_address = shipping_address WHERE id = 102;'
+        statements = migration_statements(plan['migration'])
+        boundary = next(index + 1 for index, sql in enumerate(statements)
+                        if "delivery_address = 'temporary'" in sql)
+        before = [f'migration.statement.{i}' for i in range(boundary)]
+        after = [f'migration.statement.{i}' for i in range(boundary, len(statements))]
+        # The completed migration heals the temporary corruption. A final
+        # reader alone would therefore approve this particular replay.
+        self.assertTrue(replay(load_case('parcel'), plan,
+                               before + ['old.write'] + after + ['new.read'],
+                               '18 Marina Road', statements, seed_id=101)['passed'])
+        result = replay(load_case('parcel'), plan,
+                        before + ['old.write', 'old.read'] + after + ['new.read'],
+                        '18 Marina Road', statements, seed_id=101)
+        self.assertFalse(result['passed'])
+        self.assertEqual(result['failure']['action'], 'old.read')
+        self.assertEqual(result['failure']['actual'][102], 'temporary')
+        report = rehearse('parcel', plan)
+        self.assertEqual(report['status'], 'blocked')
+        self.assertEqual(report['baseline']['passed'], 8)
+        self.assertTrue(any(r['failure'] and r['failure']['action'] == 'old.read'
+                            for r in report['results']))
 
     def test_comments_and_empty_sql_do_not_inflate_migration_windows(self):
         plan = load_plan('parcel', 'bridge')

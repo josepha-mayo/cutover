@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "examples"
-ENGINE_VERSION = "0.3.11"
+ENGINE_VERSION = "0.3.12"
 PAYLOADS = ["18 Marina Road", "", "O'Connell Street", "12 Àdéníran • 東京"]
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
@@ -452,7 +452,7 @@ def rehearse(case, plan, contract=None):
     for boundary in range(len(statements) + 1):
         for operation in ("write", "insert"):
             actions = ([f"migration.statement.{i}" for i in range(boundary)] +
-                       [f"old.{operation}"] +
+                       [f"old.{operation}", "old.read"] +
                        [f"migration.statement.{i}" for i in range(boundary, len(statements))] +
                        ["new.read"])
             for pindex, payload in enumerate(payloads):
@@ -475,7 +475,7 @@ def rehearse(case, plan, contract=None):
         "plan": plan, "plan_hash": digest(plan), "contract_hash": digest(contract),
         "suite_hash": digest({"schedules": schedules(), "payloads": payloads,
                               "connection_policy": "separate migration, old and new SQLite connections to one disposable database",
-                              "migration_window_policy": "old update and insert after every SQLite statement boundary",
+                              "migration_window_policy": "old update or insert and old read after every SQLite statement boundary",
                               "write_seed_policy": "each seeded record for every update probe",
                               "cross_record_policy": "rotating directed offset; every ordered seed pair across the two-write suite",
                               "insert_id_policy": "two distinct IDs beyond the highest seed for every insert probe"}),
@@ -485,7 +485,7 @@ def rehearse(case, plan, contract=None):
         "categories": categories, "witness": witness, "results": results,
         "duration_ms": round((time.perf_counter() - start) * 1000, 1),
         "scope": (("SQLite user-supplied contract" if case == "custom" else "SQLite sample contracts") +
-                  ", separate migration/old/new connections to one disposable in-memory database, target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval."),
+                  ", separate migration/old/new connections to one disposable in-memory database, target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and old-worker read checks at every completed statement boundary. Not a production deployment approval."),
         "limitations": ["No concurrent transactions, lock timing or network failures modeled.",
                         "No PostgreSQL, MySQL or ORM behavior claimed.",
                         "Writes between migration statements are modeled; mid-statement interruption and lock timing are not.",

@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "engine_version": "0.3.11",
+  "engine_version": "0.3.12",
   "sqlite_version": "3.50.4",
-  "engine_sha256": "632f6c7dc1599a1cfc69aa0df0f34a3b57f8d2074664cf3967f270341309d118",
+  "engine_sha256": "ff45322968260e408d4b44d6893162f058a79e805a13f133336bb07fb2b253d9",
   "case": "contacts",
   "project": "Relay / contact service",
-  "created_at": "2026-09-24T10:17:25.103310+00:00",
+  "created_at": "2026-09-24T10:28:08.263785+00:00",
   "plan": {
     "read": "SELECT id, contact_email AS value FROM contacts ORDER BY id",
     "write": "UPDATE contacts SET contact_email = :value WHERE id = :id",
@@ -15,7 +15,7 @@
   },
   "plan_hash": "bc638f4be4e25f842ff64d696f8247d41db9ad207822302f33c9c594170a32bb",
   "contract_hash": "aa0246f83469d2389e58e5daa4894c35fa8e9455db6c711d47091a56bdab72cd",
-  "suite_hash": "e56da77168873b764ed5678e17a06c312091bb76d8e11156eacfd63744d14df4",
+  "suite_hash": "bc41d4b60e280af5c5b60dea1ec870d7b50da1a2e8c12ebe3d885c30334f07d1",
   "status": "pass",
   "passed": 124,
   "failed": 0,
@@ -62,8 +62,8 @@
     }
   ],
   "witness": null,
-  "duration_ms": 683.5,
-  "scope": "SQLite sample contracts, separate migration/old/new connections to one disposable in-memory database, target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and completed statement-boundary windows. Not a production deployment approval.",
+  "duration_ms": 594.0,
+  "scope": "SQLite sample contracts, separate migration/old/new connections to one disposable in-memory database, target-column postconditions, every seeded record for update probes, every ordered seed pair across rotating two-write probes, two new record IDs for insert probes, bounded sequential interleavings and old-worker read checks at every completed statement boundary. Not a production deployment approval.",
   "limitations": [
     "No concurrent transactions, lock timing or network failures modeled.",
     "No PostgreSQL, MySQL or ORM behavior claimed.",
@@ -93,6 +93,22 @@
       },
       {
         "step": 2,
+        "action": "old.read",
+        "connection": "old",
+        "status": "pass",
+        "sql": "SELECT id, email AS value FROM contacts ORDER BY id",
+        "expected": {
+          "101": "18 Marina Road",
+          "102": "lin@example.test"
+        },
+        "actual": {
+          "101": "18 Marina Road",
+          "102": "lin@example.test"
+        },
+        "detail": "All 2 records match the independent write ledger."
+      },
+      {
+        "step": 3,
         "action": "migration.statement.0",
         "connection": "migration",
         "status": "pass",
@@ -100,7 +116,7 @@
         "detail": "Migration statement executed against a fresh in-memory database."
       },
       {
-        "step": 3,
+        "step": 4,
         "action": "migration.statement.1",
         "connection": "migration",
         "status": "pass",
@@ -108,7 +124,7 @@
         "detail": "Migration statement executed against a fresh in-memory database."
       },
       {
-        "step": 4,
+        "step": 5,
         "action": "migration.statement.2",
         "connection": "migration",
         "status": "pass",
@@ -116,7 +132,7 @@
         "detail": "Migration statement executed against a fresh in-memory database."
       },
       {
-        "step": 5,
+        "step": 6,
         "action": "migration.statement.3",
         "connection": "migration",
         "status": "pass",
@@ -124,7 +140,7 @@
         "detail": "Migration statement executed against a fresh in-memory database."
       },
       {
-        "step": 6,
+        "step": 7,
         "action": "migration.statement.4",
         "connection": "migration",
         "status": "pass",
@@ -132,7 +148,7 @@
         "detail": "Migration statement executed against a fresh in-memory database."
       },
       {
-        "step": 7,
+        "step": 8,
         "action": "new.read",
         "connection": "new",
         "status": "pass",
@@ -148,7 +164,7 @@
         "detail": "All 2 records match the independent write ledger."
       },
       {
-        "step": 8,
+        "step": 9,
         "action": "target.check",
         "connection": "migration",
         "status": "pass",
@@ -176,6 +192,7 @@
     "payload": "18 Marina Road",
     "actions": [
       "old.write",
+      "old.read",
       "migration.statement.0",
       "migration.statement.1",
       "migration.statement.2",

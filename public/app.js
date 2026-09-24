@@ -93,7 +93,7 @@ function renderReport() {
   $('source-label').textContent=`Executed ${provenance} · ${report.plan_hash.slice(0,10)}`;
   $('status-badge').textContent=passed?'SUITE PASSED':'BLOCKED'; $('status-badge').className=`status-badge ${report.status}`;
   $('verdict-title').textContent=passed?'The handover holds.':'The handover breaks.';
-  $('verdict-description').textContent=passed?'Both versions observed the expected data in every tested schedule and migration window. Keep the compatibility path through the rollback window.':completePassed===completeTotal&&windows?.passed<windows?.total?`All ${completeTotal} completed-rollout probes passed. ${windows.total-windows.passed} migration-window probes failed: an old write can arrive before synchronization is in place.`:`${report.failed} probes failed. ${report.baseline.passed===report.baseline.total?'A green new-version baseline does not establish that old and new workers can safely share the data.':'The new-version baseline also fails; this candidate does not meet the required target-column contract.'}`;
+  $('verdict-description').textContent=passed?'Both versions observed the expected data in every tested schedule and migration window. Keep the compatibility path through the rollback window.':completePassed===completeTotal&&windows?.passed<windows?.total?`All ${completeTotal} completed-rollout probes passed. ${windows.total-windows.passed} migration-window probes failed while old workers were still active.`:`${report.failed} probes failed. ${report.baseline.passed===report.baseline.total?'A green new-version baseline does not establish that old and new workers can safely share the data.':'The new-version baseline also fails; this candidate does not meet the required target-column contract.'}`;
   $('baseline-count').innerHTML=`${report.baseline.passed}<small> / ${report.baseline.total}</small>`;
   $('baseline-count').className=report.baseline.passed===report.baseline.total?'green':'red';
   $('baseline-note').textContent=report.baseline.passed===report.baseline.total?'✓ Same-version checks pass':'× Same-version failures';
@@ -119,9 +119,12 @@ function renderWindowMap() {
   if(!grouped.size){$('window-map').hidden=true;return;}
   const last=Math.max(...grouped.keys());
   const earliest=[...grouped].find(([,kinds])=>[...kinds.write,...kinds.insert].some(probe=>!probe.passed));
+  const firstFailure=earliest&&[...earliest[1].write,...earliest[1].insert].find(probe=>!probe.passed);
+  const brokenAction=firstFailure?.failure?.action;
+  const windowFinding=brokenAction==='old.read'?'An old reader breaks before the migration finishes.':brokenAction==='new.read'?'An acknowledged old operation is missing from the final new read.':brokenAction?.startsWith('old.')?'An old worker operation fails during the migration.':'Inspect the failing replay for the broken step.';
   $('window-summary').textContent=earliest
-    ?`First observed gap: after statement ${earliest[0]} of ${last}. An old ${earliest[1].write.some(probe=>!probe.passed)?'update':'insert'} can become invisible.`
-    :`No lost write or insert in ${report.categories.find(item=>item.id==='migration_window')?.total||0} tested migration windows.`;
+    ?`First observed gap: after statement ${earliest[0]} of ${last}. ${windowFinding}`
+    :`Old writes, inserts, and reads stayed consistent in ${report.categories.find(item=>item.id==='migration_window')?.total||0} tested migration windows.`;
   $('window-stages').innerHTML=[...grouped].map(([step,kinds])=>`<div class="window-stage"><b>${step===0?'BEFORE SQL':`AFTER ${step}/${last}`}</b>${['write','insert'].map(kind=>{
     const probes=kinds[kind], failures=probes.filter(probe=>!probe.passed), picked=failures[0]||probes[0];
     return `<button type="button" class="${failures.length?'fail':''}" data-window-probe="${picked.id}" aria-label="${step===0?'Before migration':`After statement ${step} of ${last}`}; old ${kind}; ${probes.length-failures.length} of ${probes.length} passed"><span>Old ${kind==='write'?'update':'insert'}</span><span>${probes.length-failures.length}/${probes.length}</span></button>`;

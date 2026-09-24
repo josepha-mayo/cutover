@@ -1,6 +1,6 @@
 # Pre-event status — updated September 24, 2026
 
-The current engine is v0.3.11. Each probe now uses separate migration, old-worker, and new-worker SQLite connections to one disposable in-memory database; the standalone witness mirrors them. Operations remain sequential, without concurrent transaction or lock timing. It rejects connection-local `TEMP` schema objects: a candidate using only temporary synchronization triggers previously passed 124/124 even though other workers would not see them. Imported contracts prove the fixed old updater and inserter work for every declared payload on separate fresh databases before a candidate gets a verdict. Its schema and identifier-access checks follow SQLite's case-insensitive table and column naming. These corrections were made by Codex before kickoff.
+The current engine is v0.3.12. Each probe now uses separate migration, old-worker, and new-worker SQLite connections to one disposable in-memory database; the standalone witness mirrors them. Operations remain sequential, without concurrent transaction or lock timing. Every migration-window replay checks an old-worker read after its old write or insert and before migration resumes; a temporary old-reader failure can no longer be hidden by a later repair. It rejects connection-local `TEMP` schema objects: a candidate using only temporary synchronization triggers previously passed 124/124 even though other workers would not see them. Imported contracts prove the fixed old updater and inserter work for every declared payload on separate fresh databases before a candidate gets a verdict. Its schema and identifier-access checks follow SQLite's case-insensitive table and column naming. These corrections were made by Codex before kickoff.
 
 ## Working and verified
 
@@ -50,7 +50,7 @@ The current engine is v0.3.11. Each probe now uses separate migration, old-worke
 | Candidate | Same-version baseline | Completed rollout | Migration windows | Total |
 | --- | --- | --- | --- | --- |
 | Direct rename | 8/8 | 16/76 | 8/16 | 24/92 |
-| Expand + one-time backfill | 8/8 | 32/76 | 16/24 | 48/100 |
+| Expand + one-time backfill | 8/8 | 28/76 | 16/24 | 44/100 |
 | Late bridge | 8/8 | 76/76 | 32/48 | 108/124 |
 | Window-safe bridge | 8/8 | 76/76 | 48/48 | 124/124 |
 
