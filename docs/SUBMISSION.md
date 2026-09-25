@@ -4,7 +4,7 @@ Working title: **Cutover: Rehearse the Release**
 
 Short description: **Cutover rehearses schema-changing releases with old and new workers, then uses IBM Bob to repair the missed-write window and build a PR gate that keeps the counterexample.**
 
-Form links: public [demo](https://cutover-rehearsal.onrender.com/), [source](https://github.com/josepha-mayo/cutover), [deck](../presentation/cutover-submission.pdf), and [Bob IDE summaries](../bob_sessions/). Use the actual form's closest categories: developer tools, coding excellence, and pre-existing project, if those are offered. Technologies: IBM Bob IDE, MCP, Python, SQLite, JavaScript, GitHub Actions, Render.
+Form links: public [demo](https://cutover-rehearsal.onrender.com/), [three-minute video](https://cutover-rehearsal.onrender.com/watch), [source](https://github.com/josepha-mayo/cutover), [deck](../presentation/cutover-submission.pdf), and [Bob IDE summaries](../bob_sessions/). Use the actual form's closest categories: developer tools, coding excellence, and pre-existing project, if those are offered. Technologies: IBM Bob IDE, MCP, Python, SQLite, JavaScript, GitHub Actions, Render.
 
 The live September form must be checked before sending: it has separate project and Bob-usage narratives, media, source and demo fields. Keep each narrative within its visible character limits and verify links while signed out.
 
@@ -80,7 +80,7 @@ The final nine-page [PDF](../presentation/cutover-submission.pdf) has been rende
 - Public repository with MIT license and setup instructions: [github.com/josepha-mayo/cutover](https://github.com/josepha-mayo/cutover).
 - Public working demo: [cutover-rehearsal.onrender.com](https://cutover-rehearsal.onrender.com/). Render free may take around a minute to wake after inactivity; verify it again before submission and recording.
 - [16:9 PNG cover](../presentation/cover.png) generated. Recheck image requirements on the actual form.
-- Final MP4 demo is being rendered and must pass full playback, codec/size checks, public upload, and signed-out playback. The reviewed [nine-page PDF deck](../presentation/cutover-submission.pdf) is ready.
+- The final 180-second MP4 is staged at `public/demo.mp4` (12.9 MB, H.264/AAC); [watch page](https://cutover-rehearsal.onrender.com/watch) and signed-out playback must be checked after deployment. The reviewed [nine-page PDF deck](../presentation/cutover-submission.pdf) is ready.
 - Both actual [Bob IDE task-summary PNGs and histories](../bob_sessions/) are in the public repository.
 - Cutover solo team is active on lablab.ai; the live submission form is open during the event.
 - After the event, complete the IBM/lablab feedback form to enter the 20 × $100 participant reward draw, provided the project was qualified and submitted by the deadline.

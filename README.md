@@ -10,6 +10,8 @@ This is a documented release problem, not a hypothetical one. [GitLab's account 
 
 The prototype is functional and [the public demo](https://cutover-rehearsal.onrender.com/) is live on Render's free tier. [The source](https://github.com/josepha-mayo/cutover) is public. Codex built the evaluator and browser before kickoff; IBM Bob IDE produced the event-period repair candidates and pull-request review gate documented below. The free demo may take around a minute to wake after inactivity.
 
+Watch the [three-minute project demonstration](https://cutover-rehearsal.onrender.com/watch) and inspect the [nine-page submission deck](presentation/cutover-submission.pdf), [both Bob IDE task summaries](bob_sessions/), and [verified PR control artifacts](evidence/ci_controls/README.md).
+
 ## Run
 
 Python 3.10+ with SQLite 3.25+ is sufficient for the app. No runtime packages, API keys, database account, or build tool are required.
