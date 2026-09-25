@@ -65,6 +65,7 @@ function renderComparison() {
   const timeline=$('comparison-timeline');
   timeline.hidden=true;
   $('comparison-witness').hidden=true;
+  $('comparison-baseline-replay').hidden=true;
   $('export-comparison').hidden=true;
   tools.hidden=!report&&!pinnedReport;
   $('pin-baseline').disabled=!report||busy;
@@ -113,6 +114,15 @@ function renderComparison() {
       $('comparison-witness').textContent=`First baseline witness · ${pinnedReport.witness.title}. Row ${row}: ledger expected ${JSON.stringify(failedStep.expected[row]??null)}; ${failedStep.action} observed ${JSON.stringify(failedStep.actual[row]??null)}.`;
       $('comparison-witness').hidden=false;
     }
+  }
+  const baselineTrace=pinnedReport.witness?.trace;
+  if(baselineTrace?.length) {
+    $('comparison-baseline-trace').innerHTML=baselineTrace.map(step=>{
+      const values=step.status==='fail'&&step.expected&&step.actual
+        ?`<div class="comparison-replay-values"><div>EXPECTED ${escape(pretty(step.expected))}</div><div>OBSERVED ${escape(pretty(step.actual))}</div></div>`:'';
+      return `<div class="comparison-replay-step ${step.status==='fail'?'fail':''}"><strong>${escape(step.action)}</strong><span>${escape(step.connection||'')}</span><p>${escape(step.detail||'Executed.')}</p>${step.sql?`<details><summary>Executed SQL${step.params?' & inputs':''}</summary><pre>${escape(step.sql)}${step.params?'\n\n'+escape(pretty(step.params)):''}</pre></details>`:''}${values}</div>`;
+    }).join('');
+    $('comparison-baseline-replay').hidden=false;
   }
   $('comparison-metrics').innerHTML=`<div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES RESOLVED</span><strong>${resolved}</strong></div><div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES REGRESSED</span><strong class="${regressed?'red':''}">${regressed}</strong></div><div><span>MIGRATION WINDOW FAILURES</span><strong>${oldWindows.total-oldWindows.passed} → ${newWindows.total-newWindows.passed}</strong><small>${oldWindows.total} → ${newWindows.total} boundary probes, ${sameMigration?'paired':'evaluated separately'}</small></div>`;
   const firstWindow=report.results.find(item=>item.category==='migration_window'&&!item.passed);
