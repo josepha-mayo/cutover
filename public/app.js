@@ -589,5 +589,5 @@ async function runProofTour() {
   finally {proofTourBusy=false;button.textContent='Run unsafe → Bob repair ↗';updateModeControls();}
 }
 $('proof-tour').addEventListener('click',runProofTour);
-try {const response=await fetch('/api/catalog');if(!response.ok)throw Error('Could not load sample projects.');catalog=await response.json();$('case').innerHTML=catalog.cases.map(c=>`<option value="${c.id}">${escape(c.project)}</option>`).join('');chooseCase();const demo=new URLSearchParams(location.search).get('demo');if(demo==='bob-repair')await loadBobRepair(true);else if(demo==='compare')await runProofTour();}
+try {const response=await fetch('/api/catalog');if(!response.ok)throw Error('Could not load sample projects.');catalog=await response.json();$('case').innerHTML=catalog.cases.map(c=>`<option value="${c.id}">${escape(c.project)}</option>`).join('');chooseCase();const demo=new URLSearchParams(location.search).get('demo');if(demo==='bob-repair')await loadBobRepair(true);else if(demo==='compare')await runProofTour();else if(demo==='scenario'){$('scenario-dialog').showModal();$('scenario-form').elements.project.focus();}}
 catch(error){$('verdict-title').textContent='Workspace unavailable.';$('verdict-description').textContent=error.message;$('run').disabled=true;notify(error.message);}
