@@ -101,6 +101,12 @@ The September 25 event task in IBM Bob IDE is recorded in its [task-session summ
 
 Bob's separate IDE task built the [pull-request review gate](docs/CI.md); its [task-session summary](bob_sessions/cutover_task02_ci_review_gate_9aa1e2a2_summary.png) and [history export](bob_sessions/cutover_task02_ci_review_gate_9aa1e2a2_history.md) show the actual event work. The gate checks a proposed migration against a checked-in contract, runs an independent report audit, and preserves JSON, Markdown, ZIP, verdict and job summary even when an unsafe candidate blocks. A blocked candidate includes the exact failed probe and differing row values. Codex later extended the workflow to run Bob's saved Warehouse and Parcel candidates as separate PR checks, so one passing migration cannot mask another's block. Bob reported 67/67 tests passing in its focused suite; an independent local acceptance exercised unsafe, safe, regressed and malformed controls, and a separate full `unittest` run passed 91 tests. Three earlier single-case pull-request runs confirmed the original gate: [unsafe blocked 108/124](https://github.com/josepha-mayo/cutover/actions/runs/36165105646), [safe passed 124/124](https://github.com/josepha-mayo/cutover/actions/runs/36165215088), and [regressed blocked 100/116](https://github.com/josepha-mayo/cutover/actions/runs/36165290677). Their independently audited [public evidence mirror](evidence/ci_controls/README.md) includes exact downloaded reports, summaries, verdicts, reviews and ZIP bundles with hashes.
 
+The later [two-contract PR control](evidence/ci_matrix_control/README.md)
+proved the workflow keeps case verdicts separate: a prewritten unsafe Parcel
+plan blocked at 108/124 while Bob's unchanged Warehouse repair passed 116/116
+in the same GitHub run. Both downloaded artifacts were independently replayed
+against that PR's exact commit.
+
 ## CLI and verification
 
 ```powershell

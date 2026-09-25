@@ -1,0 +1,39 @@
+{
+  "run_id": 36183958224,
+  "pull_request": "https://github.com/josepha-mayo/cutover/pull/4",
+  "run_url": "https://github.com/josepha-mayo/cutover/actions/runs/36183958224",
+  "pr_head_sha": "e12447c01659c5e444499271f7f03069df38ef43",
+  "control": "Prewritten unsafe Parcel plan with unchanged Bob-saved passing Warehouse plan",
+  "cases": {
+    "parcel": {
+      "classification": "verified_block",
+      "coverage": "108/124",
+      "independent_audit_exit": 1,
+      "plan_hash": "7e7bc349a783c824777fa99a4e2fdf1c245aa7f1f1e404421fa62541cf2ff252",
+      "contract_hash": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+      "suite_hash": "bc41d4b60e280af5c5b60dea1ec870d7b50da1a2e8c12ebe3d885c30334f07d1",
+      "files_sha256": {
+        "report.json": "0ec15c35c4aef166fc85790a62ea22a16b78ead4ed6f8dc855caec542b42bc60",
+        "review.md": "515906cc62ac15d10349f3e4e28ac3483909c2714f3519fbefaed945a6b91e87",
+        "review.zip": "62b268c25a976990d3ed0647ee7f2c9fde2fecf209e5fa8388dab8bbb9754def",
+        "summary.md": "69caa5075cd2ad9df7aed0f5a9e403f7efcb018633107963edd7ff5ff57d4367",
+        "verdict.json": "985d5d372d4e55677d9c534ba18e46d6baa78ea080b166af045648aa3691b038"
+      }
+    },
+    "warehouse": {
+      "classification": "verified_pass",
+      "coverage": "116/116",
+      "independent_audit_exit": 0,
+      "plan_hash": "930c2f30ccd10a81bc34cffc23dbcdceb45d60885d1609ac1a2aa698baa74da6",
+      "contract_hash": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+      "suite_hash": "dbd9cb724455cadced8634b8ad2ceab343b8ba47dd4a9f2d880a4a7381ba0f86",
+      "files_sha256": {
+        "report.json": "069d993e91ec20603989e6b6cdf7c8571f61919c2115cc9b3f32075287dd404c",
+        "review.md": "090dcfd62d75ff9e123a23d90bf142db2f158f657c196b388ccc00412da15fe3",
+        "review.zip": "505baab284ba94d7886c4a04904dd87ac248a9a0d907312e2e95693b9ba07ae8",
+        "summary.md": "3f08869185e49a57b96a1947524b036d8223b8b36e63dbc6b0aee16122d6ac87",
+        "verdict.json": "88c25906a8cf4c35913152a4c53aefd8f7a5231cfda60c682bf8ae70bc411bde"
+      }
+    }
+  }
+}

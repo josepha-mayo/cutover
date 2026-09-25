@@ -1,0 +1,18 @@
+{
+  "classification": "verified_block",
+  "cli_exit": 1,
+  "audit_exit": 1,
+  "contract_hash": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+  "plan_hash": "7e7bc349a783c824777fa99a4e2fdf1c245aa7f1f1e404421fa62541cf2ff252",
+  "witness_id": "window_write_after_2-0",
+  "witness_failure": {
+    "expected": {
+      "101": "18 Marina Road",
+      "102": "9 Station Road"
+    },
+    "actual": {
+      "101": "4 Broad Street",
+      "102": "9 Station Road"
+    }
+  }
+}

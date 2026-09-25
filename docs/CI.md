@@ -95,6 +95,14 @@ Add or replace paths to adapt the workflow for another repository. The
 contract and plan files are read-only inputs. One verified block makes its
 case check red while other cases still run and retain their evidence.
 
+The [two-case control PR](https://github.com/josepha-mayo/cutover/pull/4)
+kept Warehouse's Bob-saved candidate but replaced Parcel's candidate with a
+prewritten unsafe plan. The [actual GitHub run](https://github.com/josepha-mayo/cutover/actions/runs/36183958224)
+shows a green Warehouse check at 116/116 and a red Parcel check at 108/124.
+Both downloaded reports were independently replayed against that PR commit;
+the [artifact mirror](../evidence/ci_matrix_control/README.md) preserves their
+distinct JSON, Markdown, ZIP, summaries and verdicts for signed-out review.
+
 ---
 
 ## Reading a blocked result
