@@ -132,6 +132,28 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 400)
         self.assertIn('differ', json.loads(body)['error'])
 
+    def test_comparison_packet_supports_an_imported_contract(self):
+        contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
+        baseline = json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))
+        candidate = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))
+        old = json.loads(self.request('/api/rehearse', {
+            'case': 'custom', 'contract': contract, 'plan': baseline})[1])
+        new = json.loads(self.request('/api/rehearse', {
+            'case': 'custom', 'contract': contract, 'plan': candidate})[1])
+        request = {'case': 'custom', 'contract': contract,
+                   'baseline_plan': baseline, 'candidate_plan': candidate,
+                   'baseline_plan_hash': old['plan_hash'],
+                   'candidate_plan_hash': new['plan_hash'],
+                   'contract_hash': old['contract_hash']}
+        code, body = self.request('/api/comparison-bundle', request)
+        self.assertEqual(code, 200)
+        with zipfile.ZipFile(io.BytesIO(body)) as archive:
+            self.assertEqual(json.loads(archive.read('baseline/contract.json')), contract)
+            self.assertEqual(json.loads(archive.read('candidate/contract.json')), contract)
+            for label, plan in (('baseline', baseline), ('candidate', candidate)):
+                saved = json.loads(archive.read(f'{label}/report.json'))
+                verify_report_against_replay('custom', plan, saved, contract)
+
     def test_private_files_not_served(self):
         for path in ('/../server.py', '/.bob/mcp.json', '/examples/parcel/bridge.json'):
             self.assertEqual(self.request(path)[0], 404)
