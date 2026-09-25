@@ -5,6 +5,7 @@ let pinnedReport = null, proofTourBusy = false;
 let bundleBusy = false;
 let ciKitBusy = false;
 let comparisonBusy = false;
+let fragilityBusy = false;
 let importedContract = null, importedMeta = null, customPlan = null, customPlanSource = null;
 let candidateSource = '', candidateProvenance = 'custom candidate', customPlanProvenance = null;
 const fields = {name: 'plan-name', migration: 'migration', read: 'read', write: 'write', insert: 'insert'};
@@ -54,6 +55,7 @@ function setBusy(value, label='Executing SQL rehearsals…') {
 
 function invalidate() {
   report=null; selected=null;
+  $('fragility-panel').hidden=true; $('fragility-results').replaceChildren();
   $('export-ci-kit').hidden=true;
   $('status-badge').textContent='NOT RUN'; $('status-badge').className='status-badge';
   $('verdict-title').textContent='Ready to rehearse.';
@@ -252,6 +254,9 @@ function renderReport() {
   $('export-ci-kit').hidden=!(report.case==='custom'&&report.status==='pass');
   $('export-ci-kit').disabled=ciKitBusy;
   $('hashes').textContent=`Plan SHA-256: ${report.plan_hash} · Contract SHA-256: ${report.contract_hash} · Suite SHA-256: ${report.suite_hash}`;
+  $('fragility-panel').hidden=!passed;
+  $('fragility-results').replaceChildren();
+  $('challenge-steps').disabled=fragilityBusy;
   renderComparison();
   renderWindowMap(); renderMatrix(); renderTrace(witness || report.results.find(r=>r.id==='new_to_old-0'));
 }
@@ -325,6 +330,36 @@ async function showBob() {
 }
 
 $('run').addEventListener('click',run);
+$('challenge-steps').addEventListener('click',async()=>{
+  if(!report||report.status!=='pass'||busy||fragilityBusy)return;
+  const snapshot=report, button=$('challenge-steps');
+  const request={case:snapshot.case,plan:snapshot.plan,
+    plan_hash:snapshot.plan_hash,contract_hash:snapshot.contract_hash};
+  if(snapshot.case==='custom')request.contract=importedContract;
+  fragilityBusy=true;button.disabled=true;button.textContent='Rerunning each omission…';
+  try {
+    const body=JSON.stringify(request);
+    if(new Blob([body]).size>65536)throw Error('Contract and plan exceed the hosted request limit.');
+    const response=await fetch('/api/fragility',{method:'POST',headers:{'Content-Type':'application/json'},body});
+    const data=await response.json();
+    if(!response.ok)throw Error(data.error||'Migration challenge failed.');
+    if(report!==snapshot||data.plan_hash!==snapshot.plan_hash||data.contract_hash!==snapshot.contract_hash)
+      throw Error('The displayed candidate changed. Rerun it before challenging its steps.');
+    $('fragility-results').innerHTML=`<p class="fragility-scope">Original ${data.original.passed}/${data.original.total} passed. Each omission runs on a fresh disposable database; coverage counts may change.</p>`+
+      data.challenges.map(item=>{
+        const state=item.outcome==='blocked'?'EXPOSED FAILURE':item.outcome==='still_passes'?'STILL PASSES':'CANNOT REPLAY';
+        const failed=item.witness?.trace?.[0];
+        const values=failed?.expected&&failed?.actual?`<p class="fragility-values">Ledger expected ${escape(pretty(failed.expected))}<br>Observed ${escape(pretty(failed.actual))}</p>`:'';
+        const detail=item.outcome==='blocked'
+          ?`${item.passed}/${item.total} pass · ${escape(item.witness?.title||'First failed probe')} · ${escape(item.witness?.failure?.message||'')}`
+          :item.outcome==='still_passes'
+            ?`${item.passed}/${item.total} pass · no failure observed in this bounded suite`
+            :escape(item.reason);
+        return `<article class="fragility-step ${item.outcome}"><div><span>OMIT SQL ${item.step}</span><strong>${state}</strong></div><details><summary>${escape(item.sql.replace(/\s+/g,' ').trim())}</summary><pre>${escape(item.sql)}</pre></details><p>${detail}</p>${values}</article>`;
+      }).join('')+`<p class="fragility-scope">${escape(data.scope)}</p>`;
+  }catch(error){notify(error.message);$('fragility-results').textContent=error.message;}
+  finally{fragilityBusy=false;button.disabled=!report||report.status!=='pass';button.textContent='Remove each step and rerun ↗';}
+});
 $('pin-baseline').addEventListener('click',()=>{if(!report||busy)return;pinnedReport=report;renderComparison();notify('Baseline pinned in this browser tab. Run another candidate to compare.');});
 $('clear-baseline').addEventListener('click',()=>{pinnedReport=null;renderComparison();notify('Comparison baseline cleared.');});
 $('challenge-bob').addEventListener('click',async()=>{

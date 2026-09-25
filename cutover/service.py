@@ -7,7 +7,7 @@ from .reporting import render_markdown, render_reproduction
 WORKER_TIMEOUT_SECONDS = 90
 
 
-def run_rehearsal(case, plan, contract=None):
+def run_rehearsal(case, plan, contract=None, timeout_seconds=WORKER_TIMEOUT_SECONDS):
     if contract is None:
         load_case(case)
     else:
@@ -15,7 +15,7 @@ def run_rehearsal(case, plan, contract=None):
             raise ValueError('Imported contracts require case=custom')
         validate_contract(contract)
     validate_plan(plan)
-    return run_worker({'case': case, 'plan': plan, 'contract': contract})
+    return run_worker({'case': case, 'plan': plan, 'contract': contract}, timeout_seconds)
 
 
 def validate_imported_contract(contract):
@@ -23,11 +23,11 @@ def validate_imported_contract(contract):
     return run_worker({'operation': 'validate_contract', 'contract': contract})
 
 
-def run_worker(request):
+def run_worker(request, timeout_seconds=WORKER_TIMEOUT_SECONDS):
     process = subprocess.run([sys.executable, '-m', 'cutover.worker'],
                              input=json.dumps(request),
                              capture_output=True, text=True, encoding='utf-8', cwd=ROOT,
-                             timeout=WORKER_TIMEOUT_SECONDS,
+                             timeout=timeout_seconds,
                              creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     if process.returncode:
         if process.returncode == 2:

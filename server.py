@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from cutover.bundle import render_bundle, render_comparison_bundle
 from cutover.ci_kit import render_ci_kit
 from cutover.engine import load_case, repair_brief
+from cutover.fragility import challenge_steps
 from cutover.reporting import render_markdown, render_reproduction
 from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, validate_imported_contract, verify_report_against_replay
 
@@ -160,7 +161,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        if self.path not in ('/api/rehearse', '/api/brief', '/api/bundle', '/api/ci-kit',
+        if self.path not in ('/api/rehearse', '/api/brief', '/api/bundle', '/api/ci-kit', '/api/fragility',
                              '/api/comparison-bundle', '/api/contract/validate'):
             return self.send(404, {'error': 'Not found'})
         origin = self.headers.get('Origin')
@@ -181,6 +182,9 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('Expected a JSON object')
                 if self.path == '/api/contract/validate':
                     self.send(200, validate_imported_contract(body['contract']))
+                elif self.path == '/api/fragility':
+                    self.send(200, challenge_steps(body['case'], body['plan'], body.get('contract'),
+                                                    body['plan_hash'], body['contract_hash']))
                 elif self.path == '/api/comparison-bundle':
                     contract = body.get('contract')
                     before = run_rehearsal(body['case'], body['baseline_plan'], contract)

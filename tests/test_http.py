@@ -50,6 +50,28 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertIn(b'export function buildScenario', body)
 
+    def test_fragility_challenge_replays_each_removed_statement(self):
+        from cutover.service import run_rehearsal
+        plan = load_plan('parcel', 'bridge')
+        original = run_rehearsal('parcel', plan)
+        request = {'case': 'parcel', 'plan': plan,
+                   'plan_hash': original['plan_hash'],
+                   'contract_hash': original['contract_hash']}
+        code, body = self.request('/api/fragility', request, timeout=90)
+        self.assertEqual(code, 200)
+        result = json.loads(body)
+        self.assertEqual(result['original'], {'passed': 124, 'total': 124})
+        self.assertEqual(len(result['challenges']), 5)
+        self.assertTrue(all(item['outcome'] == 'blocked' and item['witness']['failure']
+                            for item in result['challenges']))
+        self.assertEqual(self.request('/api/fragility', {
+            **request, 'plan_hash': '0' * 64}, timeout=90)[0], 400)
+        blocked = load_plan('parcel', 'late_bridge')
+        blocked_report = run_rehearsal('parcel', blocked)
+        self.assertEqual(self.request('/api/fragility', {
+            **request, 'plan': blocked, 'plan_hash': blocked_report['plan_hash']},
+            timeout=90)[0], 400)
+
     def test_ci_kit_binds_a_passing_custom_plan_to_gate_inputs(self):
         contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
         plan = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))
