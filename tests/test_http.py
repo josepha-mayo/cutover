@@ -118,9 +118,13 @@ class HttpTests(unittest.TestCase):
                 summary = json.loads(archive.read('comparison.json'))
                 self.assertEqual(summary['paired_probes'], 76)
                 self.assertFalse(summary['window_probes_paired'])
+                self.assertEqual(summary['resolved_probe_ids'], [])
+                self.assertEqual(summary['regressed_probe_ids'], [])
                 self.assertEqual(summary['migration_window_failures'], {
                     'baseline': {'failed': 16, 'total': 48},
                     'candidate': {'failed': 0, 'total': 48}})
+                self.assertTrue(summary['first_failed_window_probe']['baseline'].startswith('window_'))
+                self.assertIsNone(summary['first_failed_window_probe']['candidate'])
                 for label, plan, status in (('baseline', baseline, 'blocked'),
                                             ('candidate', candidate, 'pass')):
                     saved = json.loads(archive.read(f'{label}/report.json'))
@@ -153,6 +157,31 @@ class HttpTests(unittest.TestCase):
             for label, plan in (('baseline', baseline), ('candidate', candidate)):
                 saved = json.loads(archive.read(f'{label}/report.json'))
                 verify_report_against_replay('custom', plan, saved, contract)
+
+    def test_comparison_packet_names_newly_failing_paired_probes(self):
+        baseline = load_plan('parcel', 'bridge')
+        candidate = dict(baseline)
+        candidate['name'] = 'Wrong target reader'
+        candidate['read'] = baseline['read'].replace('shipping_address AS', "shipping_address || '-wrong' AS")
+        old = json.loads(self.request('/api/rehearse', {'case': 'parcel', 'plan': baseline})[1])
+        new = json.loads(self.request('/api/rehearse', {'case': 'parcel', 'plan': candidate})[1])
+        self.assertEqual(old['status'], 'pass')
+        self.assertEqual(new['status'], 'blocked')
+        code, body = self.request('/api/comparison-bundle', {
+            'case': 'parcel', 'baseline_plan': baseline, 'candidate_plan': candidate,
+            'baseline_plan_hash': old['plan_hash'], 'candidate_plan_hash': new['plan_hash'],
+            'contract_hash': old['contract_hash']})
+        self.assertEqual(code, 200)
+        with zipfile.ZipFile(io.BytesIO(body)) as archive:
+            summary = json.loads(archive.read('comparison.json'))
+            self.assertTrue(summary['window_probes_paired'])
+            self.assertGreater(summary['regressed_in_paired_probes'], 0)
+            self.assertEqual(len(summary['regressed_probe_ids']), summary['regressed_in_paired_probes'])
+            by_id = {item['id']: item for item in new['results']}
+            self.assertTrue(all(not by_id[probe_id]['passed'] for probe_id in summary['regressed_probe_ids']))
+            self.assertTrue(any(by_id[probe_id]['category'] == 'migration_window'
+                                for probe_id in summary['regressed_probe_ids']))
+            self.assertIn(summary['first_failed_window_probe']['candidate'], summary['regressed_probe_ids'])
 
     def test_private_files_not_served(self):
         for path in ('/../server.py', '/.bob/mcp.json', '/examples/parcel/bridge.json'):

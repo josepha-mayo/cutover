@@ -56,6 +56,8 @@ def render_comparison_bundle(before, after, contract):
     old_by_id = {item['id']: item for item in before['results']
                  if same_migration or item['category'] != 'migration_window'}
     paired = resolved = regressed = 0
+    resolved_ids = []
+    regressed_ids = []
     for item in after['results']:
         if not same_migration and item['category'] == 'migration_window':
             continue
@@ -63,8 +65,12 @@ def render_comparison_bundle(before, after, contract):
         if not old or old['payload'] != item['payload'] or old['actions'] != item['actions']:
             continue
         paired += 1
-        resolved += int(not old['passed'] and item['passed'])
-        regressed += int(old['passed'] and not item['passed'])
+        if not old['passed'] and item['passed']:
+            resolved += 1
+            resolved_ids.append(item['id'])
+        if old['passed'] and not item['passed']:
+            regressed += 1
+            regressed_ids.append(item['id'])
     windows = []
     for report in (before, after):
         category = next(item for item in report['categories'] if item['id'] == 'migration_window')
@@ -81,8 +87,15 @@ def render_comparison_bundle(before, after, contract):
         'paired_probes': paired,
         'resolved_in_paired_probes': resolved,
         'regressed_in_paired_probes': regressed,
+        'resolved_probe_ids': resolved_ids,
+        'regressed_probe_ids': regressed_ids,
         'window_probes_paired': same_migration,
         'migration_window_failures': {'baseline': windows[0], 'candidate': windows[1]},
+        'first_failed_window_probe': {
+            label: next((item['id'] for item in report['results']
+                         if item['category'] == 'migration_window' and not item['passed']), None)
+            for label, report in (('baseline', before), ('candidate', after))
+        },
         'interpretation': ('Statement-boundary probes were evaluated separately; '
                            'different SQL sequences cannot be paired by step number.'
                            if not same_migration else

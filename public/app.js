@@ -69,23 +69,26 @@ function renderComparison() {
   if(!comparing) {
     $('comparison-detail').textContent=`Baseline ${pinnedReport.passed}/${pinnedReport.total} · plan ${baseHash}. Run another candidate to compare.`;
     $('comparison-metrics').replaceChildren();
+    $('comparison-changes').replaceChildren();
     return;
   }
   if(pinnedReport.contract_hash!==report.contract_hash||pinnedReport.engine_sha256!==report.engine_sha256||pinnedReport.suite_hash!==report.suite_hash) {
     $('comparison-detail').textContent='These reports use different contracts or evaluator versions. Pin the current result to start a comparable baseline.';
     $('comparison-metrics').replaceChildren();
+    $('comparison-changes').replaceChildren();
     return;
   }
   const sameMigration=pinnedReport.plan.migration===report.plan.migration;
   const before=new Map(pinnedReport.results.filter(item=>sameMigration||item.category!=='migration_window').map(item=>[item.id,item]));
   let paired=0, resolved=0, regressed=0;
+  const firstRegression=[];
   for(const item of report.results) {
     if(!sameMigration&&item.category==='migration_window')continue;
     const old=before.get(item.id);
     if(!old||old.payload!==item.payload||JSON.stringify(old.actions)!==JSON.stringify(item.actions))continue;
     paired++;
     if(!old.passed&&item.passed)resolved++;
-    if(old.passed&&!item.passed)regressed++;
+    if(old.passed&&!item.passed){regressed++;if(firstRegression.length<3)firstRegression.push(item);}
   }
   const oldWindows=pinnedReport.categories.find(item=>item.id==='migration_window');
   const newWindows=report.categories.find(item=>item.id==='migration_window');
@@ -93,6 +96,14 @@ function renderComparison() {
     ?`Same migration and contract · paired ${paired} probes. Plans ${baseHash} → ${report.plan_hash.slice(0,10)}.`
     :`Same contract, different migration. Paired ${paired} completed-rollout probes; statement-boundary probes cannot be paired across different SQL sequences. Plans ${baseHash} → ${report.plan_hash.slice(0,10)}.`;
   $('comparison-metrics').innerHTML=`<div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES RESOLVED</span><strong>${resolved}</strong></div><div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES REGRESSED</span><strong class="${regressed?'red':''}">${regressed}</strong></div><div><span>MIGRATION WINDOW FAILURES</span><strong>${oldWindows.total-oldWindows.passed} → ${newWindows.total-newWindows.passed}</strong><small>${oldWindows.total} → ${newWindows.total} boundary probes, ${sameMigration?'paired':'evaluated separately'}</small></div>`;
+  const firstWindow=report.results.find(item=>item.category==='migration_window'&&!item.passed);
+  const links=firstRegression.map(item=>`<button type="button" data-comparison-probe="${escape(item.id)}">New regression: ${escape(item.title)} ↗</button>`);
+  if(firstWindow&&!firstRegression.some(item=>item.id===firstWindow.id))links.push(`<button type="button" data-comparison-probe="${escape(firstWindow.id)}">Candidate window witness: ${escape(firstWindow.title)} ↗</button>`);
+  $('comparison-changes').innerHTML=links.length?`<span>INSPECT THE CANDIDATE REPLAY</span>${links.join('')}`:'<span>No newly failing paired probe or candidate window witness.</span>';
+  $('comparison-changes').querySelectorAll('[data-comparison-probe]').forEach(button=>button.addEventListener('click',()=>{
+    const probe=report.results.find(item=>item.id===button.dataset.comparisonProbe);
+    if(probe){renderTrace(probe);$('trace-title').scrollIntoView({behavior:'smooth',block:'center'});}
+  }));
   $('comparison-timeline-grid').innerHTML=boundaryTimeline(pinnedReport,'PINNED BASELINE')+boundaryTimeline(report,'CURRENT CANDIDATE');
   timeline.hidden=false;
   $('export-comparison').hidden=false;
