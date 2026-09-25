@@ -34,10 +34,12 @@ class ScenarioBuilderTests(unittest.TestCase):
             with self.subTest(table=table):
                 built = self.build(dict(project="My release", table=table,
                                         oldColumn=old_column, newColumn=new_column,
-                                        firstValue="O'Connell", secondValue="東京-棚"))
+                                        firstValue="O'Connell", secondValue="東京-棚",
+                                        incomingValue="R-07"))
                 self.assertTrue(built["ok"], built)
                 scenario = built["value"]
                 contract = scenario["contract"]
+                self.assertEqual(contract["payloads"][0], "R-07")
                 meta = validate_imported_contract(contract)
                 self.assertEqual(meta["seed_count"], 2)
                 before = run_rehearsal("custom", scenario["unsafe"], contract)
@@ -48,12 +50,25 @@ class ScenarioBuilderTests(unittest.TestCase):
                 self.assertEqual((before["contract_hash"], before["suite_hash"]),
                                  (after["contract_hash"], after["suite_hash"]))
                 self.assertIsNotNone(before["witness"])
+                self.assertEqual(before["witness"]["payload"], "R-07")
+
+    def test_incoming_value_avoids_duplicate_probe_payloads(self):
+        built = self.build(dict(project="My release", table="items",
+                                oldColumn="location", newColumn="destination",
+                                firstValue="A-01", secondValue="B-02",
+                                incomingValue="O'Connell"))
+        self.assertTrue(built["ok"], built)
+        payloads = built["value"]["contract"]["payloads"]
+        self.assertEqual(payloads[0], "O'Connell")
+        self.assertEqual(len(payloads), len(set(payloads)))
 
     def test_invalid_identifiers_are_rejected_before_sql(self):
         base = dict(project="My release", table="items", oldColumn="location",
-                    newColumn="destination", firstValue="A-01", secondValue="B-02")
+                    newColumn="destination", firstValue="A-01", secondValue="B-02",
+                    incomingValue="R-07")
         for change in (dict(table="items; DROP TABLE items"),
-                       dict(newColumn="LOCATION"), dict(oldColumn="id")):
+                       dict(newColumn="LOCATION"), dict(oldColumn="id"),
+                       dict(incomingValue="")):
             with self.subTest(change=change):
                 self.assertFalse(self.build({**base, **change})["ok"])
 

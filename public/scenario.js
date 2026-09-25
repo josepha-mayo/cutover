@@ -8,6 +8,7 @@ export function buildScenario(input) {
   const oldColumn = String(input.oldColumn || '').trim();
   const newColumn = String(input.newColumn || '').trim();
   const values = [String(input.firstValue ?? ''), String(input.secondValue ?? '')];
+  const incomingValue = String(input.incomingValue ?? '');
   if (!project || project.length > 100) throw Error('Give this scenario a name of at most 100 characters.');
   for (const [label, name] of [['Table', table], ['Old column', oldColumn], ['New column', newColumn]]) {
     if (!identifier.test(name)) throw Error(`${label} must be a simple SQL identifier of at most 63 characters.`);
@@ -17,6 +18,13 @@ export function buildScenario(input) {
     throw Error('The id column is reserved for record identity.');
   if (values.some(value => !value || value.length > 1000))
     throw Error('Enter two nonempty sample values of at most 1000 characters.');
+  if (!incomingValue || incomingValue.length > 1000)
+    throw Error('Enter the exact incoming write to protect (at most 1000 characters).');
+  const payloads = [incomingValue];
+  for (const sample of ["O'Connell", '0', '東京-棚', 'next release']) {
+    if (payloads.length === 4) break;
+    if (!payloads.includes(sample)) payloads.push(sample);
+  }
   const q = name => `"${name}"`;
   const t = q(table), old = q(oldColumn), next = q(newColumn);
   const read = `SELECT id, ${next} AS value FROM ${t} ORDER BY id`;
@@ -34,7 +42,7 @@ export function buildScenario(input) {
       write: `UPDATE ${t} SET ${old} = :value WHERE id = :id`,
       insert: `INSERT INTO ${t} (id, ${old}) VALUES (:id, :value)`
     },
-    payloads: ['next release', "O'Connell", '0', '東京-棚']
+    payloads
   };
   const unsafe = {
     name: 'One-time backfill without a compatibility bridge',
