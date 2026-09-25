@@ -21,6 +21,7 @@ HERE = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from cutover.service import run_rehearsal, verify_report_against_replay
+from cutover.fragility import challenge_steps
 
 FONTS = Path('C:/Windows/Fonts')
 INK = '#18251f'
@@ -400,6 +401,67 @@ def ci_slide(c, evidence):
     c.showPage()
 
 
+def expanded_proof_slide(c):
+    """Show the later browser stress test and installed three-case PR control."""
+    warehouse = ROOT / 'examples' / 'warehouse'
+    contract = json.loads((warehouse / 'contract.json').read_text(encoding='utf-8'))
+    plan = json.loads((ROOT / 'bob_sessions/warehouse-07a20bdb56f5-candidate.json')
+                      .read_text(encoding='utf-8'))
+    original = run_rehearsal('custom', plan, contract)
+    challenge = challenge_steps('custom', plan, contract,
+                                original['plan_hash'], original['contract_hash'])
+    steps = challenge['challenges']
+    if ((original['status'], original['passed'], original['total']) != ('pass', 116, 116) or
+            len(steps) != 4 or any(step['outcome'] != 'blocked' for step in steps) or
+            (steps[1]['passed'], steps[1]['total'], steps[1]['witness']['title']) !=
+            (72, 108, 'Old write → new read') or
+            (steps[2]['passed'], steps[2]['total'], steps[2]['witness']['title']) !=
+            (96, 108, 'Old insert → new read')):
+        raise ValueError('Warehouse step challenge changed; review slide claims')
+
+    mirror = ROOT / 'evidence/ci_kit_installer_control'
+    manifest = json.loads((mirror / 'manifest.json').read_text(encoding='utf-8'))
+    if (manifest.get('source_pr') != 'https://github.com/josepha-mayo/cutover/pull/8' or
+            len(manifest.get('file_sha256', {})) != 15):
+        raise ValueError('Three-case PR mirror is missing or changed')
+    for name, expected_hash in manifest['file_sha256'].items():
+        if hashlib.sha256((mirror / name).read_bytes()).hexdigest() != expected_hash:
+            raise ValueError(f'PR mirror artifact changed: {name}')
+    for slug, expected in [('warehouse', 116), ('parcel', 116), ('release-my-release', 124)]:
+        packet = mirror / f'cutover-{slug}-review-evidence'
+        report = json.loads((packet / 'report.json').read_text(encoding='utf-8'))
+        verdict = json.loads((packet / 'verdict.json').read_text(encoding='utf-8'))
+        if ((report['status'], report['passed'], report['total']) != ('pass', expected, expected) or
+                verdict.get('classification') != 'verified_pass'):
+            raise ValueError(f'PR mirror verdict changed: {slug}')
+
+    base(c, 10, 'Show why the green result holds.',
+         '09  /  LIVE CHALLENGE + INSTALLED CI KIT', final=True)
+    box(c, 45, 153, 416, 225, PANEL, '#516452')
+    text(c, 63, 346, 'BOB REPAIR / CHALLENGED', 12, LIME, 'ConsolasBold')
+    text(c, 63, 305, '116/116', 39, CREAM, 'ConsolasBold')
+    text(c, 277, 308, 'original pass', 14, MUTED)
+    text(c, 63, 266, 'Remove each migration step, rerun:', 15, CREAM)
+    text(c, 63, 229, '4/4 omissions expose a block', 18, ORANGE, 'SegoeBold')
+    text(c, 63, 198, 'Old update loses R-07; old insert loses R-07.', 12, MUTED)
+    box(c, 484, 153, 431, 225, PANEL, '#516452')
+    text(c, 502, 346, 'INSTALLED / PR #8', 12, LIME, 'ConsolasBold')
+    for y, label, count in [(306, 'BOB WAREHOUSE', '116/116'),
+                            (264, 'BOB PARCEL', '116/116'),
+                            (222, 'BROWSER-BUILT CASE', '124/124')]:
+        text(c, 502, y, label, 12, CREAM, 'ConsolasBold')
+        text(c, 811, y, count, 14, LIME, 'ConsolasBold')
+    text(c, 502, 181, 'Separate green checks, retained artifacts.', 12, MUTED)
+    text(c, 45, 119, 'Bob authored the repair and original PR gate. Codex added this step challenge,',
+         14, CREAM)
+    text(c, 45, 96, 'the guarded installer, and the three-case control after Bob\'s tasks.', 14, CREAM)
+    text(c, 45, 65, 'Try the live challenge and inspect exact downloaded PR artifacts.', 12, LIME)
+    c.linkURL('https://cutover-rehearsal.onrender.com/?demo=bob-repair',
+              (45, 54, 438, 79), relative=0)
+    c.linkURL(manifest['source_pr'], (484, 153, 915, 378), relative=0)
+    c.showPage()
+
+
 def plan_label(plan):
     label = plan.get('name', 'unnamed')
     return label[:25] + ('...' if len(label) > 25 else '')
@@ -576,6 +638,7 @@ def deck(evidence=None, output=None):
     c.showPage()
     if final and evidence.get('ci_evidence'):
         ci_slide(c, evidence)
+        expanded_proof_slide(c)
     c.save()
     return dest
 

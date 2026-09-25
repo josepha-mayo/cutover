@@ -14,7 +14,7 @@ The live September form must be checked before sending: it has separate project 
 | Summary | The short description above. |
 | Long description | The concise final project narrative below. |
 | IBM Bob usage | The separate factual narrative below, with both task-summary PNGs and IDE histories in `bob_sessions/`. |
-| Cover, video, and slide deck | Use the checked 16:9 [cover](../presentation/cover.png), final reviewed video, and nine-page [deck](../presentation/cutover-submission.pdf). |
+| Cover, video, and slide deck | Use the checked 16:9 [cover](../presentation/cover.png), final reviewed video, and ten-page [deck](../presentation/cutover-submission.pdf). |
 | Additional Information | **This is a bounded SQLite rehearsal over synthetic single-table contracts and migration-statement boundaries; it does not model concurrent transactions, lock timing, crashes, or production databases. Codex built the evaluator and browser before kickoff; Bob authored the event repair and CI gate. See `docs/PROVENANCE.md` and the IDE task summaries. Render free may take about a minute to wake.** |
 
 ## Final project narrative for the form
@@ -73,14 +73,14 @@ The final nine-clip manifest pairs the pre-event Codex interface captures with r
 9. Bob-built PR gate with its actual IDE task summary and linked unsafe-red, safe-green, regressed-red runs.
 
 The final deck renderer accepts an optional `ci_evidence` object inside its observed Bob evidence JSON. It must contain `bob_ci_task_id`, the staged `bob_ci_summary_image`, and `run_receipts` with `unsafe`, `safe_reference`, and `regressed` paths. Save each private receipt using `work/verify-cutover-gh-run.py --receipt PATH` after it downloads and independently replays that actual GitHub run. `presentation/build_assets.py --evidence PATH` checks the receipts against the downloaded reports, reruns the evaluator, and confirms the three live GitHub conclusions before adding the CI page. The pre-event fixture plans are identified as controls, not Bob-authored repairs.
-The final nine-page [PDF](../presentation/cutover-submission.pdf) has been rendered from the two reviewed task records and three independently verified PR receipts, then visually inspected.
+The final ten-page [PDF](../presentation/cutover-submission.pdf) has been rendered from the two reviewed task records and three independently verified PR receipts, then visually inspected.
 
 ## Final artifacts
 
 - Public repository with MIT license and setup instructions: [github.com/josepha-mayo/cutover](https://github.com/josepha-mayo/cutover).
 - Public working demo: [cutover-rehearsal.onrender.com](https://cutover-rehearsal.onrender.com/). Render free may take around a minute to wake after inactivity; verify it again before submission and recording.
 - [16:9 PNG cover](../presentation/cover.png) generated. Recheck image requirements on the actual form.
-- The final 180-second MP4 is staged at `public/demo.mp4` (12.9 MB, H.264/AAC); [watch page](https://cutover-rehearsal.onrender.com/watch) and signed-out playback must be checked after deployment. The reviewed [nine-page PDF deck](../presentation/cutover-submission.pdf) is ready.
+- The final 180-second MP4 is staged at `public/demo.mp4` (12.9 MB, H.264/AAC); [watch page](https://cutover-rehearsal.onrender.com/watch) and signed-out playback must be checked after deployment. The reviewed [ten-page PDF deck](../presentation/cutover-submission.pdf) is ready.
 - Both actual [Bob IDE task-summary PNGs and histories](../bob_sessions/) are in the public repository.
 - Cutover solo team is active on lablab.ai; the live submission form is open during the event.
 - After the event, complete the IBM/lablab feedback form to enter the 20 × $100 participant reward draw, provided the project was qualified and submitted by the deadline.
