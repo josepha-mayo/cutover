@@ -1,0 +1,96 @@
+WEBVTT
+
+NOTE Edited for clarity from Joseph's recorded narration; timed to the submitted 180-second cut.
+
+00:00:04.000 --> 00:00:07.100
+A green build can still be a broken handover.
+
+00:00:07.550 --> 00:00:10.500
+All eight new-version checks pass.
+
+00:00:10.500 --> 00:00:15.050
+But an old worker is still writing while the database changes.
+
+00:00:21.000 --> 00:00:24.800
+This late bridge looks safe after the migration.
+
+00:00:24.800 --> 00:00:29.000
+All 76 completed-rollout probes pass.
+
+00:00:29.000 --> 00:00:33.500
+Now we replay old writes between migration statements.
+
+00:00:34.200 --> 00:00:35.850
+Sixteen window probes fail.
+
+00:00:44.000 --> 00:00:46.700
+Here is the missed window.
+
+00:00:46.700 --> 00:00:49.800
+We add the new column and copy existing rows.
+
+00:00:49.800 --> 00:00:53.650
+Then an old worker writes before synchronization starts.
+
+00:00:53.650 --> 00:00:56.000
+The write is accepted.
+
+00:00:56.000 --> 00:00:58.950
+But the new reader sees a stale value.
+
+00:01:06.000 --> 00:01:10.000
+IBM Bob used Cutover's live tools
+
+00:01:10.000 --> 00:01:14.200
+to trace the lost old-worker write.
+
+00:01:14.200 --> 00:01:20.600
+Its first repair failed: two triggers called each other recursively. We kept that failure.
+
+00:01:22.000 --> 00:01:27.100
+Bob removed the reverse trigger and moved the one-way bridge before backfill.
+
+00:01:27.100 --> 00:01:30.400
+The new writer got explicit dual writes.
+
+00:01:30.400 --> 00:01:33.800
+That protects the old reader during rollback.
+
+00:01:45.000 --> 00:01:51.550
+We independently replayed Bob's saved Parcel and Warehouse plans against the unchanged SQLite evaluator.
+
+00:01:51.550 --> 00:01:58.950
+Each passed 116 of 116 probes.
+
+00:01:59.750 --> 00:02:06.950
+Bob used four migration statements, so its window count differs from the five-statement reference.
+
+00:02:06.950 --> 00:02:11.600
+The live app reruns the plan before showing a verdict.
+
+00:02:13.000 --> 00:02:18.350
+Bob also built the pull-request gate. Live GitHub checks
+
+00:02:19.250 --> 00:02:24.750
+blocked unsafe and regressed plans, while the safe control passed.
+
+00:02:24.750 --> 00:02:30.800
+Each run retained its exact report, verdict, witness, and review bundle.
+
+00:02:34.000 --> 00:02:39.650
+This prewritten trap passes every migration window.
+
+00:02:39.650 --> 00:02:42.350
+Then a second write erases the first.
+
+00:02:43.050 --> 00:02:45.650
+Cutover catches that cross-record loss.
+
+00:02:47.900 --> 00:02:50.800
+Cutover rehearses schema changes in SQLite.
+
+00:02:50.800 --> 00:02:55.100
+Concurrent transactions and production databases remain future work.
+
+00:02:55.100 --> 00:02:59.900
+That is why Cutover is useful for database developers.

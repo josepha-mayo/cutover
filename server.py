@@ -97,6 +97,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, image.read_bytes(), 'image/png')
         files = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css',
                  '/watch': 'watch.html', '/watch.css': 'watch.css', '/watch.js': 'watch.js',
+                 '/captions.en.vtt': 'captions.en.vtt',
                  '/proof': 'proof.html', '/proof.css': 'proof.css'}
         if path not in files:
             return self.send(404, {'error': 'Not found'})

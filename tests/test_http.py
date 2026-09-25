@@ -49,9 +49,13 @@ class HttpTests(unittest.TestCase):
         code, body = self.request('/watch')
         self.assertEqual(code, 200)
         self.assertIn(b'/watch.js', body)
+        self.assertIn(b'/captions.en.vtt', body)
         code, body = self.request('/watch.js')
         self.assertEqual(code, 200)
         self.assertIn(b'currentTime', body)
+        with urllib.request.urlopen(self.base + '/captions.en.vtt', timeout=15) as response:
+            self.assertEqual(response.headers.get_content_type(), 'text/vtt')
+            self.assertTrue(response.read().startswith(b'WEBVTT\n'))
 
     def test_execute_edited_candidate_via_http(self):
         plan = load_plan('parcel', 'bridge')
