@@ -12,6 +12,7 @@ witness.failure.
 """
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -28,7 +29,8 @@ PARCEL_CONTRACT = ROOT / "ci" / "parcel-contract.json"
 BOB_PARCEL = ROOT / "ci" / "parcel-candidate.json"
 
 
-def _run_gate(plan: Path, output_dir: Path, contract: Path = CONTRACT) -> subprocess.CompletedProcess:
+def _run_gate(plan: Path, output_dir: Path, contract: Path = CONTRACT,
+              env: dict | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(CI_GATE),
          "--contract", str(contract),
@@ -38,6 +40,7 @@ def _run_gate(plan: Path, output_dir: Path, contract: Path = CONTRACT) -> subpro
         capture_output=True,
         text=True,
         encoding="utf-8",
+        env=env,
         timeout=300,
     )
 
@@ -94,6 +97,23 @@ class GateVerifiedPassTests(unittest.TestCase):
 
 
 class GateVerifiedBlockTests(unittest.TestCase):
+    def test_github_check_annotates_exact_failure_without_exposing_workflow_commands(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            result = _run_gate(LATE_BRIDGE, out, env={**os.environ, "GITHUB_ACTIONS": "true"})
+            report = json.loads((out / "report.json").read_text(encoding="utf-8"))
+            failure = report["witness"]["failure"]
+            row = next(key for key in failure["expected"]
+                       if failure["expected"][key] != failure["actual"].get(key))
+            annotations = [line for line in result.stdout.splitlines() if line.startswith("::error ")]
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(len(annotations), 1)
+            self.assertIn("Cutover verified data-safety block", annotations[0])
+            self.assertIn(report["witness"]["id"], annotations[0])
+            self.assertIn(str(row), annotations[0])
+            self.assertIn(str(failure["expected"][row]), annotations[0])
+            self.assertIn(str(failure["actual"].get(row)), annotations[0])
+
     def test_late_bridge_is_verified_block(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)

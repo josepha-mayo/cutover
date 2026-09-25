@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -57,6 +58,37 @@ def _classify(cli_exit: int | None, audit_exit: int | None) -> str:
     if cli_exit == 1 and audit_exit == 1:
         return "verified_block"
     return "unverified"
+
+
+def _emit_annotation(classification: str, plan: Path, report: dict,
+                     cli_exit: int | None, audit_exit: int | None) -> None:
+    """Place a bounded verdict on the PR's candidate file in GitHub Checks."""
+    if os.environ.get("GITHUB_ACTIONS") != "true" or classification == "verified_pass":
+        return
+    file = plan.as_posix()
+    if plan.is_absolute() or ".." in plan.parts or not re.fullmatch(r"[A-Za-z0-9_./-]+", file):
+        file = ".github/workflows/cutover-review.yml"
+    if classification == "verified_block":
+        witness = report.get("witness") or {}
+        failure = witness.get("failure") or {}
+        expected, actual = failure.get("expected") or {}, failure.get("actual") or {}
+        row = next((key for key in expected if expected.get(key) != actual.get(key)), None)
+        message = (f"Verified block: {report.get('passed')}/{report.get('total')} probes passed; "
+                   f"first witness {witness.get('id', 'unknown')}.")
+        if row is not None:
+            value = lambda item: json.dumps(item, ensure_ascii=False)
+            message += (f" Row {row}: expected {value(expected[row])}, "
+                        f"observed {value(actual.get(row))}.")
+        title = "Cutover verified data-safety block"
+    else:
+        message = (f"Unverified: CLI exit {cli_exit}, audit exit {audit_exit}. "
+                   "No passing result was established; inspect verdict.json and summary.md.")
+        title = "Cutover could not verify candidate"
+    # GitHub's workflow command protocol uses one log line. Escape values so
+    # imported payloads cannot create another command or annotation property.
+    def escape(value: str) -> str:
+        return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    print(f"::error file={escape(file)},title={title}::{escape(message[:500])}")
 
 
 def _read_report(report_path: Path) -> dict:
@@ -225,6 +257,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             summary_path.write_text(summary + "\n", encoding="utf-8")
             _append_step_summary(summary)
+            _emit_annotation("unverified", args.plan, {}, None, None)
             sys.stderr.write(f"ERROR: {label} file not found: {path}\n")
             return 2
 
@@ -296,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     summary_path.write_text(summary + "\n", encoding="utf-8")
     _append_step_summary(summary)
+    _emit_annotation(classification, args.plan, report, cli_exit, audit_exit)
 
     # ── Log to stdout for workflow visibility ──────────────────────────────
     print(f"classification: {classification}")

@@ -31,6 +31,7 @@ Parcel contract's default payloads into `ci/parcel-contract.json` for the
 imported-contract CLI path, and added a focused gate test.
 Bob authored the underlying gate and both repair candidates; the matrix
 integration and its verification are Codex work.
+Codex also added the hosted one-click negative mutation of Bob's Warehouse repair and GitHub Checks annotations after the Bob IDE tasks. The mutation is a synthetic falsification control; its fresh blocked result is not another Bob-authored candidate or an independent field incident.
 
 Three real GitHub pull-request runs exercised the gate after the Bob task: [unsafe blocked 108/124](https://github.com/josepha-mayo/cutover/actions/runs/36165105646), [safe reference passed 124/124](https://github.com/josepha-mayo/cutover/actions/runs/36165215088), and [regressed blocked 100/116](https://github.com/josepha-mayo/cutover/actions/runs/36165290677). Their exact PR-head candidates, downloaded JSON/Markdown/ZIP/verdict/summary artifacts, first witnesses, and independent replay were verified. The controlled PRs were closed after retaining the runs. Because GitHub may require sign-in to view job logs, a [public evidence mirror](../evidence/ci_controls/README.md) exposes the synthetic artifacts and SHA-256 digests. The control plans were written before kickoff and are test fixtures, not Bob-authored candidates.
 
