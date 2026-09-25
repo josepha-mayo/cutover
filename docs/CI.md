@@ -88,6 +88,13 @@ slug, then run `python -m ci.discover_cases` locally. No workflow YAML edit is
 needed. Contract and plan files are read-only inputs. One verified block makes
 its case check red while other cases still run and retain their evidence.
 
+For a browser-built custom scenario that passed a fresh rehearsal, click
+**Download PR gate kit**. Its ZIP contains `ci/` contract and candidate files,
+`manifest-entry.json`, and the executed report and review. Copy the two input
+files into this checkout, add the manifest object to `ci/cases.json`, run the
+local discovery command above, and open a PR. The kit includes its plan,
+contract and evaluator hashes; it does not approve production deployment.
+
 The [two-case control PR](https://github.com/josepha-mayo/cutover/pull/4)
 kept Warehouse's Bob-saved candidate but replaced Parcel's candidate with a
 prewritten unsafe plan. The [actual GitHub run](https://github.com/josepha-mayo/cutover/actions/runs/36183958224)

@@ -50,6 +50,41 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertIn(b'export function buildScenario', body)
 
+    def test_ci_kit_binds_a_passing_custom_plan_to_gate_inputs(self):
+        contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
+        plan = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))
+        from cutover.service import run_rehearsal
+        report = run_rehearsal('custom', plan, contract)
+        request = {'case': 'custom', 'plan': plan, 'contract': contract,
+                   'plan_hash': report['plan_hash'],
+                   'contract_hash': report['contract_hash']}
+        code, body = self.request('/api/ci-kit', request)
+        self.assertEqual(code, 200)
+        with zipfile.ZipFile(io.BytesIO(body)) as archive:
+            entry = json.loads(archive.read('manifest-entry.json'))
+            self.assertEqual(entry['slug'], 'release-warehouse-bin-relocation')
+            self.assertEqual(json.loads(archive.read(entry['contract'])), contract)
+            self.assertEqual(json.loads(archive.read(entry['plan'])), plan)
+            retained = json.loads(archive.read('evidence/report.json'))
+            self.assertEqual((retained['status'], retained['passed'], retained['total']),
+                             ('pass', 124, 124))
+            verify_report_against_replay('custom', plan, retained, contract)
+            with tempfile.TemporaryDirectory() as directory:
+                from ci.discover_cases import discover
+                root = Path(directory)
+                for name in (entry['contract'], entry['plan']):
+                    target = root / name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.read(name))
+                (root / 'ci/cases.json').write_text(json.dumps([entry]), encoding='utf-8')
+                self.assertEqual(discover(root)['include'], [entry])
+        altered = {**request, 'plan_hash': '0' * 64}
+        self.assertEqual(self.request('/api/ci-kit', altered)[0], 400)
+        blocked_plan = json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))
+        blocked = run_rehearsal('custom', blocked_plan, contract)
+        self.assertEqual(self.request('/api/ci-kit', {
+            **request, 'plan': blocked_plan, 'plan_hash': blocked['plan_hash']})[0], 400)
+
     def test_watch_chapter_script_is_served(self):
         code, body = self.request('/watch')
         self.assertEqual(code, 200)

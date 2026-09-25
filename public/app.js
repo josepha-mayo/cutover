@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
 let pinnedReport = null, proofTourBusy = false;
 let bundleBusy = false;
+let ciKitBusy = false;
 let comparisonBusy = false;
 let importedContract = null, importedMeta = null, customPlan = null, customPlanSource = null;
 let candidateSource = '', candidateProvenance = 'custom candidate', customPlanProvenance = null;
@@ -53,6 +54,7 @@ function setBusy(value, label='Executing SQL rehearsals…') {
 
 function invalidate() {
   report=null; selected=null;
+  $('export-ci-kit').hidden=true;
   $('status-badge').textContent='NOT RUN'; $('status-badge').className='status-badge';
   $('verdict-title').textContent='Ready to rehearse.';
   $('verdict-description').textContent='This candidate has not been executed. Run it to produce fresh evidence.';
@@ -247,6 +249,8 @@ function renderReport() {
   const gap=rowId===undefined?'':`<p class="witness-gap">Row ${escape(rowId)} · ledger expected <strong>${escape(value(failedRead.expected[rowId]))}</strong>; ${escape(failedRead.action)} observed <strong>${escape(value(failedRead.actual[rowId]))}</strong>.</p>`;
   $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p>${gap}</div>`;
   $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('export-bundle').disabled=bundleBusy; $('brief').disabled=false;
+  $('export-ci-kit').hidden=!(report.case==='custom'&&report.status==='pass');
+  $('export-ci-kit').disabled=ciKitBusy;
   $('hashes').textContent=`Plan SHA-256: ${report.plan_hash} · Contract SHA-256: ${report.contract_hash} · Suite SHA-256: ${report.suite_hash}`;
   renderComparison();
   renderWindowMap(); renderMatrix(); renderTrace(witness || report.results.find(r=>r.id==='new_to_old-0'));
@@ -373,6 +377,30 @@ $('export-bundle').addEventListener('click',async()=>{
     notify('Review packet downloaded from a fresh server rehearsal.');
   }catch(error){notify(error.message);}
   finally{bundleBusy=false;button.textContent='Download review packet ↓';button.disabled=!report;}
+});
+$('export-ci-kit').addEventListener('click',async()=>{
+  if(!report||report.case!=='custom'||report.status!=='pass'||ciKitBusy)return;
+  const snapshot=report, button=$('export-ci-kit');
+  const request={case:'custom',contract:importedContract,plan:snapshot.plan,
+    plan_hash:snapshot.plan_hash,contract_hash:snapshot.contract_hash};
+  ciKitBusy=true;button.disabled=true;button.textContent='Verifying CI kit…';
+  try {
+    const body=JSON.stringify(request);
+    if(new Blob([body]).size>65536)throw Error('Contract and plan exceed the 64 KiB hosted request limit. Use the local CLI.');
+    const response=await fetch('/api/ci-kit',{method:'POST',headers:{'Content-Type':'application/json'},body});
+    if(!response.ok){const data=await response.json();throw Error(data.error||'CI kit could not be built.');}
+    if(response.headers.get('Content-Type')!=='application/zip'||
+       response.headers.get('X-Cutover-Plan-SHA256')!==snapshot.plan_hash||
+       response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
+       response.headers.get('X-Cutover-Status')!=='pass'||
+       response.headers.get('X-Cutover-Coverage')!==`${snapshot.passed}/${snapshot.total}`)
+      throw Error('Fresh CI kit replay differs from the displayed result. Rerun the candidate first.');
+    const packet=await response.blob();
+    if(report!==snapshot)throw Error('The displayed candidate changed. Rerun it before exporting.');
+    download(`cutover-${fileSlug(importedContract.project)}-ci-kit.zip`,packet,'application/zip');
+    notify('CI kit downloaded with a fresh passing report, candidate, contract and manifest entry.');
+  }catch(error){notify(error.message);}
+  finally{ciKitBusy=false;button.textContent='Download PR gate kit ↓';button.disabled=!report||report.status!=='pass';}
 });
 $('export-comparison').addEventListener('click',async()=>{
   if(!report||!pinnedReport||busy||comparisonBusy)return;
