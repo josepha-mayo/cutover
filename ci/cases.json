@@ -1,0 +1,14 @@
+[
+  {
+    "case": "Warehouse",
+    "slug": "warehouse",
+    "contract": "examples/warehouse/contract.json",
+    "plan": "ci/candidate.json"
+  },
+  {
+    "case": "Parcel",
+    "slug": "parcel",
+    "contract": "ci/parcel-contract.json",
+    "plan": "ci/parcel-candidate.json"
+  }
+]

@@ -59,8 +59,10 @@ the first failing probe).
 
 The workflow is at [`.github/workflows/cutover-review.yml`](../.github/workflows/cutover-review.yml).
 It triggers on `pull_request` with read-only repository permissions and no
-secrets. Its matrix runs two independent jobs, one per contract/plan pair.
-Each job has exactly four steps:
+secrets. A discovery job validates `ci/cases.json` and every checked-in input,
+then creates one independent review job per contract/plan pair. A malformed,
+empty, duplicate, missing-path, or unsafe-path manifest fails the discovery
+job instead of creating an empty green review. Each review job has four steps:
 
 1. `actions/checkout@v4`
 2. `actions/setup-python@v5` (Python 3.12)
@@ -74,26 +76,17 @@ needed.
 
 ### Input paths
 
-Add one entry per checked-in release to `strategy.matrix.include`:
+Add one entry per checked-in release to [`ci/cases.json`](../ci/cases.json):
 
-```yaml
-strategy:
-  fail-fast: false
-  matrix:
-    include:
-      - case: Warehouse
-        slug: warehouse
-        contract: examples/warehouse/contract.json
-        plan: ci/candidate.json
-      - case: Parcel
-        slug: parcel
-        contract: ci/parcel-contract.json
-        plan: ci/parcel-candidate.json
+```json
+{"case":"Warehouse","slug":"warehouse","contract":"examples/warehouse/contract.json","plan":"ci/candidate.json"}
 ```
 
-Add or replace paths to adapt the workflow for another repository. The
-contract and plan files are read-only inputs. One verified block makes its
-case check red while other cases still run and retain their evidence.
+The JSON file is an array of one to eight entries. Put new checked-in contract
+and plan JSON beside the existing inputs, add their paths and a unique lowercase
+slug, then run `python -m ci.discover_cases` locally. No workflow YAML edit is
+needed. Contract and plan files are read-only inputs. One verified block makes
+its case check red while other cases still run and retain their evidence.
 
 The [two-case control PR](https://github.com/josepha-mayo/cutover/pull/4)
 kept Warehouse's Bob-saved candidate but replaced Parcel's candidate with a
