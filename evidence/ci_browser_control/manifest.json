@@ -1,0 +1,47 @@
+{
+  "source_run": "https://github.com/josepha-mayo/cutover/actions/runs/36192747474",
+  "source_pr": "https://github.com/josepha-mayo/cutover/pull/7",
+  "source_head": "e09b89680b419ca244490471ad5984a755cd38b5",
+  "cases": {
+    "warehouse": {
+      "contract": "examples/warehouse/contract.json",
+      "plan": "ci/candidate.json",
+      "coverage": "116/116",
+      "plan_hash": "930c2f30ccd10a81bc34cffc23dbcdceb45d60885d1609ac1a2aa698baa74da6",
+      "contract_hash": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5"
+    },
+    "parcel": {
+      "contract": "ci/parcel-contract.json",
+      "plan": "ci/parcel-candidate.json",
+      "coverage": "116/116",
+      "plan_hash": "4d54ca78ffc24cc6b4b2e140dc2a4368244e801ab3326edd3b45f89d65b385c5",
+      "contract_hash": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418"
+    },
+    "custom": {
+      "contract": "work/ci-third-case-control/ci/release-my-release-contract.json",
+      "plan": "work/ci-third-case-control/ci/release-my-release-candidate.json",
+      "coverage": "124/124",
+      "plan_hash": "094e61d8f32f2dc6b2204b41316fb719acbfcfadf30ba9d791254607f65ea42d",
+      "contract_hash": "f623f640609056afcbb25a2b59b1aa7d0356c0a4477b8656b9c4e8f02e68798d"
+    }
+  },
+  "file_sha256": {
+    "custom/candidate.json": "658253c8a66e172d113beeb8a1bfcee346d4f5f76c45dae3719488751dc110ae",
+    "custom/contract.json": "4c6410ed8e8f43b0840f2f9b057531e10dd98fd0b86baba66de8d1f3ed09d11c",
+    "custom/report.json": "72d9b6c5b88a3227d5d5c8027dac0fdc6b16815177fb35763176fb342a553510",
+    "custom/review.md": "dcbac587fad189c81ccac56c73800e41c67670693adfc9f160f7b14432f97978",
+    "custom/review.zip": "25036fdefe15d2b7690de57a978e2bb2de18b1ea9a041ffd649d9e7eeab79abe",
+    "custom/summary.md": "cc7614212567115f2be1897b0c608aeae4c45eeb0873fbbfe64296c315c13999",
+    "custom/verdict.json": "2ae3e8de8cc9db87cd5c0cdf84621d73e4d8f90eb50964ac10e881f31ae3e2ca",
+    "parcel/report.json": "c69579e0e31b5c6ed066283a114feed98f6fd507f46b5f09ec956d869901c726",
+    "parcel/review.md": "a50ca055657f28595812ba6f92d98d6347cb6496fd77b146762a6e6a248a47f7",
+    "parcel/review.zip": "922dbd592518a7022eefec703a3f67546b9b510d18986e6ec6d37e6dd8ef541d",
+    "parcel/summary.md": "9d8a4b37eb2daa343fb839e679c6f996dc3dc335cbcb07751a40c5e89e2741ea",
+    "parcel/verdict.json": "690418a2259623f8d6253a2cd927b01ac6a061ee8690c7cfd8cb9c1a07563c1c",
+    "warehouse/report.json": "76c75d64048915efa4bbb8668289c134ae052dd7c7c7ebea4245cd676399ad7d",
+    "warehouse/review.md": "64eaebc576539670fd21c04c3b651702596521fce7be6110bc72ef2af15b3519",
+    "warehouse/review.zip": "fbcdc00cfc56bc64cca3824a948bf9f3696604a3f1feabe05e31122502a7cff7",
+    "warehouse/summary.md": "3f08869185e49a57b96a1947524b036d8223b8b36e63dbc6b0aee16122d6ac87",
+    "warehouse/verdict.json": "88c25906a8cf4c35913152a4c53aefd8f7a5231cfda60c682bf8ae70bc411bde"
+  }
+}

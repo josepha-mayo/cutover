@@ -1,0 +1,7 @@
+{
+  "name": "Generated compatibility bridge · verify before use",
+  "migration": "ALTER TABLE \"items\" ADD COLUMN \"destination\" TEXT;\nCREATE TRIGGER cutover_old_update AFTER UPDATE OF \"location\" ON \"items\"\nWHEN NEW.\"location\" IS NOT NEW.\"destination\"\nBEGIN\n  UPDATE \"items\" SET \"destination\" = NEW.\"location\" WHERE id = NEW.id;\nEND;\nCREATE TRIGGER cutover_new_update AFTER UPDATE OF \"destination\" ON \"items\"\nWHEN NEW.\"destination\" IS NOT NEW.\"location\"\nBEGIN\n  UPDATE \"items\" SET \"location\" = NEW.\"destination\" WHERE id = NEW.id;\nEND;\nCREATE TRIGGER cutover_old_insert AFTER INSERT ON \"items\"\nWHEN NEW.\"destination\" IS NULL\nBEGIN\n  UPDATE \"items\" SET \"destination\" = NEW.\"location\" WHERE id = NEW.id;\nEND;\nUPDATE \"items\" SET \"destination\" = \"location\";",
+  "read": "SELECT id, \"destination\" AS value FROM \"items\" ORDER BY id",
+  "write": "UPDATE \"items\" SET \"destination\" = :value WHERE id = :id",
+  "insert": "INSERT INTO \"items\" (id, \"location\", \"destination\") VALUES (:id, :value, :value)"
+}
