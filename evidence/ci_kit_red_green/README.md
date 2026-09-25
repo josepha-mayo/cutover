@@ -1,7 +1,7 @@
 # Browser-built red/green CI kit
 
 [`cutover-my-release-ci-kit.zip`](cutover-my-release-ci-kit.zip) is the exact
-download produced by the local Cutover browser after submitting the guided
+download produced by the live Render-hosted Cutover browser after submitting the guided
 synthetic `items.location` → `items.destination` scenario on September 25,
 2026. The user-selected incoming old-worker write was `R-07`; the unsafe
 one-time backfill's first failing new read returned `A-01`. The generated
@@ -11,7 +11,7 @@ are Codex event work, not IBM Bob-authored code.
 The archive contains the contract, passing candidate, blocked baseline,
 manifest entry, both executed reports and reviews, and a standalone failing
 witness. Its SHA-256 is
-`8d6e551d0a7635c80926ef85df88edfde14483df0eacd26271066711337b278`.
+`987eca5db34569563a85821146c3ad7558ab258360f99d2dbc6b3135dc0ac1ac`.
 The extracted plans were run through `ci/review_gate.py` in this repository:
 
 | Control | Independent gate verdict | Coverage | Plan hash prefix |
