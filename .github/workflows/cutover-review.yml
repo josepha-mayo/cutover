@@ -1,0 +1,49 @@
+name: Cutover candidate review
+
+# Pull-request gate: run the Cutover CLI and independent audit against the
+# checked-in contract and candidate plan.  Evidence artifacts are uploaded
+# unconditionally so a blocked or unverified run still provides a full record.
+#
+# Replace CONTRACT_PATH and PLAN_PATH below to adapt this workflow for a
+# different repository.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CONTRACT_PATH: examples/warehouse/contract.json
+  PLAN_PATH: ci/candidate.json
+  OUTPUT_DIR: work/ci-review
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Cutover review gate
+        run: >
+          python ci/review_gate.py
+          --contract "${{ env.CONTRACT_PATH }}"
+          --plan "${{ env.PLAN_PATH }}"
+          --output-dir "${{ env.OUTPUT_DIR }}"
+
+      - name: Upload review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cutover-review-evidence
+          path: |
+            ${{ env.OUTPUT_DIR }}/report.json
+            ${{ env.OUTPUT_DIR }}/review.md
+            ${{ env.OUTPUT_DIR }}/review.zip
+            ${{ env.OUTPUT_DIR }}/summary.md
+            ${{ env.OUTPUT_DIR }}/verdict.json
+          if-no-files-found: warn

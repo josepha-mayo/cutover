@@ -1,0 +1,15 @@
+{
+  "provenance": "Human-reviewed additional event-period IBM Bob IDE task",
+  "bob_task_id": "9aa1e2a2ae601940eb12f45bd6c2bf59",
+  "task_number": 2,
+  "task_slug": "ci_review_gate",
+  "bob_first_event_utc": "2026-09-25T16:24:08+00:00",
+  "bob_last_event_utc": "2026-09-25T17:03:48+00:00",
+  "source_revision": "5c7403bf880503284736294b82b229c74493c26e",
+  "ide_summary": "bob_sessions/cutover_task02_ci_review_gate_9aa1e2a2_summary.png",
+  "ide_summary_sha256": "bfac8f9ccb1ac4cb5aa81967e9a5e9b02e830b16f8f1439ad623458546f82729",
+  "ide_history": "bob_sessions/cutover_task02_ci_review_gate_9aa1e2a2_history.md",
+  "ide_history_sha256": "e287ee8a38fd4aca69e1c544bd456f5d5b427c004683efbc652f65ddcf73f77c",
+  "ide_history_kind": "ide_export",
+  "limits": "PNG and task record support provenance after human review; inspect saved files separately."
+}
