@@ -1,0 +1,24 @@
+{
+  "source_run": "https://github.com/josepha-mayo/cutover/actions/runs/36196962880",
+  "source_pr": "https://github.com/josepha-mayo/cutover/pull/8",
+  "source_head": "472728f3a47c434f131fbf226a0c0d931cb83a1e",
+  "source_general_checks": "https://github.com/josepha-mayo/cutover/actions/runs/36196962914",
+  "first_failed_general_checks": "https://github.com/josepha-mayo/cutover/actions/runs/36196643824",
+  "file_sha256": {
+    "cutover-parcel-review-evidence/report.json": "9aa93cac32d9f2473121f1734fc0bdc29243068cc14bf704b8c1da66ef84ce2e",
+    "cutover-parcel-review-evidence/review.md": "7d9b2ecc6639af32783d76669a31b2d81c0265f9700d9bdf86637cd99a078115",
+    "cutover-parcel-review-evidence/review.zip": "eb61bbf74e1f734252a4d2e53c4c1a6ea8bdfc4f9284a834c52a4fa622437a83",
+    "cutover-parcel-review-evidence/summary.md": "9d8a4b37eb2daa343fb839e679c6f996dc3dc335cbcb07751a40c5e89e2741ea",
+    "cutover-parcel-review-evidence/verdict.json": "690418a2259623f8d6253a2cd927b01ac6a061ee8690c7cfd8cb9c1a07563c1c",
+    "cutover-release-my-release-review-evidence/report.json": "10a5dbb25044f4bd32630b90b8178a01b1e177952344a50158778159fde070d1",
+    "cutover-release-my-release-review-evidence/review.md": "9bdadf11e77f8fbb4b6b8fa7f41d0c36df8bf1f2b52358b71468723f83f1d295",
+    "cutover-release-my-release-review-evidence/review.zip": "fdb0d84b0890ea59e1004b3176cda0e0e9f9c053f6dcffe9747735e92ea7f9fa",
+    "cutover-release-my-release-review-evidence/summary.md": "bd06fd4d0e1ec126ea1376a493db3e22a9a20550b8554b0754898e10df27671a",
+    "cutover-release-my-release-review-evidence/verdict.json": "c71f3f9f3dcf55d8c53e9a69df3389b2b8c64227277554a7501c6d20ea2f73c1",
+    "cutover-warehouse-review-evidence/report.json": "3a3165b7a6a5ae34f962468174aeec05ec1b55b6817fd0589afcce55c2a2a029",
+    "cutover-warehouse-review-evidence/review.md": "54f6dc64a2ab41fa8b15c51ba906b5293d44d7ae311786e36055051b9947f6df",
+    "cutover-warehouse-review-evidence/review.zip": "65f15d6617a84db5655caa3ed475e5adfe050d91390bdd21d68eeb7df8c0b6a8",
+    "cutover-warehouse-review-evidence/summary.md": "3f08869185e49a57b96a1947524b036d8223b8b36e63dbc6b0aee16122d6ac87",
+    "cutover-warehouse-review-evidence/verdict.json": "88c25906a8cf4c35913152a4c53aefd8f7a5231cfda60c682bf8ae70bc411bde"
+  }
+}
