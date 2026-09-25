@@ -6,7 +6,7 @@ name: Cutover candidate review
 # Evidence artifacts are uploaded
 # unconditionally so a blocked or unverified run still provides a full record.
 #
-# Add contract/plan pairs to the matrix below to adapt this workflow.
+# Add validated contract/plan pairs to ci/cases.json; no YAML edit is needed.
 
 on:
   pull_request:
@@ -15,21 +15,27 @@ permissions:
   contents: read
 
 jobs:
+  discover:
+    name: Validate release cases
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.cases.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - id: cases
+        name: Validate manifest and case inputs
+        run: python -m ci.discover_cases --github-output "$GITHUB_OUTPUT"
+
   review:
     name: Review ${{ matrix.case }}
+    needs: discover
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - case: Warehouse
-            slug: warehouse
-            contract: examples/warehouse/contract.json
-            plan: ci/candidate.json
-          - case: Parcel
-            slug: parcel
-            contract: ci/parcel-contract.json
-            plan: ci/parcel-candidate.json
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
