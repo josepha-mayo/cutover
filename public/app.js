@@ -18,6 +18,12 @@ function notify(message) { $('toast').textContent = message; $('toast').hidden =
 function download(name, content, type='application/json') { const url = URL.createObjectURL(new Blob([content], {type})); const a = document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); }
 function updateModeControls() {
   const custom=activeCase?.id==='custom';
+  const bobRepair=custom&&candidateProvenance==='event IBM Bob IDE candidate';
+  $('candidate-heading').textContent=bobRepair?"Bob's saved repair.":custom?'Inspect a candidate.':'Choose a rollout.';
+  $('candidate-intro-title').textContent=bobRepair?'Event-period IBM Bob IDE candidate':'Your candidate plan';
+  $('candidate-intro-copy').textContent=bobRepair
+    ? report?`Fresh replay complete: ${report.passed}/${report.total} bounded probes. Inspect the verdict and task history, or edit the SQL and rerun.`:'This is Bob\'s saved Warehouse plan. Run it against a fresh SQLite contract to verify the result.'
+    :'Import a five-field plan JSON below, or enter its migration and new-version queries in the editor. No verdict appears until you run it.';
   $('plan-options').hidden=custom; $('custom-plan-intro').hidden=!custom; $('save-contract').hidden=!custom;
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||custom);
   $('try-cross-record').disabled=busy||custom;
