@@ -13,16 +13,19 @@ const currentPlan = () => Object.fromEntries(Object.entries(fields).map(([key, i
 const emptyPlan = () => Object.fromEntries(Object.keys(fields).map(key => [key, '']));
 const candidateReady = () => Object.values(currentPlan()).every(value => value.trim());
 const fileSlug = value => String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'contract';
+const bobInsertBridge = 'CREATE TRIGGER sync_insert_to_fulfillment AFTER INSERT ON stock_items\nWHEN NEW.fulfillment_bin IS NULL\nBEGIN\n  UPDATE stock_items SET fulfillment_bin = NEW.pick_bin WHERE id = NEW.id;\nEND;';
 
 function notify(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(notify.timer); notify.timer = setTimeout(() => $('toast').hidden = true, 5000); }
 function download(name, content, type='application/json') { const url = URL.createObjectURL(new Blob([content], {type})); const a = document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); }
 function updateModeControls() {
   const custom=activeCase?.id==='custom';
   const bobRepair=custom&&candidateProvenance==='event IBM Bob IDE candidate';
-  $('candidate-heading').textContent=bobRepair?"Bob's saved repair.":custom?'Inspect a candidate.':'Choose a rollout.';
-  $('candidate-intro-title').textContent=bobRepair?'Event-period IBM Bob IDE candidate':'Your candidate plan';
+  const challenge=custom&&candidateProvenance==='controlled mutation of Bob repair';
+  $('candidate-heading').textContent=bobRepair?"Bob's saved repair.":challenge?'Challenge the repair.':custom?'Inspect a candidate.':'Choose a rollout.';
+  $('candidate-intro-title').textContent=bobRepair?'Event-period IBM Bob IDE candidate':challenge?'Controlled negative mutation':'Your candidate plan';
   $('candidate-intro-copy').textContent=bobRepair
     ? report?`Fresh replay complete: ${report.passed}/${report.total} bounded probes. Inspect the verdict and task history, or edit the SQL and rerun.`:'This is Bob\'s saved Warehouse plan. Run it against a fresh SQLite contract to verify the result.'
+    :challenge?'The old-insert synchronization write was replaced with SELECT 1. The fresh replay shows whether a new reader loses an acknowledged insert; the original Bob repair is pinned for comparison.'
     :'Import a five-field plan JSON below, or enter its migration and new-version queries in the editor. No verdict appears until you run it.';
   $('plan-options').hidden=custom; $('custom-plan-intro').hidden=!custom; $('save-contract').hidden=!custom;
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||custom);
@@ -63,6 +66,14 @@ function invalidate() {
 function renderComparison() {
   const tools=$('comparison-tools'), panel=$('comparison-panel');
   const timeline=$('comparison-timeline');
+  const challengeReady=report?.status==='pass'&&report.case==='custom'&&
+    candidateProvenance==='event IBM Bob IDE candidate'&&
+    report.plan.migration.split(bobInsertBridge).length===2;
+  $('challenge-bob').hidden=!challengeReady;
+  $('challenge-bob').disabled=busy;
+  $('comparison-challenge-note').hidden=candidateProvenance!=='controlled mutation of Bob repair';
+  if(!$('comparison-challenge-note').hidden)
+    $('comparison-challenge-note').textContent='Controlled negative mutation: the old-insert trigger still exists, but its synchronization write was replaced by SELECT 1. This is Codex-built challenge evidence, not a Bob-authored repair.';
   timeline.hidden=true;
   $('comparison-witness').hidden=true;
   $('comparison-baseline-replay').hidden=true;
@@ -126,8 +137,8 @@ function renderComparison() {
   }
   $('comparison-metrics').innerHTML=`<div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES RESOLVED</span><strong>${resolved}</strong></div><div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES REGRESSED</span><strong class="${regressed?'red':''}">${regressed}</strong></div><div><span>MIGRATION WINDOW FAILURES</span><strong>${oldWindows.total-oldWindows.passed} → ${newWindows.total-newWindows.passed}</strong><small>${oldWindows.total} → ${newWindows.total} boundary probes, ${sameMigration?'paired':'evaluated separately'}</small></div>`;
   const firstWindow=report.results.find(item=>item.category==='migration_window'&&!item.passed);
-  const links=firstRegression.map(item=>`<button type="button" data-comparison-probe="${escape(item.id)}">New regression: ${escape(item.title)} ↗</button>`);
-  if(firstWindow&&!firstRegression.some(item=>item.id===firstWindow.id))links.push(`<button type="button" data-comparison-probe="${escape(firstWindow.id)}">Candidate window witness: ${escape(firstWindow.title)} ↗</button>`);
+  const links=firstRegression.map(item=>`<button type="button" data-comparison-probe="${escape(item.id)}">New regression: ${escape(item.title)} · input ${escape(JSON.stringify(item.payload))} ↗</button>`);
+  if(firstWindow&&!firstRegression.some(item=>item.id===firstWindow.id))links.push(`<button type="button" data-comparison-probe="${escape(firstWindow.id)}">Candidate window witness: ${escape(firstWindow.title)} · input ${escape(JSON.stringify(firstWindow.payload))} ↗</button>`);
   $('comparison-changes').innerHTML=links.length?`<span>INSPECT THE CANDIDATE REPLAY</span>${links.join('')}`:'<span>No newly failing paired probe or candidate window witness.</span>';
   $('comparison-changes').querySelectorAll('[data-comparison-probe]').forEach(button=>button.addEventListener('click',()=>{
     const probe=report.results.find(item=>item.id===button.dataset.comparisonProbe);
@@ -307,6 +318,27 @@ async function showBob() {
 $('run').addEventListener('click',run);
 $('pin-baseline').addEventListener('click',()=>{if(!report||busy)return;pinnedReport=report;renderComparison();notify('Baseline pinned in this browser tab. Run another candidate to compare.');});
 $('clear-baseline').addEventListener('click',()=>{pinnedReport=null;renderComparison();notify('Comparison baseline cleared.');});
+$('challenge-bob').addEventListener('click',async()=>{
+  if(busy||report?.status!=='pass'||candidateProvenance!=='event IBM Bob IDE candidate')return;
+  const original=report;
+  const pieces=original.plan.migration.split(bobInsertBridge);
+  if(pieces.length!==2){notify('The saved Bob repair has changed; load it again before challenging it.');return;}
+  const brokenTrigger=bobInsertBridge.replace(
+    'UPDATE stock_items SET fulfillment_bin = NEW.pick_bin WHERE id = NEW.id;', 'SELECT 1;');
+  const mutated={...original.plan,
+    name:'Warehouse: old-insert bridge disabled (controlled regression)',
+    migration:pieces[0]+brokenTrigger+pieces[1]};
+  pinnedReport=original;
+  reference=null;
+  setPlan(mutated,'Controlled mutation of Bob repair · old-insert synchronization disabled',
+          'controlled mutation of Bob repair');
+  await run();
+  if(report?.status==='blocked'&&report.contract_hash===original.contract_hash&&
+     report.engine_sha256===original.engine_sha256&&report.suite_hash===original.suite_hash){
+    $('comparison-panel').scrollIntoView({behavior:'smooth',block:'center'});
+    notify('Bob repair 116/116 → controlled regression '+report.passed+'/'+report.total+'. Inspect the lost inserted row.');
+  }else notify('The challenge did not produce the expected verified block; inspect both reports.');
+});
 $('case').addEventListener('change',chooseCase);
 document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference=button.dataset.plan;setPlan(activeCase.plans[reference],'Editable reference · not AI generated');}));
 $('try-cross-record').addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference='cross_record';setPlan(activeCase.plans.cross_record,'Prewritten negative control · not AI generated');run();});
