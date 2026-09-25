@@ -25,3 +25,8 @@ alone is listed in `manifest-entry.json`; the unsafe control is deliberately
 excluded from a normal green PR. This is a synthetic SQLite demonstration,
 not a production deployment approval. See the [controlled three-case PR](../ci_browser_control/README.md)
 for a separate GitHub-hosted check using a browser-built kit.
+
+The current checkout also offers `python -m ci.install_kit --kit PATH_TO_ZIP`
+as a no-write preflight. After reviewing its hashes and target file list,
+repeat with `--apply` to add the passing case to `ci/cases.json`. The installer
+never adds the unsafe control to the green manifest.

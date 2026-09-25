@@ -24,9 +24,14 @@ def render_ci_kit(report, contract, control=None):
         f"Plan SHA-256: {report['plan_hash']}\n"
         f"Contract SHA-256: {report['contract_hash']}\n"
         f"Engine SHA-256: {report['engine_sha256']}\n\n"
-        'From a checkout of the Cutover repository, copy the two JSON files under\n'
-        '`ci/` into the matching paths. Add the object in `manifest-entry.json`\n'
-        'to the `ci/cases.json` array; choose a unique slug if needed. Run:\n\n'
+        'From a checkout of the Cutover repository, verify this downloaded ZIP\n'
+        'and preview the files it would add, then apply it explicitly:\n\n'
+        '    python -m ci.install_kit --kit path/to/downloaded-kit.zip\n'
+        '    python -m ci.install_kit --kit path/to/downloaded-kit.zip --apply\n\n'
+        'The installer rejects path or slug collisions, independently replays\n'
+        'the report (and unsafe control, if present), then adds only the passing\n'
+        'inputs and one manifest entry. Or copy the two JSON files under `ci/`\n'
+        'and append `manifest-entry.json` to `ci/cases.json` manually. Run:\n\n'
         '    python -m ci.discover_cases\n'
         f'    python -m cutover.audit_report --contract {contract_name} '
         f'--plan {plan_name} --report evidence/report.json\n\n'

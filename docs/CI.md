@@ -100,6 +100,14 @@ the passing candidate and expect `verified_pass`/exit 0. The README inside the
 kit gives exact commands. The unsafe control is not added to the green PR
 manifest. Neither result approves production deployment.
 
+For a checked handoff with no manual manifest edit, run
+`python -m ci.install_kit --kit path/to/kit.zip` in this repository. It writes
+nothing during that dry run and independently replays both reports when the
+unsafe control is present. Review its file list, then repeat with `--apply`.
+The installer rejects duplicates, unsafe paths, invalid evidence, a ninth
+case, and overwrites; it adds only the passing contract and candidate to
+`ci/cases.json`. Commit those three resulting files in a PR.
+
 The [two-case control PR](https://github.com/josepha-mayo/cutover/pull/4)
 kept Warehouse's Bob-saved candidate but replaced Parcel's candidate with a
 prewritten unsafe plan. The [actual GitHub run](https://github.com/josepha-mayo/cutover/actions/runs/36183958224)
