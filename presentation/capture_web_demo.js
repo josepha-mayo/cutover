@@ -7,8 +7,8 @@ const { chromium } = require(process.env.CUTOVER_PLAYWRIGHT_MODULE || 'playwrigh
 const url = process.argv[2] || 'https://cutover-rehearsal.onrender.com/';
 const output = path.resolve(process.argv[3] || 'work/cutover-browser-draft.webm');
 const scene = process.argv[4] || 'late';
-const minSeconds = Number(process.argv[5] || ({ direct: 23, late: 52, trap: 30, warehouse: 28, candidate: 40 }[scene]));
-if (!['direct', 'late', 'trap', 'warehouse', 'candidate'].includes(scene)) throw new Error('Scene must be direct, late, trap, warehouse, or candidate');
+const minSeconds = Number(process.argv[5] || ({ direct: 23, late: 52, trap: 30, warehouse: 28, candidate: 40, timeline: 20 }[scene]));
+if (!['direct', 'late', 'trap', 'warehouse', 'candidate', 'timeline'].includes(scene)) throw new Error('Scene must be direct, late, trap, warehouse, candidate, or timeline');
 if (!Number.isFinite(minSeconds) || minSeconds < 8 || minSeconds > 120) {
   throw new Error('Capture duration must be 8–120 seconds');
 }
@@ -92,6 +92,25 @@ async function main() {
         await context.close();
         await video.saveAs(output);
         console.log(JSON.stringify({output, ...result}));
+        return;
+      }
+      if (scene === 'timeline') {
+        await page.locator('#run').click();
+        await page.locator('#probe-count').filter({ hasText: '108 / 124' }).waitFor({ timeout: 120000 });
+        await page.locator('#pin-baseline').click();
+        await page.locator('[data-plan="bridge"]').click();
+        await page.locator('#run').click();
+        await page.locator('#probe-count').filter({ hasText: '124 / 124' }).waitFor({ timeout: 120000 });
+        if ((await page.locator('#comparison-metrics > div:last-child strong').innerText()) !== '16 → 0') {
+          throw new Error('The executed window comparison did not reproduce 16 → 0');
+        }
+        await page.locator('#comparison-timeline > summary').click();
+        await page.locator('#comparison-timeline').scrollIntoViewIfNeeded();
+        await page.locator('#toast').waitFor({ state: 'hidden', timeout: 10000 });
+        await page.waitForTimeout(Math.max(5000, minSeconds * 1000 - (Date.now() - started)));
+        await context.close();
+        await video.saveAs(output);
+        console.log(JSON.stringify({ output, selected: 'Late bridge → compatibility bridge', boundary_failures: '16 → 0' }));
         return;
       }
       if (scene === 'direct') await page.locator('[data-plan="rename"]').click();
