@@ -403,8 +403,9 @@ $('try-warehouse').addEventListener('click',async()=>{
     $('verdict-description').textContent=error.message; notify(error.message);
   } finally {setBusy(false);}
 });
-$('try-bob-repair').addEventListener('click',async()=>{
+async function loadBobRepair(runImmediately=false) {
   if(busy)return;
+  let loaded=false;
   setBusy(true,'Loading Bob repair…'); invalidate(); $('status-badge').textContent='LOADING REPAIR';
   try {
     const response=await fetch('/api/example/bob-repair');
@@ -413,11 +414,14 @@ $('try-bob-repair').addEventListener('click',async()=>{
     reference=null;
     setPlan(data.plan,`IBM Bob IDE repair · prior independent replay ${data.coverage} · run here to verify`,'event IBM Bob IDE candidate');
     $('bob-evidence-link').hidden=false;
-    notify('Bob\'s saved repair loaded. Run a fresh rehearsal, or pin the unsafe result first to compare.');
+    loaded=true;
+    if(!runImmediately)notify('Bob\'s saved repair loaded. Run a fresh rehearsal, or pin the unsafe result first to compare.');
   } catch(error) {
     $('status-badge').textContent='REPAIR ERROR'; $('verdict-title').textContent='Bob repair not loaded.';
     $('verdict-description').textContent=error.message; notify(error.message);
   } finally {setBusy(false);}
-});
-try {const response=await fetch('/api/catalog');if(!response.ok)throw Error('Could not load sample projects.');catalog=await response.json();$('case').innerHTML=catalog.cases.map(c=>`<option value="${c.id}">${escape(c.project)}</option>`).join('');chooseCase();}
+  if(runImmediately){if(loaded)await run();document.querySelector('.result-panel').scrollIntoView({block:'start'});}
+}
+$('try-bob-repair').addEventListener('click',()=>loadBobRepair());
+try {const response=await fetch('/api/catalog');if(!response.ok)throw Error('Could not load sample projects.');catalog=await response.json();$('case').innerHTML=catalog.cases.map(c=>`<option value="${c.id}">${escape(c.project)}</option>`).join('');chooseCase();if(new URLSearchParams(location.search).get('demo')==='bob-repair')await loadBobRepair(true);}
 catch(error){$('verdict-title').textContent='Workspace unavailable.';$('verdict-description').textContent=error.message;$('run').disabled=true;notify(error.message);}
