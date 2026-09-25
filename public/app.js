@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
-let pinnedReport = null;
+let pinnedReport = null, proofTourBusy = false;
 let bundleBusy = false;
 let comparisonBusy = false;
 let importedContract = null, importedMeta = null, customPlan = null, customPlanSource = null;
@@ -28,7 +28,7 @@ function updateModeControls() {
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||custom);
   $('try-cross-record').disabled=busy||custom;
   $('run').disabled=busy||!activeCase||(custom&&!candidateReady());
-  $('quick-run').disabled=$('run').disabled;
+  $('proof-tour').disabled=busy||proofTourBusy||!activeCase;
   $('save-plan').disabled=busy||!activeCase||(custom&&!candidateReady());
   $('try-warehouse').disabled=busy;
   $('try-bob-repair').disabled=busy;
@@ -38,7 +38,7 @@ function setBusy(value, label='Executing SQL rehearsals…') {
   for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract')) node.disabled=value;
   $('try-warehouse').disabled=value;
   $('try-bob-repair').disabled=value;
-  $('quick-run').disabled=value;
+  $('proof-tour').disabled=value||proofTourBusy;
   $('run').innerHTML=value?`<span>${escape(label)}</span><span>◌</span>`:'<span>Run release rehearsal</span><span>↗</span>';
   if(!value){updateModeControls();renderComparison();}
 }
@@ -64,6 +64,7 @@ function renderComparison() {
   const tools=$('comparison-tools'), panel=$('comparison-panel');
   const timeline=$('comparison-timeline');
   timeline.hidden=true;
+  $('comparison-witness').hidden=true;
   $('export-comparison').hidden=true;
   tools.hidden=!report&&!pinnedReport;
   $('pin-baseline').disabled=!report||busy;
@@ -100,9 +101,19 @@ function renderComparison() {
   }
   const oldWindows=pinnedReport.categories.find(item=>item.id==='migration_window');
   const newWindows=report.categories.find(item=>item.id==='migration_window');
-  $('comparison-detail').textContent=sameMigration
+  const coverage=`${pinnedReport.passed}/${pinnedReport.total} ${pinnedReport.status==='pass'?'passed':'blocked'} → ${report.passed}/${report.total} ${report.status==='pass'?'passed':'blocked'}. `;
+  $('comparison-detail').textContent=coverage+(sameMigration
     ?`Same migration and contract · paired ${paired} probes. Plans ${baseHash} → ${report.plan_hash.slice(0,10)}.`
-    :`Same contract, different migration. Paired ${paired} completed-rollout probes; statement-boundary probes cannot be paired across different SQL sequences. Plans ${baseHash} → ${report.plan_hash.slice(0,10)}.`;
+    :`Same contract, different migration. Paired ${paired} completed-rollout probes; statement-boundary probes cannot be paired across different SQL sequences. Plans ${baseHash} → ${report.plan_hash.slice(0,10)}.`);
+  const failedStep=pinnedReport.witness?.trace.find(step=>step.status==='fail'&&step.expected&&step.actual);
+  if(failedStep) {
+    const row=[...new Set([...Object.keys(failedStep.expected),...Object.keys(failedStep.actual)])]
+      .find(id=>failedStep.expected[id]!==failedStep.actual[id]);
+    if(row!==undefined) {
+      $('comparison-witness').textContent=`First baseline witness · ${pinnedReport.witness.title}. Row ${row}: ledger expected ${JSON.stringify(failedStep.expected[row]??null)}; ${failedStep.action} observed ${JSON.stringify(failedStep.actual[row]??null)}.`;
+      $('comparison-witness').hidden=false;
+    }
+  }
   $('comparison-metrics').innerHTML=`<div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES RESOLVED</span><strong>${resolved}</strong></div><div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES REGRESSED</span><strong class="${regressed?'red':''}">${regressed}</strong></div><div><span>MIGRATION WINDOW FAILURES</span><strong>${oldWindows.total-oldWindows.passed} → ${newWindows.total-newWindows.passed}</strong><small>${oldWindows.total} → ${newWindows.total} boundary probes, ${sameMigration?'paired':'evaluated separately'}</small></div>`;
   const firstWindow=report.results.find(item=>item.category==='migration_window'&&!item.passed);
   const links=firstRegression.map(item=>`<button type="button" data-comparison-probe="${escape(item.id)}">New regression: ${escape(item.title)} ↗</button>`);
@@ -286,11 +297,6 @@ async function showBob() {
 $('run').addEventListener('click',run);
 $('pin-baseline').addEventListener('click',()=>{if(!report||busy)return;pinnedReport=report;renderComparison();notify('Baseline pinned in this browser tab. Run another candidate to compare.');});
 $('clear-baseline').addEventListener('click',()=>{pinnedReport=null;renderComparison();notify('Comparison baseline cleared.');});
-$('quick-run').addEventListener('click',async()=>{
-  if(busy||$('run').disabled)return;
-  await run();
-  $('verdict-title').closest('.result-panel').scrollIntoView({behavior:'smooth',block:'start'});
-});
 $('case').addEventListener('change',chooseCase);
 document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference=button.dataset.plan;setPlan(activeCase.plans[reference],'Editable reference · not AI generated');}));
 $('try-cross-record').addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference='cross_record';setPlan(activeCase.plans.cross_record,'Prewritten negative control · not AI generated');run();});
@@ -394,8 +400,9 @@ $('import-contract').addEventListener('change',async event=>{
     notify(error.message);
   } finally {event.target.value='';setBusy(false);}
 });
-$('try-warehouse').addEventListener('click',async()=>{
+async function loadWarehouse(runImmediately=false) {
   if(busy)return;
+  let loaded=false;
   setBusy(true,'Loading warehouse example…'); invalidate(); $('status-badge').textContent='LOADING EXAMPLE';
   try {
     const response=await fetch('/api/example/warehouse');
@@ -403,12 +410,15 @@ $('try-warehouse').addEventListener('click',async()=>{
     await activateContract(data.contract,'example');
     reference=null;
     setPlan(data.plan,'Prewritten warehouse example · not AI generated','prewritten warehouse example');
-    notify('Warehouse example loaded. Run the SQL rehearsal to see the unsafe migration window.');
+    loaded=true;
+    if(!runImmediately)notify('Warehouse example loaded. Run the SQL rehearsal to see the unsafe migration window.');
   } catch(error) {
     $('status-badge').textContent='EXAMPLE ERROR'; $('verdict-title').textContent='Example not loaded.';
     $('verdict-description').textContent=error.message; notify(error.message);
   } finally {setBusy(false);}
-});
+  if(runImmediately&&loaded)await run();
+}
+$('try-warehouse').addEventListener('click',()=>loadWarehouse());
 async function loadBobRepair(runImmediately=false) {
   if(busy)return;
   let loaded=false;
@@ -429,5 +439,29 @@ async function loadBobRepair(runImmediately=false) {
   if(runImmediately){if(loaded)await run();document.querySelector('.result-panel').scrollIntoView({block:'start'});}
 }
 $('try-bob-repair').addEventListener('click',()=>loadBobRepair());
-try {const response=await fetch('/api/catalog');if(!response.ok)throw Error('Could not load sample projects.');catalog=await response.json();$('case').innerHTML=catalog.cases.map(c=>`<option value="${c.id}">${escape(c.project)}</option>`).join('');chooseCase();if(new URLSearchParams(location.search).get('demo')==='bob-repair')await loadBobRepair(true);}
+async function runProofTour() {
+  if(busy||proofTourBusy)return;
+  proofTourBusy=true;
+  const button=$('proof-tour');
+  button.disabled=true;button.textContent='Replaying both plans…';
+  try {
+    pinnedReport=null;
+    await loadWarehouse(true);
+    const unsafe=report;
+    if(!unsafe||unsafe.status!=='blocked')throw Error('The unsafe warehouse control did not produce a verified block.');
+    pinnedReport=unsafe;
+    renderComparison();
+    await loadBobRepair(true);
+    const repaired=report;
+    if(!repaired||repaired.status!=='pass')throw Error('The Bob repair did not pass its fresh rehearsal.');
+    if(unsafe.contract_hash!==repaired.contract_hash||unsafe.engine_sha256!==repaired.engine_sha256||unsafe.suite_hash!==repaired.suite_hash)
+      throw Error('The two results use different contracts or evaluator versions.');
+    $('comparison-timeline').open=true;
+    $('comparison-panel').scrollIntoView({behavior:'smooth',block:'center'});
+    notify('Fresh unsafe block and Bob repair are ready to compare.');
+  } catch(error) {notify(error.message);}
+  finally {proofTourBusy=false;button.textContent='Run unsafe → Bob repair ↗';updateModeControls();}
+}
+$('proof-tour').addEventListener('click',runProofTour);
+try {const response=await fetch('/api/catalog');if(!response.ok)throw Error('Could not load sample projects.');catalog=await response.json();$('case').innerHTML=catalog.cases.map(c=>`<option value="${c.id}">${escape(c.project)}</option>`).join('');chooseCase();const demo=new URLSearchParams(location.search).get('demo');if(demo==='bob-repair')await loadBobRepair(true);else if(demo==='compare')await runProofTour();}
 catch(error){$('verdict-title').textContent='Workspace unavailable.';$('verdict-description').textContent=error.message;$('run').disabled=true;notify(error.message);}

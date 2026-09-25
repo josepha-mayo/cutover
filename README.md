@@ -10,7 +10,7 @@ This is a documented release problem, not a hypothetical one. [GitLab's account 
 
 The [IBM Bob 2.0 Hackathon entry](https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon/cutover/cutover-rehearse-the-release) is submitted. The prototype is functional and [the public demo](https://cutover-rehearsal.onrender.com/) is live on Render's free tier. [The source](https://github.com/josepha-mayo/cutover) is public. Codex built the evaluator and browser before kickoff; IBM Bob IDE produced the event-period repair candidates and pull-request review gate documented below. The free demo may take around a minute to wake after inactivity.
 
-Watch the [three-minute project demonstration](https://cutover-rehearsal.onrender.com/watch), inspect the [executed proof in one page](https://cutover-rehearsal.onrender.com/proof), and drill into the [nine-page submission deck](presentation/cutover-submission.pdf), [both Bob IDE task summaries](bob_sessions/), and [verified PR control artifacts](evidence/ci_controls/README.md).
+Run the [one-click unsafe-to-Bob comparison](https://cutover-rehearsal.onrender.com/?demo=compare): the browser executes both Warehouse plans fresh against the same contract, pins the missed-write witness, and compares Bob's measured repair. Then watch the [three-minute project demonstration](https://cutover-rehearsal.onrender.com/watch), inspect the [executed proof in one page](https://cutover-rehearsal.onrender.com/proof), and drill into the [nine-page submission deck](presentation/cutover-submission.pdf), [both Bob IDE task summaries](bob_sessions/), and [verified PR control artifacts](evidence/ci_controls/README.md).
 
 ## Run
 
@@ -24,7 +24,7 @@ Open http://127.0.0.1:8765. The server binds only to loopback by default. The sa
 
 ## Try the three-minute story
 
-1. **Late bridge** is selected on first load. Press **Run selected migration** in the first screen. All 76 completed-rollout probes pass, yet 16 of 48 migration-window probes fail. An old write after the backfill and before the triggers silently leaves the new column stale. Select a red square to inspect the shortest observed failing replay, executed SQL, and expected/observed values. Pin this result as a baseline before trying another plan.
+1. Press **Run unsafe → Bob repair** in the first screen. Cutover executes the prewritten unsafe Warehouse migration and Bob's saved Warehouse repair fresh, then shows the pinned missed-write witness, both coverage totals, and each plan's independently measured SQL boundaries. The unsafe plan is a Codex-authored example; Bob authored the repair during the event. Or choose **Late bridge** and run it manually: all 76 completed-rollout Parcel probes pass, yet 16 of 48 migration-window probes fail. Select a red square to inspect the shortest observed failing replay, executed SQL, and expected/observed values. Pin this result as a baseline before trying another plan.
 2. Select **Direct rename**, then run. All 8 new-version checks pass, but Cutover catches 60 failing completed-rollout probes, including an old worker querying a removed column.
 3. Select **Expand & backfill**, then run. New-version checks still pass. A write is acknowledged but the other version reads stale data.
 4. Select **Window-safe bridge**. Moving synchronization before backfill preserves data through all 124 tested probes. Append `DROP TRIGGER sync_new_update;` to its migration and rerun; 12 failures return. Results are computed from SQL, never chosen by candidate name.
