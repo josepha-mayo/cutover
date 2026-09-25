@@ -106,7 +106,9 @@ nothing during that dry run and independently replays both reports when the
 unsafe control is present. Review its file list, then repeat with `--apply`.
 The installer rejects duplicates, unsafe paths, invalid evidence, a ninth
 case, and overwrites; it adds only the passing contract and candidate to
-`ci/cases.json`. Commit those three resulting files in a PR.
+`ci/cases.json`. Run the same command with `--verify-installed` after applying
+to replay the kit and detect any change to its installed contract, candidate,
+or manifest entry. Commit those three resulting files in a PR.
 
 The [two-case control PR](https://github.com/josepha-mayo/cutover/pull/4)
 kept Warehouse's Bob-saved candidate but replaced Parcel's candidate with a

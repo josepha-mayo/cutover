@@ -138,13 +138,40 @@ def install_kit(path: Path, root: Path = ROOT, apply: bool = False) -> dict:
     return result
 
 
+def verify_installed(path: Path, root: Path = ROOT) -> dict:
+    """Replay the kit and check that its passing inputs are still installed unchanged."""
+    root = root.resolve()
+    entry, contract_bytes, plan_bytes, report, has_control = _read_kit(path)
+    existing = discover(root)['include']
+    if existing.count(entry) != 1 or any(item['slug'] == entry['slug'] and item != entry
+                                          for item in existing):
+        raise ValueError('Installed manifest entry differs from the verified kit')
+    for relative, expected in ((entry['contract'], contract_bytes),
+                               (entry['plan'], plan_bytes)):
+        target = root / relative
+        if ((root / 'ci').is_symlink() or target.is_symlink() or
+                not target.resolve().is_relative_to(root) or not target.is_file() or
+                target.read_bytes() != expected):
+            raise ValueError(f'Installed file differs from the verified kit: {relative}')
+    return {'action': 'verified_installed', 'slug': entry['slug'],
+            'coverage': f"{report['passed']}/{report['total']}",
+            'plan_hash': report['plan_hash'], 'contract_hash': report['contract_hash'],
+            'unsafe_control_verified': has_control,
+            'files': [entry['contract'], entry['plan'], 'ci/cases.json']}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--kit', required=True, type=Path, help='Downloaded Cutover CI kit ZIP')
-    parser.add_argument('--apply', action='store_true', help='Write the passing case and manifest entry')
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument('--apply', action='store_true', help='Write the passing case and manifest entry')
+    action.add_argument('--verify-installed', action='store_true',
+                        help='Replay the kit and compare it with the installed CI inputs')
     args = parser.parse_args()
     try:
-        print(json.dumps(install_kit(args.kit, apply=args.apply), indent=2))
+        result = (verify_installed(args.kit) if args.verify_installed else
+                  install_kit(args.kit, apply=args.apply))
+        print(json.dumps(result, indent=2))
     except (ValueError, KeyError, TypeError, OSError, zipfile.BadZipFile, json.JSONDecodeError) as exc:
         print(f'CI kit rejected: {exc}', file=sys.stderr)
         raise SystemExit(2) from exc

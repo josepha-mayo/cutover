@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 from ci.discover_cases import discover
-from ci.install_kit import install_kit
+from ci.install_kit import install_kit, verify_installed
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +42,13 @@ class InstallKitTests(unittest.TestCase):
             self.assertTrue((target / cases[-1]['contract']).is_file())
             self.assertTrue((target / cases[-1]['plan']).is_file())
             self.assertFalse((target / 'ci/cases.cutover-tmp.json').exists())
+            verified = verify_installed(KIT, target)
+            self.assertEqual(verified['action'], 'verified_installed')
+            self.assertEqual(verified['coverage'], '124/124')
+            plan_path = target / cases[-1]['plan']
+            plan_path.write_bytes(plan_path.read_bytes() + b'\n')
+            with self.assertRaisesRegex(ValueError, 'differs from the verified kit'):
+                verify_installed(KIT, target)
 
     def test_kit_rejects_paths_outside_checked_in_ci_inputs(self):
         with tempfile.TemporaryDirectory(prefix='cutover-kit-bad-') as directory:
