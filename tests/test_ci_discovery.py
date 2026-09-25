@@ -8,11 +8,12 @@ from ci.discover_cases import ROOT, discover
 
 
 class CaseDiscoveryTests(unittest.TestCase):
-    def test_checked_in_cases_expand_into_two_independent_review_jobs(self):
+    def test_checked_in_baseline_cases_remain_registered_as_more_are_added(self):
         matrix = discover()
-        self.assertEqual({case["slug"] for case in matrix["include"]},
-                         {"warehouse", "parcel"})
-        self.assertEqual(len(matrix["include"]), 2)
+        by_slug = {case["slug"]: case for case in matrix["include"]}
+        self.assertEqual(len(by_slug), len(matrix["include"]))
+        self.assertEqual(by_slug["warehouse"]["plan"], "ci/candidate.json")
+        self.assertEqual(by_slug["parcel"]["plan"], "ci/parcel-candidate.json")
 
     def test_bad_manifest_cannot_create_a_green_empty_matrix(self):
         with tempfile.TemporaryDirectory() as directory:
