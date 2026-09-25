@@ -88,8 +88,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(503, {'error': 'Reviewed Bob repair evidence is unavailable'})
         if path == '/api/health':
             return self.send(200, {'ok': True, 'engine': 'SQLite'})
+        task_images = {
+            '/proof/task-1.png': 'cutover_task01_parcel_warehouse_repair_07a20bdb_summary.png',
+            '/proof/task-2.png': 'cutover_task02_ci_review_gate_9aa1e2a2_summary.png',
+        }
+        if path in task_images:
+            image = Path(__file__).parent / 'bob_sessions' / task_images[path]
+            return self.send(200, image.read_bytes(), 'image/png')
         files = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css',
-                 '/watch': 'watch.html', '/watch.css': 'watch.css'}
+                 '/watch': 'watch.html', '/watch.css': 'watch.css',
+                 '/proof': 'proof.html', '/proof.css': 'proof.css'}
         if path not in files:
             return self.send(404, {'error': 'Not found'})
         file = STATIC / files[path]

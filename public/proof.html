@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cutover · executable proof</title>
+  <meta name="description" content="Inspect the actual IBM Bob task summaries, saved migration repair, and three audited GitHub PR gate runs behind Cutover.">
+  <link rel="stylesheet" href="/proof.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">↗ cutover<span>.</span></a>
+    <nav aria-label="Project links"><a href="/">Live rehearsal</a><a href="/watch">Three-minute video</a><a href="https://github.com/josepha-mayo/cutover">Source</a></nav>
+  </header>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">IBM BOB 2.0 HACKATHON / EXECUTED EVIDENCE</p>
+      <h1>A failed write you can replay.<br><em>A PR gate that remembers it.</em></h1>
+      <p class="lead">Cutover tests the handover between old and new application workers. IBM Bob IDE repaired an observed missed-write window, then built a review gate that retains the exact counterexample when a pull request is unsafe.</p>
+      <div class="hero-links"><a class="primary" href="/">Run the live case ↗</a><a href="https://github.com/josepha-mayo/cutover/blob/main/docs/PROVENANCE.md">See what Bob actually built ↗</a></div>
+      <div class="snapshot" aria-label="Evidence snapshot">
+        <div><small>Completed rollout</small><strong>76/76</strong><span>passed while a write was still lost</span></div>
+        <div class="fail"><small>Migration windows</small><strong>32/48</strong><span>16 failing probes exposed the gap</span></div>
+        <div><small>Bob's saved repair</small><strong>116/116</strong><span>fresh bounded probes on each contract</span></div>
+      </div>
+    </section>
+
+    <section class="chapter" id="failure">
+      <div class="section-head"><span class="number">01 / THE COUNTEREXAMPLE</span><h2>The migration finished. The handover broke.</h2></div>
+      <div class="split">
+        <div>
+          <p>In the unsafe sample, an old worker writes after the backfill and before synchronization exists. The database accepts that write; the new reader returns the previous value. Completed-rollout checks alone miss this ordering.</p>
+          <ol class="steps"><li><b>Add column</b><span>The new field exists.</span></li><li><b>Backfill</b><span>Existing rows are copied.</span></li><li class="bad"><b>Old worker writes</b><span>The bridge is not installed yet.</span></li><li><b>Add sync</b><span>Protection arrives too late.</span></li></ol>
+        </div>
+        <div class="witness"><small>FIRST DIFFERING VALUE · PARCEL EXAMPLE</small><div><span>Expected latest address</span><b>18 Marina Road</b></div><div><span>Observed by new reader</span><b>4 Broad Street</b></div><p>Executed SQL, input values, statement boundary, and replay prefix are retained in the report. <a href="https://github.com/josepha-mayo/cutover/blob/main/evidence/parcel-late_bridge.json">Inspect the original report ↗</a></p></div>
+      </div>
+    </section>
+
+    <section class="chapter" id="bob-repair">
+      <div class="section-head"><span class="number">02 / OBSERVED IBM BOB IDE WORK</span><h2>Bob repaired the ordering, then earned the pass.</h2></div>
+      <div class="split">
+        <div>
+          <p>Bob used Cutover's read-only MCP tools in a reference-withheld workspace. Its first bidirectional-trigger idea failed through recursive triggers; that attempt remains in the task history. Bob then placed a one-way bridge before backfill and used explicit dual writes for the new worker.</p>
+          <p>The actual saved Parcel and Warehouse candidates were replayed independently against unchanged contracts. <strong>Each passed 116/116 bounded probes.</strong> Their window totals differ from the five-statement safe reference because Bob's plans have four migration statements.</p>
+          <div class="link-row"><a href="https://github.com/josepha-mayo/cutover/blob/main/bob_sessions/cutover_task01_parcel_warehouse_repair_07a20bdb_history.md">Full IDE task history ↗</a><a href="https://github.com/josepha-mayo/cutover/blob/main/bob_sessions/warehouse-07a20bdb56f5-candidate.json">Saved Warehouse plan ↗</a><a href="https://github.com/josepha-mayo/cutover/blob/main/bob_sessions/warehouse-07a20bdb56f5-report.json">Independent report ↗</a></div>
+        </div>
+        <figure><a href="/proof/task-1.png" target="_blank" rel="noopener noreferrer"><img src="/proof/task-1.png" alt="IBM Bob IDE task 1 consumption summary showing the observed Parcel and Warehouse repair session" loading="lazy"></a><figcaption>Actual Bob IDE task 1 consumption summary · <code>07a20bdb…</code></figcaption></figure>
+      </div>
+    </section>
+
+    <section class="chapter" id="pr-gate">
+      <div class="section-head"><span class="number">03 / BOB-BUILT REVIEW GATE</span><h2>Red, green, and red again—in real pull requests.</h2></div>
+      <p class="section-intro">Bob's separate IDE task wrote the GitHub Actions review gate. It distinguishes a verified safety block from an unverified execution or audit error, and retains JSON, Markdown, ZIP, verdict, and job-summary evidence even when the check is red.</p>
+      <div class="runs">
+        <article class="run red"><div><small>UNSAFE / RED</small><strong>BLOCKED</strong></div><b>108/124</b><p>Old write after backfill. Row 11 expected <code>R-07</code>; observed <code>A-01</code>.</p><a href="https://github.com/josepha-mayo/cutover/blob/main/evidence/ci_controls/unsafe/summary.md">Read witness ↗</a><a href="https://github.com/josepha-mayo/cutover/actions/runs/36165105646">GitHub run ↗</a></article>
+        <article class="run green"><div><small>SAFE REFERENCE / GREEN</small><strong>PASSED</strong></div><b>124/124</b><p>Every tested schedule passed on the checked-in synthetic Warehouse contract.</p><a href="https://github.com/josepha-mayo/cutover/blob/main/evidence/ci_controls/safe_reference/summary.md">Read summary ↗</a><a href="https://github.com/josepha-mayo/cutover/actions/runs/36165215088">GitHub run ↗</a></article>
+        <article class="run red"><div><small>REGRESSION / RED</small><strong>BLOCKED</strong></div><b>100/116</b><p>Removed synchronization. Row 11 expected <code>R-07</code>; observed <code>A-01</code>.</p><a href="https://github.com/josepha-mayo/cutover/blob/main/evidence/ci_controls/regressed/summary.md">Read witness ↗</a><a href="https://github.com/josepha-mayo/cutover/actions/runs/36165290677">GitHub run ↗</a></article>
+      </div>
+      <div class="split task-two"><figure><a href="/proof/task-2.png" target="_blank" rel="noopener noreferrer"><img src="/proof/task-2.png" alt="IBM Bob IDE task 2 consumption summary for the PR review gate" loading="lazy"></a><figcaption>Actual Bob IDE task 2 consumption summary · <code>9aa1e2a2…</code></figcaption></figure><div><h3>Inspect the full chain</h3><p>Each control links to its exact GitHub run. For signed-out reviewers, the public mirror contains the downloaded reports, review packets, summaries, verdicts, and SHA-256 hashes. The CI source and Bob's task history are also public.</p><div class="link-row"><a href="https://github.com/josepha-mayo/cutover/blob/main/evidence/ci_controls/README.md">All PR artifacts ↗</a><a href="https://github.com/josepha-mayo/cutover/blob/main/bob_sessions/cutover_task02_ci_review_gate_9aa1e2a2_history.md">Bob's IDE history ↗</a><a href="https://github.com/josepha-mayo/cutover/blob/main/ci/review_gate.py">Review-gate source ↗</a></div></div></div>
+    </section>
+
+    <section class="scope"><h2>What this evidence does—and does not—show.</h2><p>The evaluator and browser were built by Codex before kickoff. Bob authored the event repair candidates and CI gate; the three PR controls use prewritten synthetic plans. A pass applies to these SQLite contracts and executed schedules. Cutover does not model concurrent transactions, locks, crashes, or production database behavior, and does not approve a deployment.</p><a href="https://github.com/josepha-mayo/cutover/blob/main/docs/PROVENANCE.md">Read the full provenance and limits ↗</a></section>
+  </main>
+  <footer><span>cutover. / RELEASE WITH EVIDENCE</span><span><a href="/">Try the live rehearsal</a> · <a href="/watch">Watch the demo</a></span></footer>
+</body>
+</html>
