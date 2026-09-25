@@ -1,7 +1,7 @@
 {
-  "name": "Warehouse: triggers before backfill, one-way sync, dual-write",
-  "migration": "ALTER TABLE stock_items ADD COLUMN fulfillment_bin TEXT;\nCREATE TRIGGER sync_pick_to_fulfillment AFTER UPDATE OF pick_bin ON stock_items\nBEGIN\n  UPDATE stock_items SET fulfillment_bin = NEW.pick_bin WHERE id = NEW.id;\nEND;\nCREATE TRIGGER sync_insert_to_fulfillment AFTER INSERT ON stock_items\nWHEN NEW.fulfillment_bin IS NULL\nBEGIN\n  UPDATE stock_items SET fulfillment_bin = NEW.pick_bin WHERE id = NEW.id;\nEND;\nUPDATE stock_items SET fulfillment_bin = pick_bin WHERE fulfillment_bin IS NULL;",
+  "name": "Warehouse late synchronization",
   "read": "SELECT id, fulfillment_bin AS value FROM stock_items ORDER BY id",
-  "write": "UPDATE stock_items SET pick_bin = :value, fulfillment_bin = :value WHERE id = :id",
-  "insert": "INSERT INTO stock_items (id, pick_bin, fulfillment_bin) VALUES (:id, :value, :value)"
+  "write": "UPDATE stock_items SET fulfillment_bin = :value WHERE id = :id",
+  "insert": "INSERT INTO stock_items (id, pick_bin, fulfillment_bin) VALUES (:id, :value, :value)",
+  "migration": "ALTER TABLE stock_items ADD COLUMN fulfillment_bin TEXT;\nUPDATE stock_items SET fulfillment_bin = pick_bin;\nCREATE TRIGGER sync_old_update AFTER UPDATE OF pick_bin ON stock_items\nWHEN NEW.pick_bin IS NOT NEW.fulfillment_bin\nBEGIN\n  UPDATE stock_items SET fulfillment_bin = NEW.pick_bin WHERE id = NEW.id;\nEND;\nCREATE TRIGGER sync_new_update AFTER UPDATE OF fulfillment_bin ON stock_items\nWHEN NEW.fulfillment_bin IS NOT NEW.pick_bin\nBEGIN\n  UPDATE stock_items SET pick_bin = NEW.fulfillment_bin WHERE id = NEW.id;\nEND;\nCREATE TRIGGER sync_old_insert AFTER INSERT ON stock_items\nWHEN NEW.fulfillment_bin IS NULL\nBEGIN\n  UPDATE stock_items SET fulfillment_bin = NEW.pick_bin WHERE id = NEW.id;\nEND;"
 }
