@@ -1,21 +1,35 @@
-# Submission preparation — not submitted
+# Cutover submission copy — ready for final media and form review
 
 Working title: **Cutover: Rehearse the Release**
 
-Short description (draft): Cutover replays old and new SQL through schema migrations, exposes lost-write windows, and gives IBM Bob an executable counterexample to investigate.
+Short description: **Cutover rehearses schema-changing releases with old and new workers, then uses IBM Bob to repair the missed-write window and build a PR gate that keeps the counterexample.**
 
-Provisional form fields: demo platform **Render**; application URL **https://cutover-rehearsal.onrender.com/**; code URL **https://github.com/josepha-mayo/cutover**. Candidate tags are **IBM Bob 2.0**, **developer tools**, **testing**, **DevOps**, **database migrations**, and **MCP**, subject to the form's actual choices. Keep the long description below as the base, then replace the Bob placeholder with observed task ID, files, tool calls, candidate outcome, and independently replayed counts. Do not paste a pending or planned outcome into the final form.
+Form links: public [demo](https://cutover-rehearsal.onrender.com/), [source](https://github.com/josepha-mayo/cutover), [deck](../presentation/cutover-submission.pdf), and [Bob IDE summaries](../bob_sessions/). Use the actual form's closest categories: developer tools, coding excellence, and pre-existing project, if those are offered. Technologies: IBM Bob IDE, MCP, Python, SQLite, JavaScript, GitHub Actions, Render.
 
-The [general lablab submission guide](https://lablab.ai/ai-articles/hackathon-guidelines) lists a title of at most 50 characters, a summary of at most 255 characters, a long description of at least 100 words, cover/video fields, repository/demo links, technologies, and a separate **Additional Information** field. Recheck the actual September form at kickoff; the general guide does not settle event-specific fields or rules.
+The live September form must be checked before sending: it has separate project and Bob-usage narratives, media, source and demo fields. Keep each narrative within its visible character limits and verify links while signed out.
 
 | Field | Prepared copy or gate |
 | --- | --- |
 | Title | **Cutover: Rehearse the Release** |
-| Summary | **Cutover replays old and new SQL through schema migrations, exposes lost-write windows, and gives IBM Bob an executable counterexample to investigate.** (149 characters) |
-| Long description | Use the pitch below, then add only the observed event-period Bob contribution and its independently measured outcome. |
-| Main track and technologies | Choose the actual event track at kickoff. Name IBM Bob 2.0, MCP, Python, SQLite, JavaScript, and Render only where the form permits them. |
-| Cover, video, and slide deck | Use the checked 16:9 cover. Add the final reviewed video URL and evidenced PDF only after the real Bob session; verify upload/link behavior in the live form. |
-| Additional Information | **This is a bounded SQLite rehearsal over fixed sample contracts and migration-statement boundaries; it does not model concurrent transactions, lock timing, or production databases. The pre-event deterministic baseline is documented in `docs/PROVENANCE.md`. [PENDING: describe and link the actual event-period Bob task history, candidate attempts, and independent replay.] The Render free demo may take about a minute to wake.** Replace the bracketed text and recheck every clause and artifact link before submitting. |
+| Summary | The short description above. |
+| Long description | The concise final project narrative below. |
+| IBM Bob usage | The separate factual narrative below, with both task-summary PNGs and IDE histories in `bob_sessions/`. |
+| Cover, video, and slide deck | Use the checked 16:9 [cover](../presentation/cover.png), final reviewed video, and nine-page [deck](../presentation/cutover-submission.pdf). |
+| Additional Information | **This is a bounded SQLite rehearsal over synthetic single-table contracts and migration-statement boundaries; it does not model concurrent transactions, lock timing, crashes, or production databases. Codex built the evaluator and browser before kickoff; Bob authored the event repair and CI gate. See `docs/PROVENANCE.md` and the IDE task summaries. Render free may take about a minute to wake.** |
+
+## Final project narrative for the form
+
+A green build can still be a broken handover. During a rolling release, old and new workers share a database. Cutover executes both versions' SQL through every migration-statement boundary against disposable SQLite databases, then checks each acknowledged write against an independent ledger. A candidate can fail with a concrete replay: the old worker writes after a backfill but before synchronization exists, so the new reader sees stale data despite every completed-rollout check passing.
+
+The browser lets a release engineer run curated examples or import a validated single-table contract and migration plan. It shows the failing SQL step, expected and observed row values, a timeline, and a downloadable JSON/Markdown/ZIP review packet. The CLI supplies the same deterministic evidence to an automated workflow. The public demo starts with an unsafe warehouse migration; **Load Bob's repair** reruns the actual event-period plan rather than selecting a prewritten passing reference.
+
+IBM Bob IDE investigated the failing Parcel case through Cutover's read-only MCP tools. Its first bidirectional-trigger repair failed through recursion; the session preserves that attempt. Bob then saved a one-way bridge before backfill with explicit dual writes and adapted the plan to a separate Warehouse contract. Both saved plans passed 116/116 fresh bounded probes. Bob also built the GitHub pull-request gate. Three real PR runs retained full evidence: unsafe blocked 108/124, the safe reference passed 124/124, and a regressed plan blocked 100/116. Their downloaded artifacts and exact witnesses were independently replayed and mirrored publicly for signed-out judges.
+
+Cutover is for backend and release engineers who need a counterexample before merging schema-changing code. The commercial hypothesis is a hosted per-repository CI review that attaches that counterexample to PRs; pricing and demand remain unvalidated. The current result is bounded to tested SQLite schedules, not a production deployment approval. Pre-event scaffolding and event-period Bob contributions are separated in `docs/PROVENANCE.md`.
+
+## IBM Bob usage narrative for the form
+
+IBM Bob IDE was the active developer in two event-period tasks on the provisioned hackathon account. In task `07a20bdb56f595035652c2e6732b2c53`, Bob used Cutover's read-only MCP inspection, diagnosis and rehearsal tools in a reference-withheld workspace. It found an old-worker write lost between backfill and trigger creation. A bidirectional-trigger candidate failed with recursive triggers; Bob kept that failure in its IDE history, revised to one-way synchronization before backfill plus explicit dual writes, and saved distinct Parcel and Warehouse candidate JSON files. Independent replay of each actual saved file passed 116/116 probes. In task `9aa1e2a2ae601940eb12f45bd6c2bf59`, Bob wrote the PR review helper, GitHub Actions workflow, focused tests and documentation. The gate distinguishes `verified_block` from `unverified`, preserves report and witness artifacts even when a PR is red, and shows exact coverage and differing values in its summary. Bob's local suite passed 67/67; independent checks and three live PR runs confirmed red, green and regressed-red behavior. The required task-session consumption PNGs, full IDE histories, source files, independent reports and PR artifacts are linked from the public repository. Codex-built pre-event scaffolding is disclosed separately.
 
 ## Pitch
 
@@ -31,18 +45,18 @@ The public browser covers two curated contracts and accepts a validated, user-su
 
 The commercial hypothesis is an open local rehearsal tool paired with paid, per-repository CI checks that attach a counterexample to schema-changing pull requests. No pricing, willingness to pay, or market size has been validated. The next tests are interviews with release teams and a real repository adapter; the current two curated samples and CLI importer are not yet that service.
 
-**Update the Bob paragraph to describe only the session that was actually performed before publishing. No real Bob repair has been captured yet.**
+The actual Bob task records and bounded results are linked in [PROVENANCE.md](PROVENANCE.md); the narratives above are ready for the form after final media and link review.
 
 ## Demo script, target 3 minutes
 
-The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each clip to the required on-screen evidence and leaves the Bob result pending until an actual session.
+The final nine-clip manifest pairs the pre-event Codex interface captures with reviewed IBM Bob IDE window frames, a fresh replay of Bob's saved candidate, and the public CI artifacts. The IDE segment is an edited montage of real event-window screenshots, not continuous recording.
 
 - 0:00–0:18: Run Direct rename. The new-version baseline passes 8/8, while the full rollout passes only 24/92 and blocks on 68 probes.
 - 0:18–0:42: Run Late bridge. All 76 completed-rollout probes pass, but 16 of 48 migration-window probes fail; the full result is 108/124.
 - 0:42–1:04: Magnify the actual replay: the old write is acknowledged after backfill and before synchronization, then the new reader sees `4 Broad Street` instead of the latest `18 Marina Road`.
-- 1:04–1:45: Show the real Bob task, diagnostic tool calls, candidate files, and task summary. Describe actual attempts, including any failures, without inventing a repair.
-- 1:45–2:12: Import and independently run Bob's saved candidate. State only its observed counts and show a migration-window replay.
-- 2:12–2:33: Show the pre-event browser import of the warehouse contract and its blocked Markdown review, clearly attributed to Codex preparation; show the event-period CI gate only if Bob actually built and verified it.
+- 1:04–1:45: Show the actual Bob IDE task summaries, the failed recursive-trigger attempt, saved CI code and workflow, and Bob's 67/67 local tests.
+- 1:45–2:12: Import and independently run Bob's saved Parcel candidate; show 116/116 and its executed migration-window replay.
+- 2:12–2:33: Show actual GitHub CI artifacts: unsafe red at 108/124, safe green at 124/124, and a regressed red at 100/116.
 - 2:33–2:50: Show the separately attributed, prewritten cross-record trap. Its migration windows pass 56/56, but the second write erases the first; the full browser result blocks at 100/132 and shows the exact expected and observed values.
 - 2:50–3:00: End with the source and live demo, and name the bounded SQLite scope and untested concurrency/production-database work.
 
@@ -54,30 +68,30 @@ The [shot-by-shot recording plan](../presentation/recording-plan.md) ties each c
 4. Fixed contracts, executed schedules, an independent ledger, and a replayable counterexample.
 5. Controlled sample ablation: 0/3 unsafe patterns detected by the new-version baseline, 2/3 by completed-rollout checks, and 3/3 after migration windows. Not a customer benchmark or Bob result.
 6. Validated browser and CLI import of a user-supplied warehouse contract, with its actual failing witness and separately attributed pre-event provenance.
-7. Real Bob contribution, shown only with task evidence and an independently replayed candidate.
+7. Real Bob repair, shown with its task evidence and independently replayed candidate.
 8. Backend/release engineers; CI report and PR review are the initial adoption path. A paid per-repository CI check is a revenue hypothesis, not observed demand.
-9. If Bob builds the PR gate and all three controlled pull-request runs verify, add a page with its IDE task summary and linked unsafe-red, safe-green, regressed-red runs. Otherwise the deck remains eight pages and calls the gate proposed.
+9. Bob-built PR gate with its actual IDE task summary and linked unsafe-red, safe-green, regressed-red runs.
 
 The final deck renderer accepts an optional `ci_evidence` object inside its observed Bob evidence JSON. It must contain `bob_ci_task_id`, the staged `bob_ci_summary_image`, and `run_receipts` with `unsafe`, `safe_reference`, and `regressed` paths. Save each private receipt using `work/verify-cutover-gh-run.py --receipt PATH` after it downloads and independently replays that actual GitHub run. `presentation/build_assets.py --evidence PATH` checks the receipts against the downloaded reports, reruns the evaluator, and confirms the three live GitHub conclusions before adding the CI page. The pre-event fixture plans are identified as controls, not Bob-authored repairs.
-If the Parcel IDE task produces no verifiable saved candidate, the same renderer can show its staged task summary and say the repair remains unresolved, but only when the Bob-built CI gate meets the full three-run evidence check. It cannot produce a final deck from an unverified repair attempt alone.
+The final nine-page [PDF](../presentation/cutover-submission.pdf) has been rendered from the two reviewed task records and three independently verified PR receipts, then visually inspected.
 
 ## Final artifacts
 
 - Public repository with MIT license and setup instructions: [github.com/josepha-mayo/cutover](https://github.com/josepha-mayo/cutover).
 - Public working demo: [cutover-rehearsal.onrender.com](https://cutover-rehearsal.onrender.com/). Render free may take around a minute to wake after inactivity; verify it again before submission and recording.
 - [16:9 PNG cover](../presentation/cover.png) generated. Recheck image requirements on the actual form.
-- Recorded MP4 demo and final PDF slide deck. A local eight-page PDF draft exists, with its Bob slide clearly marked pending and a separately attributed pre-event custom-contract slide. Replace the Bob slide with real session evidence before submission. The general guide asks for a video link, under 300 MB and within five minutes; check the final export and signed-out playback of its public link, then verify the actual event form accepts it.
-- Actual Bob task-summary screenshots and Bob-assisted files.
-- Cutover solo team created on lablab.ai; submission form remains unavailable until the active phase.
+- Final MP4 demo is being rendered and must pass full playback, codec/size checks, public upload, and signed-out playback. The reviewed [nine-page PDF deck](../presentation/cutover-submission.pdf) is ready.
+- Both actual [Bob IDE task-summary PNGs and histories](../bob_sessions/) are in the public repository.
+- Cutover solo team is active on lablab.ai; the live submission form is open during the event.
 - After the event, complete the IBM/lablab feedback form to enter the 20 × $100 participant reward draw, provided the project was qualified and submitted by the deadline.
 - Final descriptions/tags and submission confirmation.
 
 ## Official constraints checked on September 24
 
-The event runs September 25–27, 2026. The [official live schedule](https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon/live) gives kickoff September 25 at 16:00 West Africa Time and submission close September 27 at 16:00. A September 24 organizer email says **registration closes September 24 at 22:00 CEST**, earlier than the live dashboard wording. The September 23 approval email confirms this participant was approved; the earlier registration email said only applicants who completed its mandatory survey would be approved. The separate hackathon Bob-account invitation is expected at kickoff, not yet received.
+The event runs September 25–27, 2026. The [official live schedule](https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon/live) gives kickoff September 25 at 16:00 West Africa Time and submission close September 27 at 16:00. The participant was approved and the event account was activated at kickoff. Aim to submit by September 27 at 12:00 West Africa Time, leaving four hours for upload or form recovery.
 
-The [September event guide](https://lablab-ibm-bob-2-hackathon-guide.s3.us.cloud-object-storage.appdomain.cloud/index.html) requires Bob IDE to be a core component of a working developer-workflow prototype. Bob Shell is optional. Put a clearly named IDE task-session consumption-summary PNG for **every relevant task** in `bob_sessions/` in the final public repository. The event-provisioned Bob account is `ibm-coding-challenge-uat` in `us-east` with 40 Bobcoins; switch away from the personal trial before qualifying work. This project uses synthetic SQLite records, not client, confidential, personal, or social-media data. The guide does not state that pre-event core work is allowed, so keep Codex preparation explicitly attributed and make the event-period IDE contribution material and verifiable.
+The [September event guide](https://lablab-ibm-bob-2-hackathon-guide.s3.us.cloud-object-storage.appdomain.cloud/index.html) requires Bob IDE to be a core component of a working developer-workflow prototype. Bob Shell is optional. Put a clearly named IDE task-session consumption-summary PNG for **every relevant task** in `bob_sessions/` in the final public repository. The IDE used the provisioned `ibm-coding-challenge-2` account in `us-east`; the personal trial was not used for qualifying work. This project uses synthetic SQLite records, not client, confidential, personal, or social-media data. The guide does not expressly approve pre-existing core work; Codex preparation and material event-period IDE work are attributed separately.
 
-The event requires a developer-workflow prototype and evidence of IBM Bob's role. It judges technology application, presentation, business value and originality. The current rendered event page lists a $12,000 total prize pool: $10,000 for the top three projects and 20 × $100 participant rewards. The reward requires a qualified project by the deadline and a feedback form after the event. It also says submissions must be original and MIT-compliant. General lablab rules specify a public repository, online demo and presentation assets. The event page encourages preparation but gives no explicit event-specific permission for existing code. lablab's general guide says prior non-AI scaffolding is generally allowed while core AI functionality is usually built during the event; it says to check event-specific rules. The September 23 Codex prototype is disclosed in [PROVENANCE.md](PROVENANCE.md). Confirm kickoff rules and build a material, evidenced Bob contribution during the event before submission. Access to Bob is advertised for kickoff.
+The event requires a developer-workflow prototype and evidence of IBM Bob's role. It judges technology application, presentation, business value and originality. The event page lists a $12,000 total prize pool: $10,000 for the top three projects and 20 × $100 participant rewards. The latter requires a qualified project by the deadline and a separate feedback form after the event. General lablab rules specify a public repository, online demo and presentation assets. The September 23 Codex prototype and the event-period Bob repair and CI gate are disclosed in [PROVENANCE.md](PROVENANCE.md).
 
 Sources: [event](https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon), [general pre-existing-code guidance](https://lablab.ai/guide/ai-hackathons), [participation terms](https://lablab.ai/terms-of-use#16-participation-terms), [submission guide](https://lablab.ai/ai-articles/hackathon-guidelines), [Bob MCP configuration](https://bob.ibm.com/docs/ide/configuration/mcp/mcp-in-bob).

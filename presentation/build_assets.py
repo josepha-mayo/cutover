@@ -280,8 +280,11 @@ def verified_ci_evidence(source, manifest_dir):
         if not started <= report_time <= finished:
             raise ValueError(f'{control} report falls outside its GitHub run')
         plan = json.loads((ROOT / 'work/ci-controls-20260924' / f'{control}.json').read_text(encoding='utf-8'))
+        # Git stores these Windows text fixtures with LF while the local
+        # checkout can have CRLF. Bind the receipt to the exact Git blob.
         checked_in_hash = hashlib.sha256(
-            (ROOT / 'work/ci-controls-20260924' / f'{control}.json').read_bytes()
+            (ROOT / 'work/ci-controls-20260924' / f'{control}.json')
+            .read_bytes().replace(b'\r\n', b'\n')
         ).hexdigest()
         if (receipt.get('checked_in_candidate_sha256') != checked_in_hash or
                 not re.fullmatch(r'[0-9a-f]{40}', str(
