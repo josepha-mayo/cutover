@@ -45,6 +45,11 @@ class HttpTests(unittest.TestCase):
             with response:
                 return response.code, response.read()
 
+    def test_scenario_builder_module_is_served(self):
+        code, body = self.request('/scenario.js')
+        self.assertEqual(code, 200)
+        self.assertIn(b'export function buildScenario', body)
+
     def test_watch_chapter_script_is_served(self):
         code, body = self.request('/watch')
         self.assertEqual(code, 200)

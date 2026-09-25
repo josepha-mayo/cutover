@@ -1,3 +1,4 @@
+import {buildScenario} from './scenario.js';
 const $ = id => document.getElementById(id);
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
 let pinnedReport = null, proofTourBusy = false;
@@ -21,11 +22,13 @@ function updateModeControls() {
   const custom=activeCase?.id==='custom';
   const bobRepair=custom&&candidateProvenance==='event IBM Bob IDE candidate';
   const challenge=custom&&candidateProvenance==='controlled mutation of Bob repair';
+  const generated=custom&&candidateProvenance==='generated starter';
   $('candidate-heading').textContent=bobRepair?"Bob's saved repair.":challenge?'Challenge the repair.':custom?'Inspect a candidate.':'Choose a rollout.';
-  $('candidate-intro-title').textContent=bobRepair?'Event-period IBM Bob IDE candidate':challenge?'Controlled negative mutation':'Your candidate plan';
+  $('candidate-intro-title').textContent=bobRepair?'Event-period IBM Bob IDE candidate':challenge?'Controlled negative mutation':generated?'Generated starter for your scenario':'Your candidate plan';
   $('candidate-intro-copy').textContent=bobRepair
     ? report?`Fresh replay complete: ${report.passed}/${report.total} bounded probes. Inspect the verdict and task history, or edit the SQL and rerun.`:'This is Bob\'s saved Warehouse plan. Run it against a fresh SQLite contract to verify the result.'
     :challenge?'The old-insert synchronization write was replaced with SELECT 1. The fresh replay shows whether a new reader loses an acknowledged insert; the original Bob repair is pinned for comparison.'
+    :generated?'A deterministic template supplied this SQL, then Cutover executed it against your validated contract. Edit the candidate and rerun before using any part of it outside this disposable SQLite rehearsal.'
     :'Import a five-field plan JSON below, or enter its migration and new-version queries in the editor. No verdict appears until you run it.';
   $('plan-options').hidden=custom; $('custom-plan-intro').hidden=!custom; $('save-contract').hidden=!custom;
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||custom);
@@ -35,12 +38,14 @@ function updateModeControls() {
   $('save-plan').disabled=busy||!activeCase||(custom&&!candidateReady());
   $('try-warehouse').disabled=busy;
   $('try-bob-repair').disabled=busy;
+  $('build-scenario').disabled=busy;
 }
 function setBusy(value, label='Executing SQL rehearsals…') {
   busy=value;
   for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract')) node.disabled=value;
   $('try-warehouse').disabled=value;
   $('try-bob-repair').disabled=value;
+  $('build-scenario').disabled=value;
   $('proof-tour').disabled=value||proofTourBusy;
   $('run').innerHTML=value?`<span>${escape(label)}</span><span>◌</span>`:'<span>Run release rehearsal</span><span>↗</span>';
   if(!value){updateModeControls();renderComparison();}
@@ -422,10 +427,51 @@ async function activateContract(contract, source) {
   importedContract=contract; importedMeta=result; customPlan=null; customPlanSource=null; customPlanProvenance=null;
   let option=$('case').querySelector('option[value="custom"]');
   if(!option){option=document.createElement('option');option.value='custom';$('case').append(option);}
-  option.textContent=`${contract.project} · ${source==='example'?'example':'imported'}`;
+  option.textContent=`${contract.project} · ${source==='example'?'example':source==='builder'?'generated':'imported'}`;
   $('case').value='custom'; chooseCase();
-  $('contract-status').textContent=`${source==='example'?'Prewritten example · ':''}Validated ${result.seed_count} seed records · ${result.payload_count} inputs · contract ${result.contract_hash.slice(0,12)}`;
+  $('contract-status').textContent=`${source==='example'?'Prewritten example · ':source==='builder'?'Generated starter · ':''}Validated ${result.seed_count} seed records · ${result.payload_count} inputs · contract ${result.contract_hash.slice(0,12)}`;
 }
+$('build-scenario').addEventListener('click',()=>{
+  if(busy)return;
+  $('scenario-error').hidden=true;
+  $('scenario-dialog').showModal();
+});
+$('scenario-close').addEventListener('click',()=>$('scenario-dialog').close());
+$('scenario-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(busy)return;
+  const errorNode=$('scenario-error');
+  errorNode.hidden=true;
+  const submit=$('scenario-submit');
+  submit.disabled=true;
+  try {
+    const scenario=buildScenario(Object.fromEntries(new FormData(event.currentTarget)));
+    setBusy(true,'Validating your scenario…');
+    await activateContract(scenario.contract,'builder');
+    setBusy(false);
+    $('scenario-dialog').close();
+    pinnedReport=null;
+    reference=null;
+    setPlan(scenario.unsafe,'Generated one-time backfill · deterministic control','generated control');
+    await run();
+    if(report?.status!=='blocked')throw Error('The one-time backfill did not produce a verified block. Inspect its result before trusting the comparison.');
+    const unsafe=report;
+    pinnedReport=unsafe;
+    setPlan(scenario.safe,'Generated bridge · deterministic starter, not IBM Bob','generated starter');
+    await run();
+    if(report?.status!=='pass'||unsafe.contract_hash!==report.contract_hash||
+       unsafe.engine_sha256!==report.engine_sha256||unsafe.suite_hash!==report.suite_hash)
+      throw Error('The generated bridge did not pass a comparable fresh replay. Inspect both plans and the contract.');
+    $('comparison-timeline').open=true;
+    $('comparison-panel').scrollIntoView({behavior:'smooth',block:'center'});
+    notify(`Your scenario: ${unsafe.passed}/${unsafe.total} blocked → ${report.passed}/${report.total} passed. Review the executed witness.`);
+  } catch(error) {
+    errorNode.textContent=error.message;
+    errorNode.hidden=false;
+    if(!$('scenario-dialog').open)$('contract-status').textContent=`Scenario comparison incomplete: ${error.message}`;
+    notify(error.message);
+  } finally {setBusy(false);submit.disabled=false;}
+});
 $('import-contract').addEventListener('change',async event=>{
   if(busy)return;
   const file=event.target.files[0]; if(!file)return;
