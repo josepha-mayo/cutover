@@ -53,6 +53,8 @@ function invalidate() {
 }
 function renderComparison() {
   const tools=$('comparison-tools'), panel=$('comparison-panel');
+  const timeline=$('comparison-timeline');
+  timeline.hidden=true;
   tools.hidden=!report&&!pinnedReport;
   $('pin-baseline').disabled=!report||busy;
   $('clear-baseline').hidden=!pinnedReport;
@@ -88,7 +90,39 @@ function renderComparison() {
   $('comparison-detail').textContent=sameMigration
     ?`Same migration and contract · paired ${paired} probes. Plans ${baseHash} → ${report.plan_hash.slice(0,10)}.`
     :`Same contract, different migration. Paired ${paired} completed-rollout probes; statement-boundary probes cannot be paired across different SQL sequences. Plans ${baseHash} → ${report.plan_hash.slice(0,10)}.`;
-  $('comparison-metrics').innerHTML=`<div><span>RESOLVED IN PAIRED PROBES</span><strong>${resolved}</strong></div><div><span>REGRESSED IN PAIRED PROBES</span><strong class="${regressed?'red':''}">${regressed}</strong></div><div><span>MIGRATION WINDOW FAILURES</span><strong>${oldWindows.total-oldWindows.passed} → ${newWindows.total-newWindows.passed}</strong><small>${oldWindows.total} → ${newWindows.total} boundary probes, ${sameMigration?'paired':'evaluated separately'}</small></div>`;
+  $('comparison-metrics').innerHTML=`<div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES RESOLVED</span><strong>${resolved}</strong></div><div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES REGRESSED</span><strong class="${regressed?'red':''}">${regressed}</strong></div><div><span>MIGRATION WINDOW FAILURES</span><strong>${oldWindows.total-oldWindows.passed} → ${newWindows.total-newWindows.passed}</strong><small>${oldWindows.total} → ${newWindows.total} boundary probes, ${sameMigration?'paired':'evaluated separately'}</small></div>`;
+  $('comparison-timeline-grid').innerHTML=boundaryTimeline(pinnedReport,'PINNED BASELINE')+boundaryTimeline(report,'CURRENT CANDIDATE');
+  timeline.hidden=false;
+}
+function boundaryTimeline(measured, label) {
+  const windows=measured.results.filter(item=>item.category==='migration_window');
+  const boundaries=new Map(), statements=new Map();
+  for(const probe of windows) {
+    const match=/^window_(write|insert)_after_(\d+)-/.exec(probe.id);
+    if(!match)continue;
+    const boundary=Number(match[2]);
+    if(!boundaries.has(boundary))boundaries.set(boundary,{write:[],insert:[]});
+    boundaries.get(boundary)[match[1]].push(probe);
+    for(const event of probe.trace) {
+      const sqlStep=/^migration\.statement\.(\d+)$/.exec(event.action);
+      if(sqlStep&&!statements.has(Number(sqlStep[1]))&&event.sql)statements.set(Number(sqlStep[1]),event.sql);
+    }
+  }
+  if(!boundaries.size)return `<div class="timeline-plan"><b>${escape(label)}</b><p>No statement-boundary probes retained.</p></div>`;
+  const last=Math.max(...boundaries.keys());
+  const rows=[];
+  for(let step=0;step<=last;step++) {
+    if(step>0) {
+      const sql=statements.get(step-1);
+      rows.push(`<details class="timeline-sql"><summary><span>SQL ${step}</span><code>${escape(sql?.replace(/\s+/g,' ').trim()||'Statement not observed in retained traces')}</code></summary>${sql?`<pre>${escape(sql)}</pre>`:''}</details>`);
+    }
+    const kinds=boundaries.get(step);
+    if(!kinds)continue;
+    const count=kind=>`${kinds[kind].filter(item=>item.passed).length}/${kinds[kind].length}`;
+    const failed=[...kinds.write,...kinds.insert].some(item=>!item.passed);
+    rows.push(`<div class="timeline-boundary ${failed?'fail':'pass'}"><span>${step===0?'BEFORE SQL':`AFTER SQL ${step}`}</span><strong>Update ${count('write')} · Insert ${count('insert')}</strong></div>`);
+  }
+  return `<div class="timeline-plan"><b>${escape(label)} · ${escape(measured.plan.name)}</b><small>${measured.plan_hash.slice(0,10)} · ${last} SQL statements</small>${rows.join('')}</div>`;
 }
 function setPlan(plan, source, provenance='custom candidate') {
   Object.entries(fields).forEach(([key,id])=>$(id).value=plan[key]);
