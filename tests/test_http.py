@@ -10,6 +10,8 @@ import urllib.request
 import zipfile
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest import mock
+import server
 from server import Handler
 from cutover.engine import load_case, load_plan
 from cutover.service import verify_report_against_replay
@@ -97,6 +99,27 @@ class HttpTests(unittest.TestCase):
     def test_private_files_not_served(self):
         for path in ('/../server.py', '/.bob/mcp.json', '/examples/parcel/bridge.json'):
             self.assertEqual(self.request(path)[0], 404)
+
+    def test_public_video_page_waits_for_final_file_and_supports_seek(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            video = Path(temporary) / 'demo.mp4'
+            with mock.patch.object(server, 'VIDEO', video):
+                self.assertEqual(self.request('/watch')[0], 404)
+                self.assertEqual(self.request('/demo.mp4')[0], 404)
+                video.write_bytes(b'0123456789abcdef')
+                code, page = self.request('/watch')
+                self.assertEqual(code, 200)
+                self.assertIn(b'<video controls', page)
+                req = urllib.request.Request(self.base + '/demo.mp4', headers={'Range': 'bytes=4-8'})
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    self.assertEqual((response.status, response.read()), (206, b'45678'))
+                    self.assertEqual(response.headers['Content-Range'], 'bytes 4-8/16')
+                    self.assertEqual(response.headers['Accept-Ranges'], 'bytes')
+                self.assertEqual(self.request('/demo.mp4', Range='bytes=16-')[0], 416)
+                req = urllib.request.Request(self.base + '/demo.mp4', method='HEAD')
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    self.assertEqual(response.headers['Content-Length'], '16')
+                    self.assertEqual(response.read(), b'')
 
     def test_invalid_input_fails_without_result(self):
         code, body = self.request('/api/rehearse', {'case': '../../', 'plan': {}})

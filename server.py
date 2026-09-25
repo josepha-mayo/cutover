@@ -2,6 +2,7 @@
 import argparse
 import json
 import mimetypes
+import re
 import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -13,6 +14,7 @@ from cutover.reporting import render_markdown, render_reproduction
 from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, validate_imported_contract
 
 STATIC = Path(__file__).parent / 'public'
+VIDEO = STATIC / 'demo.mp4'
 WAREHOUSE = Path(__file__).parent / 'examples' / 'warehouse'
 SLOTS = threading.BoundedSemaphore(2)
 
@@ -34,6 +36,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlparse(self.path).path
+        if path == '/demo.mp4':
+            return self.send_video()
+        if path == '/watch' and not VIDEO.is_file():
+            return self.send(404, {'error': 'The final presentation has not been published yet'})
         if path == '/api/catalog':
             return self.send(200, catalog())
         if path == '/api/example/warehouse':
@@ -44,11 +50,66 @@ class Handler(BaseHTTPRequestHandler):
             })
         if path == '/api/health':
             return self.send(200, {'ok': True, 'engine': 'SQLite', 'bob_session_verified': False})
-        files = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css'}
+        files = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css',
+                 '/watch': 'watch.html', '/watch.css': 'watch.css'}
         if path not in files:
             return self.send(404, {'error': 'Not found'})
         file = STATIC / files[path]
         self.send(200, file.read_bytes(), mimetypes.guess_type(file)[0] + '; charset=utf-8')
+
+    def do_HEAD(self):
+        if urlparse(self.path).path == '/demo.mp4':
+            return self.send_video(head_only=True)
+        self.send_response(404)
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def send_video(self, head_only=False):
+        if not VIDEO.is_file():
+            return self.send(404, {'error': 'The final presentation has not been published yet'})
+        size = VIDEO.stat().st_size
+        if size == 0:
+            return self.send(404, {'error': 'The final presentation is empty'})
+        start, end = 0, size - 1
+        requested = self.headers.get('Range')
+        if requested:
+            match = re.fullmatch(r'bytes=(\d*)-(\d*)', requested)
+            if not match or not any(match.groups()):
+                return self.send_video_range_error(size)
+            first, last = match.groups()
+            if first:
+                start = int(first)
+                end = min(int(last), end) if last else end
+            else:
+                start = max(0, size - int(last))
+            if start > end or start >= size:
+                return self.send_video_range_error(size)
+        self.send_response(206 if requested else 200)
+        self.send_header('Content-Type', 'video/mp4')
+        self.send_header('Content-Length', str(end - start + 1))
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        if requested:
+            self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+        self.end_headers()
+        if head_only:
+            return
+        with VIDEO.open('rb') as video:
+            video.seek(start)
+            remaining = end - start + 1
+            while remaining:
+                chunk = video.read(min(65536, remaining))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                remaining -= len(chunk)
+
+    def send_video_range_error(self, size):
+        self.send_response(416)
+        self.send_header('Content-Range', f'bytes */{size}')
+        self.send_header('Content-Length', '0')
+        self.end_headers()
 
     def do_POST(self):
         if self.path not in ('/api/rehearse', '/api/brief', '/api/bundle', '/api/contract/validate'):
