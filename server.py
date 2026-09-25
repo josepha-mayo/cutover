@@ -1,5 +1,6 @@
 """Local demo server. No persistence or production database access."""
 import argparse
+import hashlib
 import json
 import mimetypes
 import re
@@ -16,7 +17,39 @@ from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, vali
 STATIC = Path(__file__).parent / 'public'
 VIDEO = STATIC / 'demo.mp4'
 WAREHOUSE = Path(__file__).parent / 'examples' / 'warehouse'
+BOB_SESSION = Path(__file__).parent / 'bob_sessions'
+BOB_REPAIR_ID = '07a20bdb56f5'
 SLOTS = threading.BoundedSemaphore(2)
+
+
+def bob_repair_example():
+    """Serve the reviewed event candidate only while its published evidence matches."""
+    evidence = json.loads((BOB_SESSION / f'warehouse-{BOB_REPAIR_ID}-evidence.json').read_text(encoding='utf-8'))
+    candidate = BOB_SESSION / f'warehouse-{BOB_REPAIR_ID}-candidate.json'
+    report = BOB_SESSION / f'warehouse-{BOB_REPAIR_ID}-report.json'
+    contract = WAREHOUSE / 'contract.json'
+    for path, key in ((candidate, 'candidate_sha256'), (report, 'report_sha256'),
+                      (contract, 'contract_sha256')):
+        # Git may check out text with CRLF on Windows; the published blobs use LF.
+        canonical = path.read_bytes().replace(b'\r\n', b'\n')
+        if hashlib.sha256(canonical).hexdigest() != evidence.get(key):
+            raise ValueError('Published Bob evidence does not match its recorded hash')
+    if (evidence.get('status') != 'pass' or evidence.get('independent_audit_exit') != 0 or
+            not isinstance(evidence.get('passed'), int) or evidence['passed'] < 1 or
+            evidence['passed'] != evidence.get('total') or
+            not str(evidence.get('bob_task_id', '')).startswith(BOB_REPAIR_ID)):
+        raise ValueError('Published Bob repair is not independently verified')
+    result = json.loads(report.read_text(encoding='utf-8'))
+    if (result.get('status'), result.get('passed'), result.get('total')) != (
+            'pass', evidence['passed'], evidence['total']):
+        raise ValueError('Published Bob report disagrees with the reviewed evidence')
+    return {
+        'contract': json.loads(contract.read_text(encoding='utf-8')),
+        'plan': json.loads(candidate.read_text(encoding='utf-8')),
+        'source': 'IBM Bob IDE event repair; independently replayed',
+        'task_id': evidence['bob_task_id'],
+        'coverage': f"{evidence['passed']}/{evidence['total']}",
+    }
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -48,8 +81,13 @@ class Handler(BaseHTTPRequestHandler):
                 'plan': json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8')),
                 'source': 'prewritten warehouse example',
             })
+        if path == '/api/example/bob-repair':
+            try:
+                return self.send(200, bob_repair_example())
+            except (OSError, ValueError, KeyError, json.JSONDecodeError):
+                return self.send(503, {'error': 'Reviewed Bob repair evidence is unavailable'})
         if path == '/api/health':
-            return self.send(200, {'ok': True, 'engine': 'SQLite', 'bob_session_verified': False})
+            return self.send(200, {'ok': True, 'engine': 'SQLite'})
         files = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css',
                  '/watch': 'watch.html', '/watch.css': 'watch.css'}
         if path not in files:

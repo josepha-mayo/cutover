@@ -52,6 +52,19 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertEqual(json.loads(data)['status'], 'blocked')
 
+    def test_published_bob_repair_runs_as_a_fresh_warehouse_rehearsal(self):
+        code, body = self.request('/api/example/bob-repair')
+        self.assertEqual(code, 200)
+        example = json.loads(body)
+        self.assertEqual(example['task_id'], '07a20bdb56f595035652c2e6732b2c53')
+        self.assertEqual(example['coverage'], '116/116')
+        code, body = self.request('/api/rehearse', {
+            'case': 'custom', 'contract': example['contract'], 'plan': example['plan']})
+        self.assertEqual(code, 200)
+        report = json.loads(body)
+        self.assertEqual((report['status'], report['passed'], report['total']),
+                         ('pass', 116, 116))
+
     def test_noop_old_adapter_is_blocked_through_public_api(self):
         plan = {'name': 'No migration', 'migration': 'SELECT 1;', **load_case('parcel')['old']}
         code, data = self.request('/api/rehearse', {'case': 'parcel', 'plan': plan})

@@ -25,11 +25,13 @@ function updateModeControls() {
   $('quick-run').disabled=$('run').disabled;
   $('save-plan').disabled=busy||!activeCase||(custom&&!candidateReady());
   $('try-warehouse').disabled=busy;
+  $('try-bob-repair').disabled=busy;
 }
 function setBusy(value, label='Executing SQL rehearsals…') {
   busy=value;
   for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract')) node.disabled=value;
   $('try-warehouse').disabled=value;
+  $('try-bob-repair').disabled=value;
   $('quick-run').disabled=value;
   $('run').innerHTML=value?`<span>${escape(label)}</span><span>◌</span>`:'<span>Run release rehearsal</span><span>↗</span>';
   if(!value){updateModeControls();renderComparison();}
@@ -143,6 +145,7 @@ function setPlan(plan, source, provenance='custom candidate') {
   Object.entries(fields).forEach(([key,id])=>$(id).value=plan[key]);
   candidateSource=source;
   candidateProvenance=provenance;
+  $('bob-evidence-link').hidden=true;
   $('source-label').textContent=source;
   document.querySelectorAll('[data-plan]').forEach(button=>{ const chosen=button.dataset.plan===reference; button.classList.toggle('selected',chosen); button.setAttribute('aria-pressed',String(chosen)); });
   invalidate();
@@ -285,7 +288,7 @@ $('quick-run').addEventListener('click',async()=>{
 $('case').addEventListener('change',chooseCase);
 document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference=button.dataset.plan;setPlan(activeCase.plans[reference],'Editable reference · not AI generated');}));
 $('try-cross-record').addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference='cross_record';setPlan(activeCase.plans.cross_record,'Prewritten negative control · not AI generated');run();});
-Object.values(fields).forEach(id=>$(id).addEventListener('input',()=>{reference=null;candidateSource='Custom candidate · not yet executed';candidateProvenance='custom candidate';$('source-label').textContent=candidateSource;document.querySelectorAll('[data-plan]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});invalidate();updateModeControls();}));
+Object.values(fields).forEach(id=>$(id).addEventListener('input',()=>{reference=null;candidateSource='Custom candidate · not yet executed';candidateProvenance='custom candidate';$('source-label').textContent=candidateSource;$('bob-evidence-link').hidden=true;document.querySelectorAll('[data-plan]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});invalidate();updateModeControls();}));
 $('failures-only').addEventListener('change',renderMatrix);
 $('brief').addEventListener('click',showBob); $('bob-nav').addEventListener('click',showBob);
 $('export-bundle').addEventListener('click',async()=>{
@@ -397,6 +400,22 @@ $('try-warehouse').addEventListener('click',async()=>{
     notify('Warehouse example loaded. Run the SQL rehearsal to see the unsafe migration window.');
   } catch(error) {
     $('status-badge').textContent='EXAMPLE ERROR'; $('verdict-title').textContent='Example not loaded.';
+    $('verdict-description').textContent=error.message; notify(error.message);
+  } finally {setBusy(false);}
+});
+$('try-bob-repair').addEventListener('click',async()=>{
+  if(busy)return;
+  setBusy(true,'Loading Bob repair…'); invalidate(); $('status-badge').textContent='LOADING REPAIR';
+  try {
+    const response=await fetch('/api/example/bob-repair');
+    const data=await response.json(); if(!response.ok)throw Error(data.error||'Bob repair evidence unavailable.');
+    await activateContract(data.contract,'example');
+    reference=null;
+    setPlan(data.plan,`IBM Bob IDE repair · prior independent replay ${data.coverage} · run here to verify`,'event IBM Bob IDE candidate');
+    $('bob-evidence-link').hidden=false;
+    notify('Bob\'s saved repair loaded. Run a fresh rehearsal, or pin the unsafe result first to compare.');
+  } catch(error) {
+    $('status-badge').textContent='REPAIR ERROR'; $('verdict-title').textContent='Bob repair not loaded.';
     $('verdict-description').textContent=error.message; notify(error.message);
   } finally {setBusy(false);}
 });
