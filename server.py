@@ -217,15 +217,32 @@ class Handler(BaseHTTPRequestHandler):
                                 report['contract_hash'] != body['contract_hash']):
                             raise ValueError('Fresh CI kit inputs differ from the displayed custom rehearsal')
                         verify_report_against_replay('custom', body['plan'], report, contract)
-                        packet, slug = render_ci_kit(report, contract)
-                        self.send(200, packet, 'application/zip', {
+                        control = None
+                        if 'baseline_plan' in body:
+                            control = run_rehearsal('custom', body['baseline_plan'], contract)
+                            if (control['plan_hash'] != body.get('baseline_plan_hash') or
+                                    control['contract_hash'] != report['contract_hash'] or
+                                    control['engine_sha256'] != report['engine_sha256'] or
+                                    control['suite_hash'] != report['suite_hash'] or
+                                    control['status'] != 'blocked'):
+                                raise ValueError('Fresh unsafe control differs from the displayed blocked baseline')
+                            verify_report_against_replay('custom', body['baseline_plan'], control, contract)
+                        packet, slug = render_ci_kit(report, contract, control)
+                        headers = {
                             'Content-Disposition': f'attachment; filename="cutover-{slug}-ci-kit.zip"',
                             'X-Cutover-Plan-SHA256': report['plan_hash'],
                             'X-Cutover-Contract-SHA256': report['contract_hash'],
                             'X-Cutover-Status': report['status'],
                             'X-Cutover-Coverage': f'{report["passed"]}/{report["total"]}',
                             'X-Cutover-Audit': 'independent-replay',
-                        })
+                        }
+                        if control is not None:
+                            headers.update({
+                                'X-Cutover-Control-SHA256': control['plan_hash'],
+                                'X-Cutover-Control-Status': control['status'],
+                                'X-Cutover-Control-Coverage': f'{control["passed"]}/{control["total"]}',
+                            })
+                        self.send(200, packet, 'application/zip', headers)
                     elif self.path == '/api/bundle':
                         source_contract = contract if contract is not None else load_case(body['case'])
                         self.send(200, render_bundle(report, source_contract), 'application/zip', {

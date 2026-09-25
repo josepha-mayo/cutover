@@ -381,8 +381,14 @@ $('export-bundle').addEventListener('click',async()=>{
 $('export-ci-kit').addEventListener('click',async()=>{
   if(!report||report.case!=='custom'||report.status!=='pass'||ciKitBusy)return;
   const snapshot=report, button=$('export-ci-kit');
+  const control=pinnedReport?.case==='custom'&&pinnedReport.status==='blocked'&&
+    ['data_mismatch','target_mismatch'].includes(pinnedReport.witness?.failure?.kind)&&
+    pinnedReport.contract_hash===snapshot.contract_hash&&
+    pinnedReport.engine_sha256===snapshot.engine_sha256&&
+    pinnedReport.suite_hash===snapshot.suite_hash?pinnedReport:null;
   const request={case:'custom',contract:importedContract,plan:snapshot.plan,
     plan_hash:snapshot.plan_hash,contract_hash:snapshot.contract_hash};
+  if(control){request.baseline_plan=control.plan;request.baseline_plan_hash=control.plan_hash;}
   ciKitBusy=true;button.disabled=true;button.textContent='Verifying CI kit…';
   try {
     const body=JSON.stringify(request);
@@ -394,12 +400,15 @@ $('export-ci-kit').addEventListener('click',async()=>{
        response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
        response.headers.get('X-Cutover-Status')!=='pass'||
        response.headers.get('X-Cutover-Coverage')!==`${snapshot.passed}/${snapshot.total}`||
-       response.headers.get('X-Cutover-Audit')!=='independent-replay')
+       response.headers.get('X-Cutover-Audit')!=='independent-replay'||
+       (control&&(response.headers.get('X-Cutover-Control-SHA256')!==control.plan_hash||
+          response.headers.get('X-Cutover-Control-Status')!=='blocked'||
+          response.headers.get('X-Cutover-Control-Coverage')!==`${control.passed}/${control.total}`)))
       throw Error('Fresh CI kit replay differs from the displayed result. Rerun the candidate first.');
     const packet=await response.blob();
-    if(report!==snapshot)throw Error('The displayed candidate changed. Rerun it before exporting.');
+    if(report!==snapshot||(control&&pinnedReport!==control))throw Error('The displayed comparison changed. Rerun it before exporting.');
     download(`cutover-${fileSlug(importedContract.project)}-ci-kit.zip`,packet,'application/zip');
-    notify('CI kit downloaded with a fresh passing report, candidate, contract and manifest entry.');
+    notify(control?'CI kit downloaded with verified red and green controls plus the PR manifest entry.':'CI kit downloaded with a fresh passing report, candidate, contract and manifest entry.');
   }catch(error){notify(error.message);}
   finally{ciKitBusy=false;button.textContent='Download PR gate kit ↓';button.disabled=!report||report.status!=='pass';}
 });

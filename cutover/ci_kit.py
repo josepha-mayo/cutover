@@ -5,15 +5,17 @@ import re
 import zipfile
 
 from .reporting import render_markdown
+from .reporting import render_reproduction
 
 
-def render_ci_kit(report, contract):
+def render_ci_kit(report, contract, control=None):
     if report['case'] != 'custom' or report['status'] != 'pass':
         raise ValueError('A passing custom-contract rehearsal is required for a CI kit')
     part = re.sub(r'[^a-z0-9]+', '-', contract['project'].lower()).strip('-')[:25].strip('-')
     slug = f'release-{part or "scenario"}'
     contract_name = f'ci/{slug}-contract.json'
     plan_name = f'ci/{slug}-candidate.json'
+    control_name = f'ci/{slug}-unsafe-control.json'
     entry = {'case': f'Custom {slug}', 'slug': slug,
              'contract': contract_name, 'plan': plan_name}
     readme = (
@@ -44,6 +46,31 @@ def render_ci_kit(report, contract):
         'evidence/report.json': json.dumps(report, ensure_ascii=False, indent=2) + '\n',
         'evidence/review.md': render_markdown(report),
     }
+    if control is not None:
+        if (control['case'] != 'custom' or control['status'] != 'blocked' or
+                control['contract_hash'] != report['contract_hash'] or
+                control['engine_sha256'] != report['engine_sha256'] or
+                control['suite_hash'] != report['suite_hash'] or
+                control['witness']['failure']['kind'] not in ('data_mismatch', 'target_mismatch')):
+            raise ValueError('CI kit control must be a comparable verified data-mismatch block')
+        files[control_name] = json.dumps(control['plan'], ensure_ascii=False, indent=2) + '\n'
+        files['evidence/unsafe-control-report.json'] = json.dumps(control, ensure_ascii=False, indent=2) + '\n'
+        files['evidence/unsafe-control-review.md'] = render_markdown(control)
+        files['evidence/unsafe-control-witness.py'] = render_reproduction(control, contract)
+        readme += (
+            '\n## Prove this gate can go red\n\n'
+            f"The same contract also blocked the unsafe control at {control['passed']}/{control['total']} probes. "
+            'Its first failing write is retained in `evidence/unsafe-control-report.json` and '
+            '`evidence/unsafe-control-witness.py`. From the repository checkout, run:\n\n'
+            f'    python ci/review_gate.py --contract {contract_name} --plan {control_name} '
+            '--output-dir work/ci-negative-control\n'
+            '    # Expected exit 1 and classification verified_block.\n'
+            f'    python ci/review_gate.py --contract {contract_name} --plan {plan_name} '
+            '--output-dir work/ci-positive-control\n'
+            '    # Expected exit 0 and classification verified_pass.\n\n'
+            'The unsafe control is not in `manifest-entry.json`: do not add it to a normal green PR.\n'
+        )
+        files['README.md'] = readme
     output = io.BytesIO()
     with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
         for name, content in files.items():

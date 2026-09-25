@@ -93,7 +93,12 @@ For a browser-built custom scenario that passed a fresh rehearsal, click
 `manifest-entry.json`, and the executed report and review. Copy the two input
 files into this checkout, add the manifest object to `ci/cases.json`, run the
 local discovery command above, and open a PR. The kit includes its plan,
-contract and evaluator hashes; it does not approve production deployment.
+contract and evaluator hashes. If a blocked baseline was pinned, the kit also
+contains its unsafe plan, report, review and standalone witness. Run
+`ci/review_gate.py` with that plan and expect `verified_block`/exit 1; then run
+the passing candidate and expect `verified_pass`/exit 0. The README inside the
+kit gives exact commands. The unsafe control is not added to the green PR
+manifest. Neither result approves production deployment.
 
 The [two-case control PR](https://github.com/josepha-mayo/cutover/pull/4)
 kept Warehouse's Bob-saved candidate but replaced Parcel's candidate with a

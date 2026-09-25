@@ -33,13 +33,13 @@ class HttpTests(unittest.TestCase):
         cls.server.server_close()
         cls.thread.join()
 
-    def request(self, path, data=None, **headers):
+    def request(self, path, data=None, timeout=15, **headers):
         if data is not None:
             data = json.dumps(data).encode()
             headers.setdefault('Content-Type', 'application/json')
         req = urllib.request.Request(self.base + path, data=data, headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=15) as response:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
                 return response.status, response.read()
         except urllib.error.HTTPError as response:
             with response:
@@ -55,10 +55,15 @@ class HttpTests(unittest.TestCase):
         plan = json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))
         from cutover.service import run_rehearsal
         report = run_rehearsal('custom', plan, contract)
+        blocked_plan = json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))
+        blocked = run_rehearsal('custom', blocked_plan, contract)
+        self.assertEqual(blocked['status'], 'blocked')
         request = {'case': 'custom', 'plan': plan, 'contract': contract,
                    'plan_hash': report['plan_hash'],
-                   'contract_hash': report['contract_hash']}
-        code, body = self.request('/api/ci-kit', request)
+                   'contract_hash': report['contract_hash'],
+                   'baseline_plan': blocked_plan,
+                   'baseline_plan_hash': blocked['plan_hash']}
+        code, body = self.request('/api/ci-kit', request, timeout=90)
         self.assertEqual(code, 200)
         with zipfile.ZipFile(io.BytesIO(body)) as archive:
             entry = json.loads(archive.read('manifest-entry.json'))
@@ -69,6 +74,14 @@ class HttpTests(unittest.TestCase):
             self.assertEqual((retained['status'], retained['passed'], retained['total']),
                              ('pass', 124, 124))
             verify_report_against_replay('custom', plan, retained, contract)
+            unsafe_name = 'ci/release-warehouse-bin-relocation-unsafe-control.json'
+            self.assertEqual(json.loads(archive.read(unsafe_name)), blocked_plan)
+            unsafe_report = json.loads(archive.read('evidence/unsafe-control-report.json'))
+            self.assertEqual(unsafe_report['status'], 'blocked')
+            verify_report_against_replay('custom', blocked_plan, unsafe_report, contract)
+            self.assertIn(b'Prove this gate can go red', archive.read('README.md'))
+            witness = archive.read('evidence/unsafe-control-witness.py')
+            self.assertIn(b'def reproduce()', witness)
             with tempfile.TemporaryDirectory() as directory:
                 from ci.discover_cases import discover
                 root = Path(directory)
@@ -80,8 +93,8 @@ class HttpTests(unittest.TestCase):
                 self.assertEqual(discover(root)['include'], [entry])
         altered = {**request, 'plan_hash': '0' * 64}
         self.assertEqual(self.request('/api/ci-kit', altered)[0], 400)
-        blocked_plan = json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))
-        blocked = run_rehearsal('custom', blocked_plan, contract)
+        altered_control = {**request, 'baseline_plan_hash': '0' * 64}
+        self.assertEqual(self.request('/api/ci-kit', altered_control, timeout=90)[0], 400)
         self.assertEqual(self.request('/api/ci-kit', {
             **request, 'plan': blocked_plan, 'plan_hash': blocked['plan_hash']})[0], 400)
 
