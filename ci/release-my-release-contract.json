@@ -1,0 +1,30 @@
+{
+  "project": "My release",
+  "summary": "Rehearse location → destination while old items workers still read and write.",
+  "old_column": "location",
+  "new_column": "destination",
+  "table": "items",
+  "schema": "CREATE TABLE \"items\" (id INTEGER PRIMARY KEY, \"location\" TEXT NOT NULL);",
+  "seed_sql": "INSERT INTO \"items\" (id, \"location\") VALUES (?, ?)",
+  "seed": [
+    [
+      1,
+      "A-01"
+    ],
+    [
+      2,
+      "B-02"
+    ]
+  ],
+  "old": {
+    "read": "SELECT id, \"location\" AS value FROM \"items\" ORDER BY id",
+    "write": "UPDATE \"items\" SET \"location\" = :value WHERE id = :id",
+    "insert": "INSERT INTO \"items\" (id, \"location\") VALUES (:id, :value)"
+  },
+  "payloads": [
+    "next release",
+    "O'Connell",
+    "0",
+    "東京-棚"
+  ]
+}

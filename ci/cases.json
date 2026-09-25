@@ -10,5 +10,11 @@
     "slug": "parcel",
     "contract": "ci/parcel-contract.json",
     "plan": "ci/parcel-candidate.json"
+  },
+  {
+    "case": "Custom release-my-release",
+    "slug": "release-my-release",
+    "contract": "ci/release-my-release-contract.json",
+    "plan": "ci/release-my-release-candidate.json"
   }
 ]
