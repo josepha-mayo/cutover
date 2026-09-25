@@ -1,0 +1,18 @@
+{
+  "run": 36165290677,
+  "url": "https://github.com/josepha-mayo/cutover/actions/runs/36165290677",
+  "head_sha": "d8d27494c6c4a43263b2899ce0bd6889df36cc50",
+  "status": "blocked",
+  "conclusion": "failure",
+  "coverage": "100/116",
+  "first_witness": "new_to_old-0",
+  "independent_audit_exit": 1,
+  "files_sha256": {
+    "report.json": "d1ef1849d1e2f6a8bee095d178918dec753017ac71e9ff16cdee7c0b287f35b8",
+    "review.md": "2b85aeae75394beaa05d4967c276cffb2eff3167e65f289e5fd18a8a3244f377",
+    "review.zip": "89162fb65b9122e6535b67f6e638b3f13f1ae584b37ca4b6093d39743b900618",
+    "summary.md": "10a50eb4f4636d64df06da8dcab2b01919ef2d38a2c329cd704edffb3bcbbe50",
+    "verdict.json": "248720113277ae0ef12545e786dee1dc11af311cf288eac63aaf1bcfabc19324",
+    "candidate.json": "091055d77a32a70ca7a058d0de9c94d7e070757eab7c7a0860fb4319691b9939"
+  }
+}

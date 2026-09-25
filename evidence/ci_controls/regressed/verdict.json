@@ -1,0 +1,20 @@
+{
+  "classification": "verified_block",
+  "cli_exit": 1,
+  "audit_exit": 1,
+  "contract_hash": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+  "plan_hash": "b91f1fdacf6fc23d39b2473dcdf48a1d2cceb9fd3465c67662690266340a77a4",
+  "witness_id": "new_to_old-0",
+  "witness_failure": {
+    "expected": {
+      "11": "R-07",
+      "22": "B-02",
+      "33": "C-03"
+    },
+    "actual": {
+      "11": "A-01",
+      "22": "B-02",
+      "33": "C-03"
+    }
+  }
+}
