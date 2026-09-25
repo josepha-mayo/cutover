@@ -1,8 +1,7 @@
 # Installed browser kit: exact PR evidence
 
 The browser-generated synthetic release kit was applied with the guarded
-`python -m ci.install_kit --kit … --apply` command in [controlled PR #8]
-(https://github.com/josepha-mayo/cutover/pull/8). The PR changed exactly three
+`python -m ci.install_kit --kit … --apply` command in [controlled PR #8](https://github.com/josepha-mayo/cutover/pull/8). The PR changed exactly three
 inputs: one contract, one passing candidate, and one `ci/cases.json` entry.
 It did not edit the GitHub Actions workflow. The unsafe control remained in
 the downloadable kit; it was independently replayed as a verified block,
