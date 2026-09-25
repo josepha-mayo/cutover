@@ -98,7 +98,8 @@ def install_kit(path: Path, root: Path = ROOT, apply: bool = False) -> dict:
     if entry['slug'] in {item['slug'] for item in existing}:
         raise ValueError(f"CI case slug already exists: {entry['slug']}")
     targets = [root / entry['contract'], root / entry['plan']]
-    if any(target.exists() or not target.resolve().is_relative_to(root) for target in targets):
+    if ((root / 'ci').is_symlink() or any(target.is_symlink() for target in targets) or
+            any(target.exists() or not target.resolve().is_relative_to(root) for target in targets)):
         raise ValueError('CI kit would overwrite a file or escape the checkout')
     result = {'action': 'applied' if apply else 'dry_run', 'slug': entry['slug'],
               'coverage': f"{report['passed']}/{report['total']}",
