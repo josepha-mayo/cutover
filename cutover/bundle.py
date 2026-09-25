@@ -22,6 +22,8 @@ def bundle_files(report, contract):
         'Cutover source with the matching engine hash, rerun every replayable claim:\n\n'
         f'    {audit}\n\n'
         'Exit 0 means verified pass, 1 means verified block, and 2 means unverified.\n'
+        'To verify this entire ZIP, including its Markdown and any witness, run\n'
+        '`python -m cutover.audit_bundle --bundle PATH_TO_ZIP` from the source checkout.\n'
         'A passing report is bounded evidence, not deployment approval. The archive\n'
         'is not signed; creation time, runtime and host SQLite version are self-reported.\n'
     )
@@ -107,6 +109,8 @@ def render_comparison_bundle(before, after, contract):
         'The `baseline/` and `candidate/` folders each contain a complete review packet.\n'
         'Run the audit command in each folder README from a checkout of Cutover with\n'
         'the matching engine hash. The auditor replays every retained claim.\n\n'
+        'To verify both reports, the comparison manifest, reviews and witnesses in\n'
+        'one step, run `python -m cutover.audit_bundle --bundle PATH_TO_ZIP`.\n\n'
         f"Baseline: {before['status']} {before['passed']}/{before['total']} · {before['plan_hash']}\n"
         f"Candidate: {after['status']} {after['passed']}/{after['total']} · {after['plan_hash']}\n\n"
         'The comparison.json file counts paired probes only when their payload and\n'

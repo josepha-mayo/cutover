@@ -41,13 +41,14 @@ A developer can supply a bounded single-table SQLite contract and candidate plan
 python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/late_bridge.json --output work/warehouse-late.json --markdown work/warehouse-late.md --repro work/warehouse-late-replay.py --bundle work/warehouse-review.zip
 python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/bridge.json --output work/warehouse-safe.json --markdown work/warehouse-safe.md
 python -m cutover.audit_report --contract examples/warehouse/contract.json --plan examples/warehouse/late_bridge.json --report work/warehouse-late.json
+python -m cutover.audit_bundle --bundle work/warehouse-review.zip
 ```
 
 Contract import checks that the fixed old reader, updater, and inserter work with every declared payload on fresh databases before attributing failures to a migration.
 
 The first command exits 1 with a blocked 108/124 verdict; its shortest observed witness has `R-07` expected and `A-01` observed. The second exits 0 with 124/124 on this particular contract. The Markdown file is generated from the same executed report object as JSON, with a trace, bound inputs, expected/observed values, hashes and limitations. The ZIP keeps that report, review, candidate, contract, audit instructions and replayable witness together for a release review. It contains the supplied seed data and SQL, so keep private contracts local. Run `python work/warehouse-late-replay.py` to reproduce its recorded data gap without Cutover installed.
 
-The audit command reruns the checked-in contract and plan in a fresh bounded worker. It compares every replayable report field and checks any attached Markdown review or standalone witness against the report. Creation time, runtime and host SQLite version are self-reported. It exits 0 for a verified pass, 1 for a verified block, and 2 if the report differs or cannot be replayed. Changing the shown passing replay or Bob attribution invalidates the report.
+The JSON audit command reruns the checked-in contract and plan in a fresh bounded worker and compares every replayable report field. The ZIP audit command independently reruns every contained report and verifies the review text, any standalone witness source, and a before/after comparison manifest against those reports without extracting or executing the downloaded script. Creation time, runtime and host SQLite version are self-reported. Both commands exit 0 for a verified pass, 1 for a verified block, and 2 if evidence differs or cannot be replayed. Changing the shown passing replay or Bob attribution invalidates the report.
 
 The JSON keeps the complete shortest failure and one complete passing migration-window example. Other passing reads retain their executed SQL and probe details without repeating every seed value in every trace. The independent audit still reruns every probe and compares the complete resulting report. This keeps even the 16-seed, eight-payload, 32-statement test export small enough to review and audit.
 

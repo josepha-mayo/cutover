@@ -33,6 +33,9 @@ def render_reproduction(report, contract):
         raise ValueError('A failing data mismatch witness is required for a runnable reproduction')
     steps = [{key: event[key] for key in ('action', 'status', 'sql', 'params', 'expected', 'actual')
               if key in event} for event in witness['trace']]
+    # A downloaded report has passed through JSON, which stringifies row-ID keys.
+    # Generate the same witness source before and after that serialization.
+    steps = json.loads(json.dumps(steps, ensure_ascii=False))
     constants = ('#!/usr/bin/env python3\n'
                  '# Cutover standalone witness. Runs candidate SQL in disposable in-memory SQLite.\n'
                  'import json\nimport sqlite3\nimport time\nimport uuid\n\n'

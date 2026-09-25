@@ -11,6 +11,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from cutover.engine import load_case, load_plan, rehearse
+from cutover.audit_bundle import audit as audit_bundle
+from cutover.bundle import render_bundle, render_comparison_bundle
 from cutover.reporting import fenced, render_markdown, render_reproduction
 
 
@@ -18,6 +20,39 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReviewReportTests(unittest.TestCase):
+    def test_bundle_auditor_replays_blocked_packet_and_detects_changed_review(self):
+        report = rehearse('parcel', load_plan('parcel', 'late_bridge'))
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'review.zip'
+            path.write_bytes(render_bundle(report, load_case('parcel')))
+            self.assertEqual(audit_bundle(path)[0]['status'], 'blocked')
+            with zipfile.ZipFile(path) as original:
+                files = {name: original.read(name) for name in original.namelist()}
+            files['review.md'] = files['review.md'].replace(b'108/124', b'124/124', 1)
+            with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as changed:
+                for name, content in files.items():
+                    changed.writestr(name, content)
+            with self.assertRaisesRegex(ValueError, 'review.md differs'):
+                audit_bundle(path)
+
+    def test_bundle_auditor_replays_pair_and_detects_changed_comparison(self):
+        before = rehearse('parcel', load_plan('parcel', 'late_bridge'))
+        after = rehearse('parcel', load_plan('parcel', 'bridge'))
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'pair.zip'
+            path.write_bytes(render_comparison_bundle(before, after, load_case('parcel')))
+            self.assertEqual([item['status'] for item in audit_bundle(path)], ['blocked', 'pass'])
+            with zipfile.ZipFile(path) as original:
+                files = {name: original.read(name) for name in original.namelist()}
+            summary = json.loads(files['comparison.json'])
+            summary['migration_window_failures']['candidate']['failed'] = 0 if summary['migration_window_failures']['candidate']['failed'] else 1
+            files['comparison.json'] = json.dumps(summary).encode('utf-8')
+            with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as changed:
+                for name, content in files.items():
+                    changed.writestr(name, content)
+            with self.assertRaisesRegex(ValueError, 'comparison.json differs'):
+                audit_bundle(path)
+
     def test_cli_timeout_cannot_be_reported_as_a_blocked_candidate(self):
         with tempfile.TemporaryDirectory() as temporary:
             report = Path(temporary) / 'report.json'
