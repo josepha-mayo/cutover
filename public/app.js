@@ -393,7 +393,8 @@ $('export-ci-kit').addEventListener('click',async()=>{
        response.headers.get('X-Cutover-Plan-SHA256')!==snapshot.plan_hash||
        response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
        response.headers.get('X-Cutover-Status')!=='pass'||
-       response.headers.get('X-Cutover-Coverage')!==`${snapshot.passed}/${snapshot.total}`)
+       response.headers.get('X-Cutover-Coverage')!==`${snapshot.passed}/${snapshot.total}`||
+       response.headers.get('X-Cutover-Audit')!=='independent-replay')
       throw Error('Fresh CI kit replay differs from the displayed result. Rerun the candidate first.');
     const packet=await response.blob();
     if(report!==snapshot)throw Error('The displayed candidate changed. Rerun it before exporting.');

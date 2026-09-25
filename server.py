@@ -13,7 +13,7 @@ from cutover.bundle import render_bundle, render_comparison_bundle
 from cutover.ci_kit import render_ci_kit
 from cutover.engine import load_case, repair_brief
 from cutover.reporting import render_markdown, render_reproduction
-from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, validate_imported_contract
+from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, validate_imported_contract, verify_report_against_replay
 
 STATIC = Path(__file__).parent / 'public'
 VIDEO = STATIC / 'demo.mp4'
@@ -216,6 +216,7 @@ class Handler(BaseHTTPRequestHandler):
                                 report['plan_hash'] != body['plan_hash'] or
                                 report['contract_hash'] != body['contract_hash']):
                             raise ValueError('Fresh CI kit inputs differ from the displayed custom rehearsal')
+                        verify_report_against_replay('custom', body['plan'], report, contract)
                         packet, slug = render_ci_kit(report, contract)
                         self.send(200, packet, 'application/zip', {
                             'Content-Disposition': f'attachment; filename="cutover-{slug}-ci-kit.zip"',
@@ -223,6 +224,7 @@ class Handler(BaseHTTPRequestHandler):
                             'X-Cutover-Contract-SHA256': report['contract_hash'],
                             'X-Cutover-Status': report['status'],
                             'X-Cutover-Coverage': f'{report["passed"]}/{report["total"]}',
+                            'X-Cutover-Audit': 'independent-replay',
                         })
                     elif self.path == '/api/bundle':
                         source_contract = contract if contract is not None else load_case(body['case'])
