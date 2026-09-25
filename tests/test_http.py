@@ -96,6 +96,42 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 400)
         self.assertIn('error', json.loads(body))
 
+    def test_comparison_packet_reexecutes_both_and_keeps_independent_audits(self):
+        baseline = load_plan('parcel', 'late_bridge')
+        candidate = load_plan('parcel', 'bridge')
+        old = json.loads(self.request('/api/rehearse', {'case': 'parcel', 'plan': baseline})[1])
+        new = json.loads(self.request('/api/rehearse', {'case': 'parcel', 'plan': candidate})[1])
+        request = {'case': 'parcel', 'baseline_plan': baseline, 'candidate_plan': candidate,
+                   'baseline_plan_hash': old['plan_hash'],
+                   'candidate_plan_hash': new['plan_hash'],
+                   'contract_hash': old['contract_hash']}
+        payload = json.dumps(request).encode()
+        http = urllib.request.Request(self.base + '/api/comparison-bundle', data=payload,
+                                      headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(http, timeout=30) as response:
+            self.assertEqual(response.headers['Content-Type'], 'application/zip')
+            self.assertEqual(response.headers['X-Cutover-Baseline-SHA256'], old['plan_hash'])
+            self.assertEqual(response.headers['X-Cutover-Candidate-SHA256'], new['plan_hash'])
+            self.assertEqual(response.headers['X-Cutover-Baseline-Coverage'], '108/124')
+            self.assertEqual(response.headers['X-Cutover-Candidate-Coverage'], '124/124')
+            with zipfile.ZipFile(io.BytesIO(response.read())) as archive:
+                summary = json.loads(archive.read('comparison.json'))
+                self.assertEqual(summary['paired_probes'], 76)
+                self.assertFalse(summary['window_probes_paired'])
+                self.assertEqual(summary['migration_window_failures'], {
+                    'baseline': {'failed': 16, 'total': 48},
+                    'candidate': {'failed': 0, 'total': 48}})
+                for label, plan, status in (('baseline', baseline, 'blocked'),
+                                            ('candidate', candidate, 'pass')):
+                    saved = json.loads(archive.read(f'{label}/report.json'))
+                    self.assertEqual(saved['status'], status)
+                    self.assertEqual(json.loads(archive.read(f'{label}/plan.json')), plan)
+                    verify_report_against_replay('parcel', plan, saved)
+        request['candidate_plan_hash'] = '0' * 64
+        code, body = self.request('/api/comparison-bundle', request)
+        self.assertEqual(code, 400)
+        self.assertIn('differ', json.loads(body)['error'])
+
     def test_private_files_not_served(self):
         for path in ('/../server.py', '/.bob/mcp.json', '/examples/parcel/bridge.json'):
             self.assertEqual(self.request(path)[0], 404)

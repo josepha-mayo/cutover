@@ -8,7 +8,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
-from cutover.bundle import render_bundle
+from cutover.bundle import render_bundle, render_comparison_bundle
 from cutover.engine import load_case, repair_brief
 from cutover.reporting import render_markdown, render_reproduction
 from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, validate_imported_contract
@@ -112,7 +112,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        if self.path not in ('/api/rehearse', '/api/brief', '/api/bundle', '/api/contract/validate'):
+        if self.path not in ('/api/rehearse', '/api/brief', '/api/bundle',
+                             '/api/comparison-bundle', '/api/contract/validate'):
             return self.send(404, {'error': 'Not found'})
         origin = self.headers.get('Origin')
         if origin and urlparse(origin).netloc != self.headers.get('Host'):
@@ -121,8 +122,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(415, {'error': 'Expected application/json'})
         try:
             size = int(self.headers.get('Content-Length', '0'))
-            if not 0 < size <= 65536:
-                return self.send(413, {'error': 'Request must be between 1 byte and 64 KiB'})
+            limit = 131072 if self.path == '/api/comparison-bundle' else 65536
+            if not 0 < size <= limit:
+                return self.send(413, {'error': f'Request must be between 1 byte and {limit // 1024} KiB'})
             if not SLOTS.acquire(blocking=False):
                 return self.send(429, {'error': 'Two rehearsals are already running; retry shortly.'})
             try:
@@ -131,6 +133,29 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('Expected a JSON object')
                 if self.path == '/api/contract/validate':
                     self.send(200, validate_imported_contract(body['contract']))
+                elif self.path == '/api/comparison-bundle':
+                    contract = body.get('contract')
+                    before = run_rehearsal(body['case'], body['baseline_plan'], contract)
+                    after = run_rehearsal(body['case'], body['candidate_plan'], contract)
+                    if (before['plan_hash'] != body['baseline_plan_hash'] or
+                            after['plan_hash'] != body['candidate_plan_hash'] or
+                            before['contract_hash'] != body['contract_hash'] or
+                            after['contract_hash'] != body['contract_hash']):
+                        raise ValueError('Fresh before/after results differ from the displayed comparison')
+                    source_contract = contract if contract is not None else load_case(body['case'])
+                    self.send(200, render_comparison_bundle(before, after, source_contract),
+                              'application/zip', {
+                                  'Content-Disposition': 'attachment; filename="cutover-comparison.zip"',
+                                  'X-Cutover-Baseline-SHA256': before['plan_hash'],
+                                  'X-Cutover-Candidate-SHA256': after['plan_hash'],
+                                  'X-Cutover-Contract-SHA256': before['contract_hash'],
+                                  'X-Cutover-Engine-SHA256': before['engine_sha256'],
+                                  'X-Cutover-Suite-SHA256': before['suite_hash'],
+                                  'X-Cutover-Baseline-Status': before['status'],
+                                  'X-Cutover-Candidate-Status': after['status'],
+                                  'X-Cutover-Baseline-Coverage': f"{before['passed']}/{before['total']}",
+                                  'X-Cutover-Candidate-Coverage': f"{after['passed']}/{after['total']}",
+                              })
                 else:
                     contract = body.get('contract')
                     if self.path == '/api/brief' and contract is not None:

@@ -2,6 +2,7 @@ const $ = id => document.getElementById(id);
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
 let pinnedReport = null;
 let bundleBusy = false;
+let comparisonBusy = false;
 let importedContract = null, importedMeta = null, customPlan = null, customPlanSource = null;
 let candidateSource = '', candidateProvenance = 'custom candidate', customPlanProvenance = null;
 const fields = {name: 'plan-name', migration: 'migration', read: 'read', write: 'write', insert: 'insert'};
@@ -55,6 +56,7 @@ function renderComparison() {
   const tools=$('comparison-tools'), panel=$('comparison-panel');
   const timeline=$('comparison-timeline');
   timeline.hidden=true;
+  $('export-comparison').hidden=true;
   tools.hidden=!report&&!pinnedReport;
   $('pin-baseline').disabled=!report||busy;
   $('clear-baseline').hidden=!pinnedReport;
@@ -93,6 +95,8 @@ function renderComparison() {
   $('comparison-metrics').innerHTML=`<div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES RESOLVED</span><strong>${resolved}</strong></div><div><span>PAIRED ${sameMigration?'':'NON-WINDOW '}PROBES REGRESSED</span><strong class="${regressed?'red':''}">${regressed}</strong></div><div><span>MIGRATION WINDOW FAILURES</span><strong>${oldWindows.total-oldWindows.passed} → ${newWindows.total-newWindows.passed}</strong><small>${oldWindows.total} → ${newWindows.total} boundary probes, ${sameMigration?'paired':'evaluated separately'}</small></div>`;
   $('comparison-timeline-grid').innerHTML=boundaryTimeline(pinnedReport,'PINNED BASELINE')+boundaryTimeline(report,'CURRENT CANDIDATE');
   timeline.hidden=false;
+  $('export-comparison').hidden=false;
+  $('export-comparison').disabled=busy||comparisonBusy;
 }
 function boundaryTimeline(measured, label) {
   const windows=measured.results.filter(item=>item.category==='migration_window');
@@ -296,6 +300,37 @@ $('export-bundle').addEventListener('click',async()=>{
     notify('Review packet downloaded from a fresh server rehearsal.');
   }catch(error){notify(error.message);}
   finally{bundleBusy=false;button.textContent='Download review packet ↓';button.disabled=!report;}
+});
+$('export-comparison').addEventListener('click',async()=>{
+  if(!report||!pinnedReport||busy||comparisonBusy)return;
+  const baseline=pinnedReport, candidate=report, button=$('export-comparison');
+  const request={case:candidate.case,baseline_plan:baseline.plan,candidate_plan:candidate.plan,
+    baseline_plan_hash:baseline.plan_hash,candidate_plan_hash:candidate.plan_hash,
+    contract_hash:candidate.contract_hash};
+  if(candidate.case==='custom')request.contract=importedContract;
+  comparisonBusy=true;button.disabled=true;button.textContent='Replaying both plans…';
+  try {
+    const body=JSON.stringify(request);
+    if(new Blob([body]).size>131072)throw Error('The paired contract and plans exceed the 128 KiB hosted request limit. Use the local CLI.');
+    const response=await fetch('/api/comparison-bundle',{method:'POST',headers:{'Content-Type':'application/json'},body});
+    if(!response.ok){const data=await response.json();throw Error(data.error||'Comparison packet failed.');}
+    if(response.headers.get('Content-Type')!=='application/zip'||
+       response.headers.get('X-Cutover-Baseline-SHA256')!==baseline.plan_hash||
+       response.headers.get('X-Cutover-Candidate-SHA256')!==candidate.plan_hash||
+       response.headers.get('X-Cutover-Contract-SHA256')!==candidate.contract_hash||
+       response.headers.get('X-Cutover-Engine-SHA256')!==candidate.engine_sha256||
+       response.headers.get('X-Cutover-Suite-SHA256')!==candidate.suite_hash||
+       response.headers.get('X-Cutover-Baseline-Status')!==baseline.status||
+       response.headers.get('X-Cutover-Candidate-Status')!==candidate.status||
+       response.headers.get('X-Cutover-Baseline-Coverage')!==`${baseline.passed}/${baseline.total}`||
+       response.headers.get('X-Cutover-Candidate-Coverage')!==`${candidate.passed}/${candidate.total}`)
+      throw Error('Fresh paired evidence differs from the displayed comparison. Rerun both plans.');
+    const packet=await response.blob();
+    if(report!==candidate||pinnedReport!==baseline)throw Error('The displayed comparison changed during export. Rerun both plans.');
+    download(`cutover-${candidate.case}-${baseline.plan_hash.slice(0,8)}-to-${candidate.plan_hash.slice(0,8)}.zip`,packet,'application/zip');
+    notify('Both review packets downloaded from fresh, independently auditable rehearsals.');
+  }catch(error){notify(error.message);}
+  finally{comparisonBusy=false;button.textContent='Download both review packets ↓';renderComparison();}
 });
 $('export').addEventListener('click',()=>{if(!report)return;const {review_markdown,reproduction_python,...evidence}=report;download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.json`,pretty(evidence));});
 $('export-repro').addEventListener('click',()=>report?.reproduction_python&&download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}-replay.py`,report.reproduction_python,'text/x-python'));
