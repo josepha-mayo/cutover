@@ -1,6 +1,6 @@
 # Cutover submission copy — ready for final media and form review
 
-Working title: **Cutover: Rehearse the Release**
+Submitted title: **Cutover: Catch Lost Writes Before Merge**
 
 Short description: **Cutover rehearses schema-changing releases with old and new workers, then uses IBM Bob to repair the missed-write window and build a PR gate that keeps the counterexample.**
 
@@ -10,7 +10,7 @@ The live September form must be checked before sending: it has separate project 
 
 | Field | Prepared copy or gate |
 | --- | --- |
-| Title | **Cutover: Rehearse the Release** |
+| Title | **Cutover: Catch Lost Writes Before Merge** |
 | Summary | The short description above. |
 | Long description | The concise final project narrative below. |
 | IBM Bob usage | The separate factual narrative below, with both task-summary PNGs and IDE histories in `bob_sessions/`. |
