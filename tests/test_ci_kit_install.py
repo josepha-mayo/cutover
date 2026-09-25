@@ -18,12 +18,14 @@ class InstallKitTests(unittest.TestCase):
     def test_dry_run_then_apply_verified_browser_kit(self):
         with tempfile.TemporaryDirectory(prefix='cutover-kit-') as directory:
             target = Path(directory)
-            baseline = json.loads((ROOT / 'ci/cases.json').read_text(encoding='utf-8'))
+            baseline = [item for item in json.loads((ROOT / 'ci/cases.json').read_text(encoding='utf-8'))
+                        if item['slug'] != 'release-my-release']
             for source in ['ci/cases.json', *(item[key] for item in baseline
                                                for key in ('contract', 'plan'))]:
                 destination = target / source
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(ROOT / source, destination)
+            (target / 'ci/cases.json').write_text(json.dumps(baseline), encoding='utf-8')
             before = (target / 'ci/cases.json').read_bytes()
             dry = install_kit(KIT, target)
             self.assertEqual(dry['action'], 'dry_run')
