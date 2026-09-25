@@ -55,7 +55,7 @@ class HttpTests(unittest.TestCase):
         self.assertIn(b'currentTime', body)
         with urllib.request.urlopen(self.base + '/captions.en.vtt', timeout=15) as response:
             self.assertEqual(response.headers.get_content_type(), 'text/vtt')
-            self.assertTrue(response.read().startswith(b'WEBVTT\n'))
+            self.assertTrue(response.read().replace(b'\r\n', b'\n').startswith(b'WEBVTT\n'))
 
     def test_execute_edited_candidate_via_http(self):
         plan = load_plan('parcel', 'bridge')
