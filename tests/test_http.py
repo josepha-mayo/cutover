@@ -1,3 +1,4 @@
+import io
 import json
 import subprocess
 import sys
@@ -6,10 +7,12 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
+import zipfile
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from server import Handler
 from cutover.engine import load_case, load_plan
+from cutover.service import verify_report_against_replay
 
 WAREHOUSE = Path(__file__).resolve().parents[1] / 'examples' / 'warehouse'
 
@@ -58,6 +61,38 @@ class HttpTests(unittest.TestCase):
     def test_hostile_origin_rejected(self):
         code, _ = self.request('/api/rehearse', {'case': 'parcel', 'plan': load_plan()}, Origin='https://unrelated.example')
         self.assertEqual(code, 403)
+        code, _ = self.request('/api/bundle', {'case': 'parcel', 'plan': load_plan()}, Origin='https://unrelated.example')
+        self.assertEqual(code, 403)
+
+    def test_review_packet_reexecutes_and_retains_auditable_blocked_witness(self):
+        contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
+        plan = json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))
+        payload = json.dumps({'case': 'custom', 'contract': contract, 'plan': plan,
+                              'report': {'status': 'pass', 'passed': 124}}).encode()
+        req = urllib.request.Request(self.base + '/api/bundle', data=payload,
+                                     headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers['Content-Type'], 'application/zip')
+            self.assertIn('attachment; filename="cutover-review-', response.headers['Content-Disposition'])
+            packet = response.read()
+            with zipfile.ZipFile(io.BytesIO(packet)) as archive:
+                self.assertEqual(set(archive.namelist()), {
+                    'README.md', 'contract.json', 'plan.json', 'report.json', 'review.md', 'witness.py'})
+                saved = json.loads(archive.read('report.json'))
+                self.assertEqual(json.loads(archive.read('contract.json')), contract)
+                self.assertEqual(json.loads(archive.read('plan.json')), plan)
+                self.assertEqual((saved['status'], saved['passed'], saved['total']), ('blocked', 108, 124))
+                self.assertEqual(response.headers['X-Cutover-Plan-SHA256'], saved['plan_hash'])
+                self.assertEqual(response.headers['X-Cutover-Contract-SHA256'], saved['contract_hash'])
+                self.assertEqual(response.headers['X-Cutover-Status'], 'blocked')
+                self.assertEqual(response.headers['X-Cutover-Coverage'], '108/124')
+                verify_report_against_replay('custom', plan, saved, contract)
+
+    def test_review_packet_rejects_invalid_candidate_without_zip(self):
+        code, body = self.request('/api/bundle', {'case': '../../', 'plan': {}})
+        self.assertEqual(code, 400)
+        self.assertIn('error', json.loads(body))
 
     def test_private_files_not_served(self):
         for path in ('/../server.py', '/.bob/mcp.json', '/examples/parcel/bridge.json'):

@@ -7,6 +7,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+from cutover.bundle import render_bundle
 from cutover.engine import load_case, repair_brief
 from cutover.reporting import render_markdown, render_reproduction
 from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, validate_imported_contract
@@ -17,7 +18,7 @@ SLOTS = threading.BoundedSemaphore(2)
 
 
 class Handler(BaseHTTPRequestHandler):
-    def send(self, code, content, content_type='application/json; charset=utf-8'):
+    def send(self, code, content, content_type='application/json; charset=utf-8', headers=None):
         if not isinstance(content, bytes):
             content = json.dumps(content, ensure_ascii=False).encode()
         self.send_response(code)
@@ -26,6 +27,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Content-Security-Policy', "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'")
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(content)
 
@@ -48,7 +51,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send(200, file.read_bytes(), mimetypes.guess_type(file)[0] + '; charset=utf-8')
 
     def do_POST(self):
-        if self.path not in ('/api/rehearse', '/api/brief', '/api/contract/validate'):
+        if self.path not in ('/api/rehearse', '/api/brief', '/api/bundle', '/api/contract/validate'):
             return self.send(404, {'error': 'Not found'})
         origin = self.headers.get('Origin')
         if origin and urlparse(origin).netloc != self.headers.get('Host'):
@@ -74,6 +77,15 @@ class Handler(BaseHTTPRequestHandler):
                     report = run_rehearsal(body['case'], body['plan'], contract)
                     if self.path == '/api/brief':
                         self.send(200, repair_brief(report))
+                    elif self.path == '/api/bundle':
+                        source_contract = contract if contract is not None else load_case(body['case'])
+                        self.send(200, render_bundle(report, source_contract), 'application/zip', {
+                            'Content-Disposition': f'attachment; filename="cutover-review-{report["plan_hash"][:10]}.zip"',
+                            'X-Cutover-Plan-SHA256': report['plan_hash'],
+                            'X-Cutover-Contract-SHA256': report['contract_hash'],
+                            'X-Cutover-Status': report['status'],
+                            'X-Cutover-Coverage': f'{report["passed"]}/{report["total"]}',
+                        })
                     else:
                         report['review_markdown'] = render_markdown(report)
                         if report['witness'] and report['witness']['failure']['kind'] in ('data_mismatch', 'target_mismatch'):

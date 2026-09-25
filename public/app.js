@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
 let pinnedReport = null;
+let bundleBusy = false;
 let importedContract = null, importedMeta = null, customPlan = null, customPlanSource = null;
 let candidateSource = '', candidateProvenance = 'custom candidate', customPlanProvenance = null;
 const fields = {name: 'plan-name', migration: 'migration', read: 'read', write: 'write', insert: 'insert'};
@@ -47,7 +48,7 @@ function invalidate() {
   $('trace-label').textContent='REPLAY';
   $('window-map').hidden=true; $('window-stages').replaceChildren();
   $('finding').innerHTML='<span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div>';
-  $('export').disabled=true; $('export-review').disabled=true; $('export-repro').disabled=true; $('brief').disabled=true;
+  $('export').disabled=true; $('export-review').disabled=true; $('export-repro').disabled=true; $('export-bundle').disabled=true; $('brief').disabled=true;
   renderComparison();
 }
 function renderComparison() {
@@ -150,7 +151,7 @@ function renderReport() {
   const value=value=>value===undefined?'(missing row)':JSON.stringify(value);
   const gap=rowId===undefined?'':`<p class="witness-gap">Row ${escape(rowId)} · ledger expected <strong>${escape(value(failedRead.expected[rowId]))}</strong>; ${escape(failedRead.action)} observed <strong>${escape(value(failedRead.actual[rowId]))}</strong>.</p>`;
   $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p>${gap}</div>`;
-  $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('brief').disabled=false;
+  $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('export-bundle').disabled=bundleBusy; $('brief').disabled=false;
   $('hashes').textContent=`Plan SHA-256: ${report.plan_hash} · Contract SHA-256: ${report.contract_hash} · Suite SHA-256: ${report.suite_hash}`;
   renderComparison();
   renderWindowMap(); renderMatrix(); renderTrace(witness || report.results.find(r=>r.id==='new_to_old-0'));
@@ -238,6 +239,30 @@ $('try-cross-record').addEventListener('click',()=>{if(busy||activeCase?.id==='c
 Object.values(fields).forEach(id=>$(id).addEventListener('input',()=>{reference=null;candidateSource='Custom candidate · not yet executed';candidateProvenance='custom candidate';$('source-label').textContent=candidateSource;document.querySelectorAll('[data-plan]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});invalidate();updateModeControls();}));
 $('failures-only').addEventListener('change',renderMatrix);
 $('brief').addEventListener('click',showBob); $('bob-nav').addEventListener('click',showBob);
+$('export-bundle').addEventListener('click',async()=>{
+  if(!report||bundleBusy)return;
+  const snapshot=report, button=$('export-bundle');
+  const request={case:snapshot.case,plan:snapshot.plan};
+  if(snapshot.case==='custom')request.contract=importedContract;
+  bundleBusy=true; button.disabled=true; button.textContent='Preparing review packet…';
+  try {
+    const body=JSON.stringify(request);
+    if(new Blob([body]).size>65536)throw Error('Contract and plan exceed the 64 KiB hosted request limit. Use the local CLI.');
+    const response=await fetch('/api/bundle',{method:'POST',headers:{'Content-Type':'application/json'},body});
+    if(!response.ok){const data=await response.json();throw Error(data.error||'Review packet failed.');}
+    if(response.headers.get('Content-Type')!=='application/zip'||
+       response.headers.get('X-Cutover-Plan-SHA256')!==snapshot.plan_hash||
+       response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
+       response.headers.get('X-Cutover-Status')!==snapshot.status||
+       response.headers.get('X-Cutover-Coverage')!==`${snapshot.passed}/${snapshot.total}`)
+      throw Error('The new rehearsal differs from the displayed result. Run the candidate again before exporting.');
+    const packet=await response.blob();
+    if(report!==snapshot)throw Error('The displayed candidate changed. Run it again before exporting.');
+    download(`cutover-${snapshot.case}-${snapshot.plan_hash.slice(0,10)}-review.zip`,packet,'application/zip');
+    notify('Review packet downloaded from a fresh server rehearsal.');
+  }catch(error){notify(error.message);}
+  finally{bundleBusy=false;button.textContent='Download review packet ↓';button.disabled=!report;}
+});
 $('export').addEventListener('click',()=>{if(!report)return;const {review_markdown,reproduction_python,...evidence}=report;download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.json`,pretty(evidence));});
 $('export-repro').addEventListener('click',()=>report?.reproduction_python&&download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}-replay.py`,report.reproduction_python,'text/x-python'));
 $('export-review').addEventListener('click',()=>report?.review_markdown&&download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.md`,report.review_markdown,'text/markdown'));
