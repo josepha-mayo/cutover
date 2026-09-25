@@ -91,7 +91,7 @@ def main():
             zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         print(f'UNVERIFIED: {exc}', file=sys.stderr)
         return 2
-    print('VERIFIED PACKET: ' + ' → '.join(
+    print('VERIFIED PACKET: ' + ' -> '.join(
         f"{item['status'].upper()} {item['passed']}/{item['total']} "
         f"plan {item['plan_hash'][:12]}" for item in reports))
     return 0 if all(item['status'] == 'pass' for item in reports) else 1

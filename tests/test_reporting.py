@@ -42,6 +42,11 @@ class ReviewReportTests(unittest.TestCase):
             path = Path(temporary) / 'pair.zip'
             path.write_bytes(render_comparison_bundle(before, after, load_case('parcel')))
             self.assertEqual([item['status'] for item in audit_bundle(path)], ['blocked', 'pass'])
+            command = subprocess.run([sys.executable, '-m', 'cutover.audit_bundle', '--bundle', str(path)],
+                                     cwd=ROOT, capture_output=True, text=True, encoding='cp1252', timeout=25)
+            self.assertEqual(command.returncode, 1, command.stderr)
+            self.assertIn('VERIFIED PACKET: BLOCKED 108/124', command.stdout)
+            self.assertIn(' -> PASS 124/124', command.stdout)
             with zipfile.ZipFile(path) as original:
                 files = {name: original.read(name) for name in original.namelist()}
             summary = json.loads(files['comparison.json'])
