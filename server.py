@@ -96,7 +96,7 @@ class Handler(BaseHTTPRequestHandler):
             image = Path(__file__).parent / 'bob_sessions' / task_images[path]
             return self.send(200, image.read_bytes(), 'image/png')
         files = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css',
-                 '/watch': 'watch.html', '/watch.css': 'watch.css',
+                 '/watch': 'watch.html', '/watch.css': 'watch.css', '/watch.js': 'watch.js',
                  '/proof': 'proof.html', '/proof.css': 'proof.css'}
         if path not in files:
             return self.send(404, {'error': 'Not found'})

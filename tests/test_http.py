@@ -45,6 +45,14 @@ class HttpTests(unittest.TestCase):
             with response:
                 return response.code, response.read()
 
+    def test_watch_chapter_script_is_served(self):
+        code, body = self.request('/watch')
+        self.assertEqual(code, 200)
+        self.assertIn(b'/watch.js', body)
+        code, body = self.request('/watch.js')
+        self.assertEqual(code, 200)
+        self.assertIn(b'currentTime', body)
+
     def test_execute_edited_candidate_via_http(self):
         plan = load_plan('parcel', 'bridge')
         plan['migration'] += '\nDROP TRIGGER sync_new_update;'
