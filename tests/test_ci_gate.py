@@ -24,12 +24,14 @@ WAREHOUSE = ROOT / "examples" / "warehouse"
 CONTRACT = WAREHOUSE / "contract.json"
 BRIDGE = WAREHOUSE / "bridge.json"
 LATE_BRIDGE = WAREHOUSE / "late_bridge.json"
+PARCEL_CONTRACT = ROOT / "ci" / "parcel-contract.json"
+BOB_PARCEL = ROOT / "ci" / "parcel-candidate.json"
 
 
-def _run_gate(plan: Path, output_dir: Path) -> subprocess.CompletedProcess:
+def _run_gate(plan: Path, output_dir: Path, contract: Path = CONTRACT) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(CI_GATE),
-         "--contract", str(CONTRACT),
+         "--contract", str(contract),
          "--plan", str(plan),
          "--output-dir", str(output_dir)],
         cwd=ROOT,
@@ -41,6 +43,26 @@ def _run_gate(plan: Path, output_dir: Path) -> subprocess.CompletedProcess:
 
 
 class GateVerifiedPassTests(unittest.TestCase):
+    def test_distinct_bob_parcel_candidate_is_verified_pass(self):
+        from cutover.engine import PAYLOADS
+
+        bundled = json.loads((ROOT / "examples" / "parcel" / "contract.json").read_text(encoding="utf-8"))
+        imported = json.loads(PARCEL_CONTRACT.read_text(encoding="utf-8"))
+        self.assertEqual(imported, {**bundled, "payloads": PAYLOADS})
+        self.assertEqual(BOB_PARCEL.read_bytes(),
+                         (ROOT / "bob_sessions" / "parcel-07a20bdb56f5-candidate.json").read_bytes())
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            result = _run_gate(BOB_PARCEL, out, PARCEL_CONTRACT)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            verdict = json.loads((out / "verdict.json").read_text(encoding="utf-8"))
+            report = json.loads((out / "report.json").read_text(encoding="utf-8"))
+            self.assertEqual(verdict["classification"], "verified_pass")
+            self.assertEqual((report["passed"], report["total"]), (116, 116))
+            self.assertEqual(verdict["contract_hash"], report["contract_hash"])
+            self.assertEqual(verdict["plan_hash"], report["plan_hash"])
+            self.assertTrue((out / "review.zip").exists())
+
     def test_safe_bridge_is_verified_pass(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)

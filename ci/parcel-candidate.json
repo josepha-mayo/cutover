@@ -1,0 +1,7 @@
+{
+  "name": "Triggers before backfill, one-way sync, dual-write",
+  "migration": "ALTER TABLE orders ADD COLUMN shipping_address TEXT;\nCREATE TRIGGER sync_delivery_to_shipping AFTER UPDATE OF delivery_address ON orders\nBEGIN\n  UPDATE orders SET shipping_address = NEW.delivery_address WHERE id = NEW.id;\nEND;\nCREATE TRIGGER sync_insert_to_shipping AFTER INSERT ON orders\nWHEN NEW.shipping_address IS NULL\nBEGIN\n  UPDATE orders SET shipping_address = NEW.delivery_address WHERE id = NEW.id;\nEND;\nUPDATE orders SET shipping_address = delivery_address WHERE shipping_address IS NULL;",
+  "read": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
+  "write": "UPDATE orders SET delivery_address = :value, shipping_address = :value WHERE id = :id",
+  "insert": "INSERT INTO orders (id, delivery_address, shipping_address) VALUES (:id, :value, :value)"
+}

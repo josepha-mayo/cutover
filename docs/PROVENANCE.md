@@ -24,6 +24,14 @@ Bob IDE task `07a20bdb56f595035652c2e6732b2c53` began at 15:17:47 UTC in a refer
 
 The second Bob IDE task `9aa1e2a2ae601940eb12f45bd6c2bf59` began at 16:24:08 UTC in the public Cutover workspace and built the [PR review gate](CI.md), its [workflow](../.github/workflows/cutover-review.yml), and focused tests. Its [summary PNG](../bob_sessions/cutover_task02_ci_review_gate_9aa1e2a2_summary.png), [IDE history](../bob_sessions/cutover_task02_ci_review_gate_9aa1e2a2_history.md), and [evidence record](../bob_sessions/cutover_task02_ci_review_gate_9aa1e2a2_evidence.json) bind the work to the task. Bob ran 67/67 focused and existing engine/reporting/contract tests successfully. Codex independently checked four fresh local gate controls and ran the full 91-test `unittest` suite. After review, Codex corrected a documentation sentence and integrated the files into the public repository; it did not attribute those edits to Bob.
 
+Codex later extended Bob's single-case GitHub workflow into independent
+Warehouse and Parcel matrix checks. It copied Bob's saved Parcel candidate
+byte-for-byte to `ci/parcel-candidate.json`, explicitly copied the bundled
+Parcel contract's default payloads into `ci/parcel-contract.json` for the
+imported-contract CLI path, and added a focused gate test.
+Bob authored the underlying gate and both repair candidates; the matrix
+integration and its verification are Codex work.
+
 Three real GitHub pull-request runs exercised the gate after the Bob task: [unsafe blocked 108/124](https://github.com/josepha-mayo/cutover/actions/runs/36165105646), [safe reference passed 124/124](https://github.com/josepha-mayo/cutover/actions/runs/36165215088), and [regressed blocked 100/116](https://github.com/josepha-mayo/cutover/actions/runs/36165290677). Their exact PR-head candidates, downloaded JSON/Markdown/ZIP/verdict/summary artifacts, first witnesses, and independent replay were verified. The controlled PRs were closed after retaining the runs. Because GitHub may require sign-in to view job logs, a [public evidence mirror](../evidence/ci_controls/README.md) exposes the synthetic artifacts and SHA-256 digests. The control plans were written before kickoff and are test fixtures, not Bob-authored candidates.
 
 The Codex-built evaluator, browser, media templates, hosted demo, and independent verification are supporting scaffolding. The event contribution is Bob's saved repair and Bob's CI review gate, with failures and scope limits retained. These SQLite schedules do not model concurrent transactions, locking, crashes, PostgreSQL/MySQL, or production deployment approval.

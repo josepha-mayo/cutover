@@ -1,7 +1,13 @@
 # Cutover CI review gate
 
 This document explains how to set up and interpret the automated pull-request
-gate that verifies a migration candidate against a checked-in SQLite contract.
+gate that verifies each checked-in migration candidate against its own SQLite
+contract. The workflow runs Bob's original gate independently for Warehouse
+and Parcel. Codex added the two-case workflow matrix after Bob's task;
+`ci/parcel-candidate.json` is an exact copy of Bob's saved Parcel plan.
+`ci/parcel-contract.json` copies the bundled synthetic Parcel contract
+and makes its four previously implicit test payloads explicit for the
+imported-contract CLI path. No evaluator or expected result was changed.
 
 ---
 
@@ -53,32 +59,41 @@ the first failing probe).
 
 The workflow is at [`.github/workflows/cutover-review.yml`](../.github/workflows/cutover-review.yml).
 It triggers on `pull_request` with read-only repository permissions and no
-secrets.  It has exactly four steps:
+secrets. Its matrix runs two independent jobs, one per contract/plan pair.
+Each job has exactly four steps:
 
 1. `actions/checkout@v4`
 2. `actions/setup-python@v5` (Python 3.12)
 3. **Run Cutover review gate** — invokes `ci/review_gate.py`; fails the step
    for `verified_block` and `unverified` outcomes
-4. **Upload review evidence** — `if: always()` so artifacts are preserved even
-   when the gate step fails
+4. **Upload review evidence** — `if: always()` so each case's uniquely named
+   artifacts are preserved even when its gate step fails
 
 The helper uses only the Python standard library, so no `pip install` step is
 needed.
 
 ### Input paths
 
-Set these at the top of the workflow `env:` block:
+Add one entry per checked-in release to `strategy.matrix.include`:
 
 ```yaml
-env:
-  CONTRACT_PATH: examples/warehouse/contract.json
-  PLAN_PATH: ci/candidate.json
-  OUTPUT_DIR: work/ci-review
+strategy:
+  fail-fast: false
+  matrix:
+    include:
+      - case: Warehouse
+        slug: warehouse
+        contract: examples/warehouse/contract.json
+        plan: ci/candidate.json
+      - case: Parcel
+        slug: parcel
+        contract: ci/parcel-contract.json
+        plan: ci/parcel-candidate.json
 ```
 
-Replace `CONTRACT_PATH` and `PLAN_PATH` to adapt the gate for a different
-repository.  Both files are read-only inputs; the helper will never overwrite
-them.
+Add or replace paths to adapt the workflow for another repository. The
+contract and plan files are read-only inputs. One verified block makes its
+case check red while other cases still run and retain their evidence.
 
 ---
 
@@ -154,6 +169,6 @@ Substitute `--plan` to test any fixture:
 python -m pytest tests/test_ci_gate.py -v
 ```
 
-Five tests cover `verified_pass`, `verified_block` (with coverage and witness
-assertions), `unverified` from malformed JSON, and `unverified` from a missing
-file.  They do not modify any fixture or contract.
+Six tests cover Warehouse and Parcel `verified_pass`, `verified_block` (with
+coverage and witness assertions), `unverified` from malformed JSON, and
+`unverified` from a missing file. They do not modify any fixture or contract.
