@@ -533,7 +533,10 @@ def deck(evidence=None, output=None):
     text(c, 298, 235, f"{safe['passed']}/{safe['total']}  PASS", 19, LIME, 'ConsolasBold')
     text(c, 45, 168, f'Old write acknowledged: {expected}   /   New read observed: {observed}', 18, ORANGE)
     text(c, 45, 119, 'JSON + Markdown carry the same executed report, SQL, inputs and hashes.', 16)
-    text(c, 45, 78, 'Pre-event Codex importer and reference plans; Bob repair remains an event task.', 13, MUTED)
+    text(c, 45, 78,
+         'Pre-event Codex importer and reference plans; Bob repair is shown on the next slide.'
+         if final else 'Pre-event Codex importer and reference plans; Bob repair remains an event task.',
+         13, MUTED)
     c.showPage()
 
     if final:

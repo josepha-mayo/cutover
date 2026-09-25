@@ -95,6 +95,8 @@ Run `python verify_bob_session.py --workspace PATH_TO_SIBLING` before and after 
 
 Use [BOB_TASK.md](docs/BOB_TASK.md). Capture the real task summary and screenshots, retain Bob's actual candidate, copy its `work/bob-candidate.json` into this full project's `work/`, and replay it with `python -m cutover --plan work/bob-candidate.json`. The interface's four primary reference plans and cross-record negative control are prewritten; loading them is not an AI repair. The MVP intentionally does not invent an IBM Bob inference API.
 
+The September 25 event task in IBM Bob IDE is recorded in its [task-session summary](bob_sessions/cutover_task01_parcel_warehouse_repair_07a20bdb_summary.png) and [history export](bob_sessions/cutover_task01_parcel_warehouse_repair_07a20bdb_history.md). Bob diagnosed an old-worker write lost between backfill and trigger creation. Its first bidirectional-trigger attempt failed with recursion; the saved one-way-trigger, explicit-dual-write [Parcel plan](bob_sessions/parcel-07a20bdb56f5-candidate.json) and distinct [Warehouse plan](bob_sessions/warehouse-07a20bdb56f5-candidate.json) each passed 116/116 when independently replayed from Bob's files. The [Warehouse evidence record](bob_sessions/warehouse-07a20bdb56f5-evidence.json) binds the checked-in `ci/candidate.json` to that task. The prewritten five-statement reference has 124 probes; Bob's four-statement plans have 116 because the number of statement-boundary probes changes. Use **Try unsafe warehouse**, run and pin its failure, then **Load Bob's repair** and run again in the [live demo](https://cutover-rehearsal.onrender.com/) to compare fresh execution without pairing unlike migration windows. These are bounded synthetic SQLite results, not production safety evidence.
+
 ## CLI and verification
 
 ```powershell
@@ -116,6 +118,6 @@ The test suite includes negative controls: removing each synchronization trigger
 
 Passing is bounded evidence, not a deployment certificate. There is no concurrent transaction/lock simulation, network-failure model, mid-statement interruption, PostgreSQL/MySQL claim, performance estimate, automatic repository extractor, or completed final column removal. Statement-boundary probes model a successful old write between autocommitted SQLite migration statements, then completion of the remaining statements. Keep the bridge while old workers and rollback remain possible; removing it requires a later contract phase and further verification.
 
-Current HTTP/browser results are not persisted server-side; download the report before refreshing. Event-period Bob provenance remains unverified until the qualifying task and its artifacts are captured. See [the pre-event baseline and evidence gate](docs/PROVENANCE.md), [STATUS.md](docs/STATUS.md), [the decision record](docs/DECISION.md), and [submission preparation](docs/SUBMISSION.md).
+Current HTTP/browser results are not persisted server-side; download the report before refreshing. The task PNG, IDE history and independently replayed files above establish the recorded event repair, while later CI work requires its own task evidence. See [the pre-event baseline and evidence gate](docs/PROVENANCE.md), [STATUS.md](docs/STATUS.md), [the decision record](docs/DECISION.md), and [submission preparation](docs/SUBMISSION.md).
 
 MIT licensed. Independent prototype; not an IBM product.
