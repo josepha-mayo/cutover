@@ -72,7 +72,8 @@ def _workspace_relative(path: Path) -> Path:
 
 
 def _emit_annotation(classification: str, plan: Path, report: dict,
-                     cli_exit: int | None, audit_exit: int | None) -> None:
+                     cli_exit: int | None, audit_exit: int | None,
+                     reason: str = "") -> None:
     """Place a bounded verdict on the PR's candidate file in GitHub Checks."""
     if os.environ.get("GITHUB_ACTIONS") != "true" or classification == "verified_pass":
         return
@@ -95,6 +96,8 @@ def _emit_annotation(classification: str, plan: Path, report: dict,
     else:
         message = (f"Unverified: CLI exit {cli_exit}, audit exit {audit_exit}. "
                    "No passing result was established; inspect verdict.json and summary.md.")
+        if reason:
+            message = reason + " " + message
         title = "Cutover could not verify candidate"
     # GitHub's workflow command protocol uses one log line. Escape values so
     # imported payloads cannot create another command or annotation property.
@@ -120,6 +123,7 @@ def _build_summary(
     audit_stderr: str,
     report: dict,
     migration_source: dict | None = None,
+    contract_lock: dict | None = None,
 ) -> str:
     """Build the Markdown job summary.
 
@@ -148,12 +152,20 @@ def _build_summary(
         lines.append(f"| Contract hash (report) | `{contract_hash}` |")
     if plan_hash:
         lines.append(f"| Plan hash (report) | `{plan_hash}` |")
+    if contract_lock:
+        lines.append(f"| Contract lock | `{contract_lock['status']}` |")
+        lines.append(f"| Expected contract hash | `{contract_lock['expected']}` |")
+        lines.append(f"| Observed contract hash | `{contract_lock['actual']}` |")
     if migration_source:
         source_path = migration_source["path"].replace("|", "&#124;").replace("`", "&#96;")
         source_path = source_path.replace("\r", " ").replace("\n", " ")
         lines.append(f"| SQL source file | `{source_path}` |")
         lines.append(f"| SQL file SHA-256 | `{migration_source['sha256']}` |")
     lines.append("")
+    if contract_lock:
+        lines += ["The contract hash covers the agreed schema, old-worker adapters,",
+                  "seed records and payloads. A changed contract requires a separate",
+                  "review; it is not evidence that the migration was repaired.", ""]
     if migration_source:
         lines += ["The migration was loaded from this SQL file. `effective-plan.json`",
                   "retains the SQL and adapters supplied to the CLI and independent audit.", ""]
@@ -245,14 +257,18 @@ def _build_summary(
     return "\n".join(lines)
 
 
-def _input_failure(out: Path, reason: str, annotation_path: Path) -> int:
+def _input_failure(out: Path, reason: str, annotation_path: Path,
+                   contract_lock: dict | None = None) -> int:
     verdict = {"classification": "unverified", "cli_exit": None,
                "audit_exit": None, "reason": reason}
+    if contract_lock:
+        verdict["contract_lock"] = contract_lock
     (out / "verdict.json").write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
-    summary = _build_summary("unverified", None, None, "", "", reason, {})
+    summary = _build_summary("unverified", None, None, "", "", reason, {},
+                             contract_lock=contract_lock)
     (out / "summary.md").write_text(summary + "\n", encoding="utf-8")
     _append_step_summary(summary)
-    _emit_annotation("unverified", annotation_path, {}, None, None)
+    _emit_annotation("unverified", annotation_path, {}, None, None, reason)
     sys.stderr.write(f"ERROR: {reason}\n")
     return 2
 
@@ -265,6 +281,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--plan", required=True, type=Path)
     parser.add_argument("--migration-file", default="",
                         help="Use this checked-in SQL file instead of the plan's migration text")
+    parser.add_argument("--expected-contract-hash",
+                        help="Require this reviewed canonical contract SHA-256; changed contracts are unverified")
     parser.add_argument("--output-dir", required=True, type=Path)
     args = parser.parse_args(argv)
 
@@ -285,6 +303,25 @@ def main(argv: list[str] | None = None) -> int:
     for label, path in inputs:
         if not path.is_file():
             return _input_failure(out, f"{label} file not found: {path}", annotation_path)
+
+    contract_lock = None
+    if args.expected_contract_hash is not None:
+        expected = args.expected_contract_hash.lower()
+        if not re.fullmatch(r"[0-9a-f]{64}", expected):
+            return _input_failure(out, "Expected contract hash must be 64 hexadecimal characters", args.contract)
+        try:
+            if args.contract.stat().st_size > 65536:
+                raise ValueError("Contract JSON must be at most 64 KiB")
+            contract = json.loads(args.contract.read_text(encoding="utf-8"))
+            actual = hashlib.sha256(json.dumps(contract, ensure_ascii=False, sort_keys=True,
+                                               separators=(",", ":")).encode("utf-8")).hexdigest()
+        except (OSError, ValueError, TypeError) as exc:
+            return _input_failure(out, f"Contract lock could not be checked: {exc}", args.contract)
+        contract_lock = {"expected": expected, "actual": actual,
+                         "status": "matched" if actual == expected else "changed"}
+        if actual != expected:
+            return _input_failure(out, "Contract changed from the reviewed lock; review the test contract separately",
+                                  args.contract, contract_lock)
 
     contract_hash = _sha256(args.contract)
     plan_hash = _sha256(args.plan)
@@ -338,6 +375,13 @@ def main(argv: list[str] | None = None) -> int:
 
     # ── Classify ───────────────────────────────────────────────────────────
     classification = _classify(cli_exit, audit_exit)
+    lock_reason = ""
+    if contract_lock and report and report.get("contract_hash") != contract_lock["expected"]:
+        contract_lock["status"] = "changed"
+        contract_lock["actual"] = report.get("contract_hash", "")
+        classification = "unverified"
+        lock_reason = "Executed report does not match the reviewed contract lock"
+        audit_stderr = (audit_stderr + "\n" + lock_reason).strip()
 
     # ── Write verdict.json (always) ────────────────────────────────────────
     # Use report-embedded hashes when available; fall back to file SHA-256.
@@ -351,6 +395,10 @@ def main(argv: list[str] | None = None) -> int:
     if migration_source:
         verdict["migration_source"] = migration_source
         verdict["source_plan_sha256"] = plan_hash
+    if contract_lock:
+        verdict["contract_lock"] = contract_lock
+    if lock_reason:
+        verdict["reason"] = lock_reason
     witness = report.get("witness") or {}
     if witness.get("id"):
         verdict["witness_id"] = witness["id"]
@@ -372,10 +420,12 @@ def main(argv: list[str] | None = None) -> int:
         audit_stderr or "",
         report,
         migration_source,
+        contract_lock,
     )
     summary_path.write_text(summary + "\n", encoding="utf-8")
     _append_step_summary(summary)
-    _emit_annotation(classification, annotation_path, report, cli_exit, audit_exit)
+    _emit_annotation(classification, args.contract if lock_reason else annotation_path,
+                     report, cli_exit, audit_exit, lock_reason)
 
     # ── Log to stdout for workflow visibility ──────────────────────────────
     print(f"classification: {classification}")

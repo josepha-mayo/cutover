@@ -13,6 +13,9 @@ inputs:
   migration-file:
     description: Optional checked-in SQL file to use instead of the plan's migration text.
     default: ''
+  expected-contract-hash:
+    description: Reviewed canonical contract SHA-256. A changed contract fails as unverified before running SQL.
+    default: ''
   output-dir:
     description: Empty evidence directory relative to your checkout; use a different directory for each call.
     default: cutover-review
@@ -47,6 +50,7 @@ runs:
         CUTOVER_CONTRACT: ${{ inputs.contract }}
         CUTOVER_PLAN: ${{ inputs.plan }}
         CUTOVER_MIGRATION_FILE: ${{ inputs.migration-file }}
+        CUTOVER_EXPECTED_CONTRACT_HASH: ${{ inputs.expected-contract-hash }}
         CUTOVER_OUTPUT_DIR: ${{ inputs.output-dir }}
       run: python "$CUTOVER_ACTION_PATH/ci/action_entry.py"
     - name: Retain review evidence

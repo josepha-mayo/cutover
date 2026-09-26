@@ -56,6 +56,7 @@ def main() -> int:
         plan = workspace_path(workspace, os.environ.get('CUTOVER_PLAN', ''))
         sql_value = os.environ.get('CUTOVER_MIGRATION_FILE', '')
         sql = workspace_path(workspace, sql_value) if sql_value else None
+        expected_contract_hash = os.environ.get('CUTOVER_EXPECTED_CONTRACT_HASH', '')
     except ValueError as exc:
         verdict = {'classification': 'unverified', 'reason': str(exc)}
         (out / 'verdict.json').write_text(json.dumps(verdict, indent=2) + '\n', encoding='utf-8')
@@ -75,12 +76,15 @@ def main() -> int:
         'contract': contract.relative_to(workspace).as_posix(),
         'plan': plan.relative_to(workspace).as_posix(),
         'migration_file': sql.relative_to(workspace).as_posix() if sql else None,
+        'expected_contract_hash': expected_contract_hash or None,
     }
     (out / 'action.json').write_text(json.dumps(provenance, indent=2) + '\n', encoding='utf-8')
     command = [sys.executable, str(ROOT / 'ci/review_gate.py'),
                '--contract', str(contract), '--plan', str(plan), '--output-dir', str(out)]
     if sql:
         command += ['--migration-file', str(sql)]
+    if expected_contract_hash:
+        command += ['--expected-contract-hash', expected_contract_hash]
     result = subprocess.run(command, cwd=ROOT, check=False,
                             capture_output=True, text=True, encoding='utf-8',
                             env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
