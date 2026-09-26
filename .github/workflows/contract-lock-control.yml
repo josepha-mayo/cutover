@@ -1,0 +1,33 @@
+name: Contract lock controls
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  control:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix: {"include":[{"name":"unsafe-original-locked","contract":"original.json","sql":"unsafe.sql","lock":"ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418","classification":"verified_block","coverage":"100/132","outcome":"failure"},{"name":"unsafe-changed-unlocked","contract":"changed.json","sql":"unsafe.sql","lock":"","classification":"verified_pass","coverage":"132/132","outcome":"success"},{"name":"unsafe-changed-locked","contract":"changed.json","sql":"unsafe.sql","lock":"ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418","classification":"unverified","coverage":"","outcome":"failure"},{"name":"repair-original-locked","contract":"original.json","sql":"safe.sql","lock":"ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418","classification":"verified_pass","coverage":"124/124","outcome":"success"}]}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - id: review
+        uses: josepha-mayo/cutover@65984c8efd007e2d50d6beaf5afbdac500ec690b
+        continue-on-error: true
+        with:
+          contract: control/contract-lock/${{ matrix.contract }}
+          plan: control/contract-lock/adapters.json
+          migration-file: control/contract-lock/${{ matrix.sql }}
+          expected-contract-hash: ${{ matrix.lock }}
+          output-dir: control-output/${{ matrix.name }}
+          artifact-name: contract-lock-${{ matrix.name }}
+      - name: Assert the prospectively specified outcome
+        env:
+          CONTROL_NAME: ${{ matrix.name }}
+          ACTION_CLASSIFICATION: ${{ steps.review.outputs.classification }}
+          ACTION_COVERAGE: ${{ steps.review.outputs.coverage }}
+          ACTION_OUTCOME: ${{ steps.review.outcome }}
+        run: python control/contract-lock/assert_control.py

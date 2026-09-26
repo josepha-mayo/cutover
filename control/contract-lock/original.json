@@ -1,0 +1,30 @@
+{
+  "project": "Parcel / delivery service",
+  "summary": "Rename delivery_address to shipping_address while old workers remain alive.",
+  "old_column": "delivery_address",
+  "new_column": "shipping_address",
+  "table": "orders",
+  "schema": "CREATE TABLE orders (id INTEGER PRIMARY KEY, delivery_address TEXT NOT NULL);",
+  "seed_sql": "INSERT INTO orders (id, delivery_address) VALUES (?, ?)",
+  "seed": [
+    [
+      101,
+      "4 Broad Street"
+    ],
+    [
+      102,
+      "9 Station Road"
+    ]
+  ],
+  "old": {
+    "read": "SELECT id, delivery_address AS value FROM orders ORDER BY id",
+    "write": "UPDATE orders SET delivery_address = :value WHERE id = :id",
+    "insert": "INSERT INTO orders (id, delivery_address) VALUES (:id, :value)"
+  },
+  "payloads": [
+    "18 Marina Road",
+    "",
+    "O'Connell Street",
+    "12 Àdéníran • 東京"
+  ]
+}
