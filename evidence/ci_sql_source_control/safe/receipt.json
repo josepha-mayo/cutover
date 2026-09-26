@@ -1,0 +1,42 @@
+{
+  "run_url": "https://github.com/josepha-mayo/cutover/actions/runs/36209226731",
+  "head_sha": "371fbc2ceb1cd45518669ea3f2d0bd0609b3dc1d",
+  "cases": [
+    {
+      "slug": "warehouse",
+      "status": "pass",
+      "passed": 116,
+      "total": 116,
+      "plan_hash": "930c2f30ccd10a81bc34cffc23dbcdceb45d60885d1609ac1a2aa698baa74da6",
+      "source_plan_sha256": "650ccdfae35dcb8c4dfbcd5f8122966721c4cdfd684ef122908774929892b9c1",
+      "migration_source": {
+        "path": "ci/warehouse-migration.sql",
+        "sha256": "8aba476ea9510071ff704d266897c5c6fd6109fcb0177c2bff6a803267de4c3f"
+      },
+      "artifacts": {
+        "effective-plan.json": "650ccdfae35dcb8c4dfbcd5f8122966721c4cdfd684ef122908774929892b9c1",
+        "report.json": "57c636d4c66c55498a54ccd92f025ff0edc8dcdb90338b48399991fa283b1a86",
+        "review.md": "a992810da33f9a247af2dcd31662c9af22f2963b94760a5dbf822fb88a6f3335",
+        "review.zip": "61080b62b9e8df68b92ec37e2aaea8f17baee22c2045705e4036ce22ea350a34",
+        "summary.md": "9e30e713104a734c3d9a208c5703295539b4c3f06f403372d7d3938c764024b7",
+        "verdict.json": "1da7fc989b2531a83d5ae189c5d5681a562abb619584a15485248b672b3c12ef"
+      }
+    },
+    {
+      "slug": "parcel",
+      "status": "pass",
+      "passed": 116,
+      "total": 116,
+      "plan_hash": "4d54ca78ffc24cc6b4b2e140dc2a4368244e801ab3326edd3b45f89d65b385c5",
+      "source_plan_sha256": "a3f5abd31937bacc6d3bc5ac069621f34654adc1f0a4d35b5e3c52f67b2f01c2",
+      "migration_source": null,
+      "artifacts": {
+        "report.json": "d8a503f4d4189ef6eced1d5f16990fba027559fdb0cc8aecec494822a20c3f26",
+        "review.md": "6e2e86c9ca55d6a2d7a394b9547879d7d892afadabb4647236ec554d3b868cf2",
+        "review.zip": "655288a9a7b9f08da024ef1411f005b95aa1fefc80ff30b6bf62cfd06be35ce3",
+        "summary.md": "9d8a4b37eb2daa343fb839e679c6f996dc3dc335cbcb07751a40c5e89e2741ea",
+        "verdict.json": "690418a2259623f8d6253a2cd927b01ac6a061ee8690c7cfd8cb9c1a07563c1c"
+      }
+    }
+  ]
+}

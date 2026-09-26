@@ -117,6 +117,8 @@ in `verdict.json` and the job summary, and independently audits the assembled
 plan. A missing source file is unverified; it never falls back to embedded SQL.
 In GitHub, a blocking annotation points at the SQL file. This source-file
 integration is a Codex extension after Bob's original review-gate task.
+The [SQL-only control](../evidence/ci_sql_source_control/README.md) retains a
+passing run and a blocked run with byte-identical adapter JSON.
 
 For a browser-built custom scenario that passed a fresh rehearsal, click
 **Download PR gate kit**. Its ZIP contains `ci/` contract and candidate files,
@@ -219,9 +221,9 @@ Substitute `--plan` to test any fixture:
 ## Running the focused tests
 
 ```bash
-python -m pytest tests/test_ci_gate.py -v
+python -m unittest discover -s tests -p "test_ci_*.py" -v
 ```
 
-Six tests cover Warehouse and Parcel `verified_pass`, `verified_block` (with
-coverage and witness assertions), `unverified` from malformed JSON, and
-`unverified` from a missing file. They do not modify any fixture or contract.
+Focused tests cover pass, verified block, unverified errors, SQL-source binding,
+case discovery, and kit installation. Temporary inputs keep the checked-in
+contracts and saved candidates unchanged.

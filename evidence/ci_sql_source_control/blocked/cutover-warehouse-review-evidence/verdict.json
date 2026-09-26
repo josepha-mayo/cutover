@@ -1,0 +1,25 @@
+{
+  "classification": "verified_block",
+  "cli_exit": 1,
+  "audit_exit": 1,
+  "contract_hash": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+  "plan_hash": "d078a43429aea5c4ca76aac8a3459efd9524ee12fd68fe3625438c0c0664307c",
+  "migration_source": {
+    "path": "ci/warehouse-migration.sql",
+    "sha256": "fcd96ac4d155308fe78c0d334e381cdfccb15617daf618bd35bded5fca654f65"
+  },
+  "source_plan_sha256": "650ccdfae35dcb8c4dfbcd5f8122966721c4cdfd684ef122908774929892b9c1",
+  "witness_id": "old_to_new-0",
+  "witness_failure": {
+    "expected": {
+      "11": "R-07",
+      "22": "B-02",
+      "33": "C-03"
+    },
+    "actual": {
+      "11": "A-01",
+      "22": "B-02",
+      "33": "C-03"
+    }
+  }
+}

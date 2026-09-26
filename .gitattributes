@@ -1,1 +1,2 @@
 *.pdf binary
+evidence/ci_sql_source_control/** -text

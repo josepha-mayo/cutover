@@ -1,0 +1,225 @@
+{
+  "conclusion": "failure",
+  "headSha": "f124cfa56ac3d5d005d7c75c9364db89f45d9240",
+  "jobs": [
+    {
+      "completedAt": "2026-09-26T01:43:22Z",
+      "conclusion": "success",
+      "databaseId": 108312521749,
+      "name": "Validate release cases",
+      "startedAt": "2026-09-26T01:43:16Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-26T01:43:17Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-26T01:43:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:19Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-26T01:43:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:19Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@v5",
+          "number": 3,
+          "startedAt": "2026-09-26T01:43:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:20Z",
+          "conclusion": "success",
+          "name": "Validate manifest and case inputs",
+          "number": 4,
+          "startedAt": "2026-09-26T01:43:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:20Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@v5",
+          "number": 7,
+          "startedAt": "2026-09-26T01:43:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:20Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 8,
+          "startedAt": "2026-09-26T01:43:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:20Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 9,
+          "startedAt": "2026-09-26T01:43:20Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/josepha-mayo/cutover/actions/runs/36209366002/job/108312521749"
+    },
+    {
+      "completedAt": "2026-09-26T01:43:33Z",
+      "conclusion": "failure",
+      "databaseId": 108312549610,
+      "name": "Review Warehouse",
+      "startedAt": "2026-09-26T01:43:25Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-26T01:43:26Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-26T01:43:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:28Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-26T01:43:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:28Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@v5",
+          "number": 3,
+          "startedAt": "2026-09-26T01:43:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:29Z",
+          "conclusion": "failure",
+          "name": "Run Cutover review gate",
+          "number": 4,
+          "startedAt": "2026-09-26T01:43:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:30Z",
+          "conclusion": "success",
+          "name": "Upload review evidence",
+          "number": 5,
+          "startedAt": "2026-09-26T01:43:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:30Z",
+          "conclusion": "skipped",
+          "name": "Post Run actions/setup-python@v5",
+          "number": 9,
+          "startedAt": "2026-09-26T01:43:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:31Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 10,
+          "startedAt": "2026-09-26T01:43:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:31Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-09-26T01:43:31Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/josepha-mayo/cutover/actions/runs/36209366002/job/108312549610"
+    },
+    {
+      "completedAt": "2026-09-26T01:43:34Z",
+      "conclusion": "success",
+      "databaseId": 108312549654,
+      "name": "Review Parcel",
+      "startedAt": "2026-09-26T01:43:25Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-26T01:43:27Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-26T01:43:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:29Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-26T01:43:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:29Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@v5",
+          "number": 3,
+          "startedAt": "2026-09-26T01:43:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:30Z",
+          "conclusion": "success",
+          "name": "Run Cutover review gate",
+          "number": 4,
+          "startedAt": "2026-09-26T01:43:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:31Z",
+          "conclusion": "success",
+          "name": "Upload review evidence",
+          "number": 5,
+          "startedAt": "2026-09-26T01:43:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:31Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@v5",
+          "number": 9,
+          "startedAt": "2026-09-26T01:43:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:31Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 10,
+          "startedAt": "2026-09-26T01:43:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-26T01:43:31Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-09-26T01:43:31Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/josepha-mayo/cutover/actions/runs/36209366002/job/108312549654"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/josepha-mayo/cutover/actions/runs/36209366002"
+}

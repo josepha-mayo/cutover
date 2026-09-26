@@ -1,0 +1,42 @@
+{
+  "run_url": "https://github.com/josepha-mayo/cutover/actions/runs/36209366002",
+  "head_sha": "f124cfa56ac3d5d005d7c75c9364db89f45d9240",
+  "cases": [
+    {
+      "slug": "warehouse",
+      "status": "blocked",
+      "passed": 72,
+      "total": 108,
+      "plan_hash": "d078a43429aea5c4ca76aac8a3459efd9524ee12fd68fe3625438c0c0664307c",
+      "source_plan_sha256": "650ccdfae35dcb8c4dfbcd5f8122966721c4cdfd684ef122908774929892b9c1",
+      "migration_source": {
+        "path": "ci/warehouse-migration.sql",
+        "sha256": "fcd96ac4d155308fe78c0d334e381cdfccb15617daf618bd35bded5fca654f65"
+      },
+      "artifacts": {
+        "effective-plan.json": "e67daf11cbd0157828f1afe1f2200ecf77dedbed3a9e0eb180b117b913e01e5f",
+        "report.json": "9ade6b0a57952c8cd72318fd7c7d47c7b8278042b0109e23e6b5e1921de74317",
+        "review.md": "675fbecc1e5af13fe2b5942cf1b25fd25583eec5cb1f82783c61d1ebde33b8e7",
+        "review.zip": "3a118f5258806b60b09e63f9c518ac0dd6277f4050e91fc68b8c42c63917cae5",
+        "summary.md": "00f856bc494d453f75118ad953488d525d26cb5e4852f58f84a4814f9194a411",
+        "verdict.json": "024528909605ba01207b726d25db51e31e24f6dee7cc22f16c5de86c63719db5"
+      }
+    },
+    {
+      "slug": "parcel",
+      "status": "pass",
+      "passed": 116,
+      "total": 116,
+      "plan_hash": "4d54ca78ffc24cc6b4b2e140dc2a4368244e801ab3326edd3b45f89d65b385c5",
+      "source_plan_sha256": "a3f5abd31937bacc6d3bc5ac069621f34654adc1f0a4d35b5e3c52f67b2f01c2",
+      "migration_source": null,
+      "artifacts": {
+        "report.json": "b15f5f6052f3bbbbbc54157e09f598de77db37106ca5f2c1d17be2a00da700a1",
+        "review.md": "dd9c16ca7899de9373889b2152b37219063b37b325c9f19321fe7666714c24f6",
+        "review.zip": "b4a3dbfbca613b684f74d59b630322b5c9d7e77a2af1cdce4d5e3e99c1952e6b",
+        "summary.md": "9d8a4b37eb2daa343fb839e679c6f996dc3dc335cbcb07751a40c5e89e2741ea",
+        "verdict.json": "690418a2259623f8d6253a2cd927b01ac6a061ee8690c7cfd8cb9c1a07563c1c"
+      }
+    }
+  ]
+}

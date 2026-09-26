@@ -1,0 +1,12 @@
+{
+  "path": "ci/warehouse-migration.sql",
+  "blob_href": "https://github.com/josepha-mayo/cutover/blob/f124cfa56ac3d5d005d7c75c9364db89f45d9240/ci/warehouse-migration.sql",
+  "start_line": 0,
+  "start_column": null,
+  "end_line": 0,
+  "end_column": null,
+  "annotation_level": "failure",
+  "title": "Cutover verified data-safety block",
+  "message": "Verified block: 72/108 probes passed; first witness old_to_new-0. Row 11: expected \"R-07\", observed \"A-01\".",
+  "raw_details": ""
+}
