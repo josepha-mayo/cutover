@@ -103,7 +103,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in task_images:
             image = Path(__file__).parent / 'bob_sessions' / task_images[path]
             return self.send(200, image.read_bytes(), 'image/png')
-        files = {'/': 'index.html', '/app.js': 'app.js', '/scenario.js': 'scenario.js', '/style.css': 'style.css',
+        files = {'/': 'index.html', '/app.js': 'app.js', '/scenario.js': 'scenario.js', '/request.js': 'request.js', '/style.css': 'style.css',
                  '/watch': 'watch.html', '/watch.css': 'watch.css', '/watch.js': 'watch.js',
                  '/captions.en.vtt': 'captions.en.vtt',
                  '/proof': 'proof.html', '/proof.css': 'proof.css'}

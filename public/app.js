@@ -1,7 +1,9 @@
 import {buildScenario} from './scenario.js';
+import {request as requestResource} from './request.js';
 const $ = id => document.getElementById(id);
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
 let pinnedReport = null, proofTourBusy = false;
+let catalogLoading = false;
 let bundleBusy = false;
 let ciKitBusy = false;
 let comparisonBusy = false;
@@ -35,8 +37,12 @@ function updateModeControls() {
     :packet?'The contract and candidate came from a saved packet checked against independent execution. Inspect its replay, prepare a Bob repair task, or edit the SQL and run again. Packet origin and authorship are not authenticated.'
     :'Import a five-field plan JSON below, or enter its migration and new-version queries in the editor. No verdict appears until you run it.';
   $('plan-options').hidden=custom; $('custom-plan-intro').hidden=!custom; $('save-contract').hidden=!custom;
-  document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||custom);
-  $('try-cross-record').disabled=busy||custom;
+  document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||!activeCase||custom);
+  $('try-cross-record').disabled=busy||!activeCase||custom;
+  $('case').disabled=busy||!activeCase;
+  $('import-plan').disabled=busy||!activeCase;
+  $('retry-catalog').disabled=busy||catalogLoading;
+  Object.values(fields).forEach(id=>$(id).disabled=busy||!activeCase);
   $('run').disabled=busy||!activeCase||(custom&&!candidateReady());
   $('proof-tour').disabled=busy||proofTourBusy||!activeCase;
   $('save-plan').disabled=busy||!activeCase||(custom&&!candidateReady());
@@ -50,6 +56,7 @@ function setBusy(value, label='Executing SQL rehearsals…') {
   $('try-warehouse').disabled=value;
   $('try-bob-repair').disabled=value;
   $('build-scenario').disabled=value;
+  $('retry-catalog').disabled=value||catalogLoading;
   $('proof-tour').disabled=value||proofTourBusy;
   $('run').innerHTML=value?`<span>${escape(label)}</span><span>◌</span>`:'<span>Run release rehearsal</span><span>↗</span>';
   if(!value){updateModeControls();renderComparison();}
@@ -216,7 +223,7 @@ function chooseCase() {
 }
 
 async function run() {
-  if(busy) return;
+  if(busy||!activeCase) return;
   const plan=currentPlan(), caseId=activeCase.id;
   const request={case:caseId,plan};
   if(caseId==='custom')request.contract=importedContract;
@@ -224,8 +231,7 @@ async function run() {
   try {
     const body=JSON.stringify(request);
     if(new Blob([body]).size>65536)throw Error('Contract and plan exceed the 64 KiB hosted request limit. Use the local CLI.');
-    const response=await fetch('/api/rehearse',{method:'POST',headers:{'Content-Type':'application/json'},body});
-    const data=await response.json(); if(!response.ok) throw Error(data.error||'Rehearsal failed');
+    const {data}=await requestResource('/api/rehearse',{method:'POST',headers:{'Content-Type':'application/json'},body});
     report=data; renderReport();
   } catch(error) { invalidate(); $('status-badge').textContent='ERROR'; $('verdict-title').textContent='No result produced.'; $('verdict-description').textContent=error.message; notify(error.message); }
   finally {setBusy(false);}
@@ -345,9 +351,7 @@ $('challenge-steps').addEventListener('click',async()=>{
   try {
     const body=JSON.stringify(request);
     if(new Blob([body]).size>65536)throw Error('Contract and plan exceed the hosted request limit.');
-    const response=await fetch('/api/fragility',{method:'POST',headers:{'Content-Type':'application/json'},body});
-    const data=await response.json();
-    if(!response.ok)throw Error(data.error||'Migration challenge failed.');
+    const {data}=await requestResource('/api/fragility',{method:'POST',headers:{'Content-Type':'application/json'},body});
     if(report!==snapshot||data.plan_hash!==snapshot.plan_hash||data.contract_hash!==snapshot.contract_hash)
       throw Error('The displayed candidate changed. Rerun it before challenging its steps.');
     $('fragility-results').innerHTML=`<p class="fragility-scope">Original ${data.original.passed}/${data.original.total} passed. Each omission runs on a fresh disposable database; coverage counts may change.</p>`+
@@ -423,15 +427,14 @@ $('export-bundle').addEventListener('click',async()=>{
   try {
     const body=JSON.stringify(request);
     if(new Blob([body]).size>65536)throw Error('Contract and plan exceed the 64 KiB hosted request limit. Use the local CLI.');
-    const response=await fetch('/api/bundle',{method:'POST',headers:{'Content-Type':'application/json'},body});
-    if(!response.ok){const data=await response.json();throw Error(data.error||'Review packet failed.');}
+    const response=await requestResource('/api/bundle',{method:'POST',headers:{'Content-Type':'application/json'},body},{binary:true});
     if(response.headers.get('Content-Type')!=='application/zip'||
        response.headers.get('X-Cutover-Plan-SHA256')!==snapshot.plan_hash||
        response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
        response.headers.get('X-Cutover-Status')!==snapshot.status||
        response.headers.get('X-Cutover-Coverage')!==`${snapshot.passed}/${snapshot.total}`)
       throw Error('The new rehearsal differs from the displayed result. Run the candidate again before exporting.');
-    const packet=await response.blob();
+    const packet=response.data;
     if(report!==snapshot)throw Error('The displayed candidate changed. Run it again before exporting.');
     download(`cutover-${snapshot.case}-${snapshot.plan_hash.slice(0,10)}-review.zip`,packet,'application/zip');
     notify('Review packet downloaded from a fresh server rehearsal.');
@@ -453,8 +456,7 @@ $('export-ci-kit').addEventListener('click',async()=>{
   try {
     const body=JSON.stringify(request);
     if(new Blob([body]).size>65536)throw Error('Contract and plan exceed the 64 KiB hosted request limit. Use the local CLI.');
-    const response=await fetch('/api/ci-kit',{method:'POST',headers:{'Content-Type':'application/json'},body});
-    if(!response.ok){const data=await response.json();throw Error(data.error||'CI kit could not be built.');}
+    const response=await requestResource('/api/ci-kit',{method:'POST',headers:{'Content-Type':'application/json'},body},{binary:true,timeoutMs:420000});
     if(response.headers.get('Content-Type')!=='application/zip'||
        response.headers.get('X-Cutover-Plan-SHA256')!==snapshot.plan_hash||
        response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
@@ -465,7 +467,7 @@ $('export-ci-kit').addEventListener('click',async()=>{
           response.headers.get('X-Cutover-Control-Status')!=='blocked'||
           response.headers.get('X-Cutover-Control-Coverage')!==`${control.passed}/${control.total}`)))
       throw Error('Fresh CI kit replay differs from the displayed result. Rerun the candidate first.');
-    const packet=await response.blob();
+    const packet=response.data;
     if(report!==snapshot||(control&&pinnedReport!==control))throw Error('The displayed comparison changed. Rerun it before exporting.');
     download(`cutover-${fileSlug(importedContract.project)}-ci-kit.zip`,packet,'application/zip');
     notify(control?'Kit downloaded: copy the four files listed in its README into your repository. Red and green evidence is included.':'Kit downloaded: copy the four files listed in its README into your repository to run the pinned GitHub Action.');
@@ -483,8 +485,7 @@ $('export-comparison').addEventListener('click',async()=>{
   try {
     const body=JSON.stringify(request);
     if(new Blob([body]).size>131072)throw Error('The paired contract and plans exceed the 128 KiB hosted request limit. Use the local CLI.');
-    const response=await fetch('/api/comparison-bundle',{method:'POST',headers:{'Content-Type':'application/json'},body});
-    if(!response.ok){const data=await response.json();throw Error(data.error||'Comparison packet failed.');}
+    const response=await requestResource('/api/comparison-bundle',{method:'POST',headers:{'Content-Type':'application/json'},body},{binary:true,timeoutMs:240000});
     if(response.headers.get('Content-Type')!=='application/zip'||
        response.headers.get('X-Cutover-Baseline-SHA256')!==baseline.plan_hash||
        response.headers.get('X-Cutover-Candidate-SHA256')!==candidate.plan_hash||
@@ -496,7 +497,7 @@ $('export-comparison').addEventListener('click',async()=>{
        response.headers.get('X-Cutover-Baseline-Coverage')!==`${baseline.passed}/${baseline.total}`||
        response.headers.get('X-Cutover-Candidate-Coverage')!==`${candidate.passed}/${candidate.total}`)
       throw Error('Fresh paired evidence differs from the displayed comparison. Rerun both plans.');
-    const packet=await response.blob();
+    const packet=response.data;
     if(report!==candidate||pinnedReport!==baseline)throw Error('The displayed comparison changed during export. Rerun both plans.');
     download(`cutover-${candidate.case}-${baseline.plan_hash.slice(0,8)}-to-${candidate.plan_hash.slice(0,8)}.zip`,packet,'application/zip');
     notify('Both review packets downloaded from fresh, independently auditable rehearsals.');
@@ -510,18 +511,18 @@ $('save-plan').addEventListener('click',()=>download(`cutover-${activeCase.id}-c
 $('save-contract').addEventListener('click',()=>importedContract&&download(`cutover-${fileSlug(importedContract.project)}-contract.json`,pretty(importedContract)));
 $('download-brief').addEventListener('click',()=>download('CUTOVER-BOB-TASK.txt',briefText,'text/plain'));
 $('import-plan').addEventListener('change',async event=>{
-  if(busy)return;
+  if(busy||!activeCase)return;
   const file=event.target.files[0]; if(!file)return;
+  setBusy(true,'Reading candidate…');
   invalidate();
   try {if(file.size>65536)throw Error('Plan is larger than 64 KiB.'); const plan=JSON.parse(await file.text()); if(!plan||typeof plan!=='object'||Array.isArray(plan)||Object.keys(plan).sort().join(',')!==Object.keys(fields).sort().join(',')||Object.values(plan).some(v=>typeof v!=='string'||!v.trim()||v.length>12000)||plan.name.length>100) throw Error('Expected a plan with name, migration, read, write and insert strings.');reference=null;setPlan(plan,'Imported candidate · not yet executed','imported candidate');updateModeControls();notify('Candidate imported. Run a rehearsal to verify it.');}
-  catch(error){$('status-badge').textContent='IMPORT ERROR';$('verdict-title').textContent='Plan not imported.';$('verdict-description').textContent=error.message;notify(error.message);}finally{event.target.value='';}
+  catch(error){$('status-badge').textContent='IMPORT ERROR';$('verdict-title').textContent='Plan not imported.';$('verdict-description').textContent=error.message;notify(error.message);}finally{event.target.value='';setBusy(false);}
 });
 async function activateContract(contract, source) {
   if(!contract||typeof contract!=='object'||Array.isArray(contract))throw Error('Contract must be a JSON object.');
   const body=JSON.stringify({contract});
   if(new Blob([body]).size>65536)throw Error('Contract exceeds the 64 KiB hosted request limit. Use the local CLI.');
-  const response=await fetch('/api/contract/validate',{method:'POST',headers:{'Content-Type':'application/json'},body});
-  const result=await response.json(); if(!response.ok)throw Error(result.error||'Contract validation failed.');
+  const {data:result}=await requestResource('/api/contract/validate',{method:'POST',headers:{'Content-Type':'application/json'},body});
   importedContract=contract; importedMeta=result; customPlan=null; customPlanSource=null; customPlanProvenance=null;
   let option=$('case').querySelector('option[value="custom"]');
   if(!option){option=document.createElement('option');option.value='custom';$('case').append(option);}
@@ -536,12 +537,17 @@ $('import-packet').addEventListener('change',async event=>{
   $('status-badge').textContent='VERIFYING PACKET';
   try {
     if(file.size>2*1024*1024)throw Error('Packet is larger than 2 MiB. Use python -m cutover.audit_bundle locally.');
-    const response=await fetch('/api/audit-bundle',{method:'POST',headers:{'Content-Type':'application/zip'},body:file});
-    const result=await response.json();
-    if(!response.ok)throw Error(result.error||'Packet replay failed.');
+    const {data:result}=await requestResource('/api/audit-bundle',{method:'POST',headers:{'Content-Type':'application/zip'},body:file},{timeoutMs:240000});
     if(result.audit!=='verified'||!Array.isArray(result.reports)||![1,2].includes(result.reports.length))
       throw Error('No verified review packet was returned.');
     const current=result.reports.at(-1);
+    // Bundled cases omit the explicit payloads field required by custom contracts.
+    // Recover their sample context instead of changing the verified contract hash.
+    if(current.case!=='custom'&&!catalog) {
+      const {data}=await requestResource('/api/catalog',{}, {timeoutMs:30000});
+      installCatalog(data);
+      $('connection-status').hidden=true;
+    }
     if(current.case==='custom')await activateContract(result.contract,'packet');
     else {$('case').value=current.case;chooseCase();}
     reference=null;
@@ -626,8 +632,7 @@ async function loadWarehouse(runImmediately=false) {
   let loaded=false;
   setBusy(true,'Loading warehouse example…'); invalidate(); $('status-badge').textContent='LOADING EXAMPLE';
   try {
-    const response=await fetch('/api/example/warehouse');
-    const data=await response.json(); if(!response.ok)throw Error(data.error||'Warehouse example unavailable.');
+    const {data}=await requestResource('/api/example/warehouse',{}, {timeoutMs:30000});
     await activateContract(data.contract,'example');
     reference=null;
     setPlan(data.plan,'Prewritten warehouse example · not AI generated','prewritten warehouse example');
@@ -645,8 +650,7 @@ async function loadBobRepair(runImmediately=false) {
   let loaded=false;
   setBusy(true,'Loading Bob repair…'); invalidate(); $('status-badge').textContent='LOADING REPAIR';
   try {
-    const response=await fetch('/api/example/bob-repair');
-    const data=await response.json(); if(!response.ok)throw Error(data.error||'Bob repair evidence unavailable.');
+    const {data}=await requestResource('/api/example/bob-repair',{}, {timeoutMs:30000});
     await activateContract(data.contract,'example');
     reference=null;
     setPlan(data.plan,`IBM Bob IDE repair · prior independent replay ${data.coverage} · run here to verify`,'event IBM Bob IDE candidate');
@@ -684,5 +688,48 @@ async function runProofTour() {
   finally {proofTourBusy=false;button.textContent='Run unsafe → Bob repair ↗';updateModeControls();}
 }
 $('proof-tour').addEventListener('click',runProofTour);
-try {const response=await fetch('/api/catalog');if(!response.ok)throw Error('Could not load sample projects.');catalog=await response.json();$('case').innerHTML=catalog.cases.map(c=>`<option value="${c.id}">${escape(c.project)}</option>`).join('');chooseCase();const demo=new URLSearchParams(location.search).get('demo');if(demo==='bob-repair')await loadBobRepair(true);else if(demo==='compare')await runProofTour();else if(demo==='scenario'){$('scenario-dialog').showModal();$('scenario-form').elements.project.focus();}}
-catch(error){$('verdict-title').textContent='Workspace unavailable.';$('verdict-description').textContent=error.message;$('run').disabled=true;notify(error.message);}
+function installCatalog(data) {
+  if(!Array.isArray(data?.cases)||!data.cases.length||data.cases.some(item=>
+    !item||typeof item.id!=='string'||typeof item.project!=='string'||!item.old||
+    Object.keys(fields).some(key=>typeof item.plans?.late_bridge?.[key]!=='string')))
+    throw Error('The sample project response is incomplete. Retry loading it.');
+  const previous=$('case').value;
+  const custom=$('case').querySelector('option[value="custom"]');
+  const options=data.cases.map(item=>{
+    const option=document.createElement('option');option.value=item.id;option.textContent=item.project;
+    return option;
+  });
+  if(custom)options.push(custom);
+  catalog=data;
+  $('case').replaceChildren(...options);
+  if(options.some(option=>option.value===previous))$('case').value=previous;
+  // A retry must not replace an imported scenario, SQL, or its verified result.
+  if(!activeCase)chooseCase();
+}
+async function loadCatalog() {
+  if(busy||catalogLoading)return;
+  const wasEmpty=!activeCase;
+  let loaded=false;
+  catalogLoading=true;
+  setBusy(true,'Loading sample projects…');
+  $('connection-status').hidden=false;
+  $('connection-message').textContent='Loading sample projects…';
+  $('retry-catalog').hidden=true;
+  try {
+    const {data}=await requestResource('/api/catalog',{}, {timeoutMs:30000});
+    installCatalog(data);
+    $('connection-status').hidden=true;
+    loaded=true;
+  } catch(error) {
+    $('connection-message').textContent=`Sample projects are unavailable. ${error.message} You can also build a scenario or open a saved review packet below.`;
+    $('retry-catalog').hidden=false;
+    if(!activeCase){$('status-badge').textContent='NOT CONNECTED';$('verdict-title').textContent='Waiting for a contract.';$('verdict-description').textContent='Retry loading projects, build a scenario, or import a contract to begin.';}
+  } finally {catalogLoading=false;setBusy(false);}
+  if(!loaded||!wasEmpty)return;
+  const demo=new URLSearchParams(location.search).get('demo');
+  if(demo==='bob-repair')await loadBobRepair(true);
+  else if(demo==='compare')await runProofTour();
+  else if(demo==='scenario'){$('scenario-dialog').showModal();$('scenario-form').elements.project.focus();}
+}
+$('retry-catalog').addEventListener('click',loadCatalog);
+await loadCatalog();

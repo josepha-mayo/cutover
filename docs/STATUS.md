@@ -1,5 +1,12 @@
 # Pre-event status — updated September 24, 2026
 
+**Historical preparation log, frozen before kickoff.** The pending work and
+submission statements below describe September 24, not the current entry.
+The project was subsequently submitted with real event-period Bob IDE tasks.
+For current outcomes, see the [project README](../README.md),
+[Bob authorship and verification record](PROVENANCE.md), and
+[public submission](https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon/cutover/cutover-catch-lost-writes-before-merge).
+
 The current engine is v0.3.14. Each probe uses separate migration, old-worker, and new-worker SQLite connections to one disposable in-memory database; the standalone witness mirrors them. Operations remain sequential, without concurrent transaction or lock timing. Every migration-window replay checks an old-worker read after its old write or insert and before migration resumes; a temporary old-reader failure cannot be hidden by a later repair. It rejects connection-local `TEMP` schema objects and virtual-table modules. A candidate using only temporary synchronization triggers had previously passed 124/124 even though other workers would not see them; a candidate adding an FTS5 sidecar passed before the virtual-table boundary was enforced. Imported contracts prove the fixed old updater and inserter work for every declared payload on separate fresh databases before a candidate gets a verdict. Its schema and identifier-access checks follow SQLite's case-insensitive table and column naming. These corrections were made by Codex before kickoff.
 
 ## Working and verified
