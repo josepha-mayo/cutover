@@ -1,0 +1,17 @@
+{
+  "classification": "verified_pass",
+  "cli_exit": 0,
+  "audit_exit": 0,
+  "contract_hash": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+  "plan_hash": "930c2f30ccd10a81bc34cffc23dbcdceb45d60885d1609ac1a2aa698baa74da6",
+  "migration_source": {
+    "path": "control/witness-source/bob-repair/migration.sql",
+    "sha256": "8aba476ea9510071ff704d266897c5c6fd6109fcb0177c2bff6a803267de4c3f"
+  },
+  "source_plan_sha256": "69ed94a78a738dee048c30188102b77e100cf7a52395d42516b133711c62fdd1",
+  "contract_lock": {
+    "expected": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+    "actual": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+    "status": "matched"
+  }
+}

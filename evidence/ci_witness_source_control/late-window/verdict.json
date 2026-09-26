@@ -1,0 +1,43 @@
+{
+  "classification": "verified_block",
+  "cli_exit": 1,
+  "audit_exit": 1,
+  "contract_hash": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+  "plan_hash": "fc752d050e87e4e7a5157003298da7496c30100a00826af13ca3606bca364b44",
+  "migration_source": {
+    "path": "control/witness-source/late-window/migration.sql",
+    "sha256": "81cc7a1736e40b2b7aeb93dfc77470ece005ddc87c0f29e92b575954f151703a"
+  },
+  "source_plan_sha256": "d3f5f4b321525bca267e9acac66e940fad542f0ac4d25a822155dc86f0856c19",
+  "contract_lock": {
+    "expected": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+    "actual": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+    "status": "matched"
+  },
+  "witness_source": {
+    "kind": "observed_migration_boundary",
+    "probe_id": "window_write_after_2-0",
+    "operation": "old.write",
+    "after_statement": 2,
+    "statement_count": 5,
+    "path": "control/witness-source/late-window/migration.sql",
+    "sql_file_sha256": "81cc7a1736e40b2b7aeb93dfc77470ece005ddc87c0f29e92b575954f151703a",
+    "line": 8,
+    "statement_start_line": 6,
+    "statement_end_line": 8,
+    "sql_context": "-- Copy current values; ``` is comment text.\nUPDATE stock_items\nSET fulfillment_bin = pick_bin;"
+  },
+  "witness_id": "window_write_after_2-0",
+  "witness_failure": {
+    "expected": {
+      "11": "R-07",
+      "22": "B-02",
+      "33": "C-03"
+    },
+    "actual": {
+      "11": "A-01",
+      "22": "B-02",
+      "33": "C-03"
+    }
+  }
+}

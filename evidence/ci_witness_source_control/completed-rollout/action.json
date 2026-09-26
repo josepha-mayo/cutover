@@ -1,0 +1,10 @@
+{
+  "action_repository": "josepha-mayo/cutover",
+  "action_ref": "3fe6630c41d6220defc1107d9ead18d905720b1a",
+  "consumer_repository": "josepha-mayo/cutover",
+  "consumer_checkout_sha": "68bddf1c9de9cf4800ac4d3422a6a554b769bfbd",
+  "contract": "control/witness-source/completed-rollout/contract.json",
+  "plan": "control/witness-source/completed-rollout/adapters.json",
+  "migration_file": "control/witness-source/completed-rollout/migration.sql",
+  "expected_contract_hash": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418"
+}

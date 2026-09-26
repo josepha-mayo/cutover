@@ -58,6 +58,13 @@ the pinned workflow and three consumer inputs: the contract, new-worker adapters
 and a separate migration SQL file. Its README names the four files to inspect
 and copy into your own repository before opening a PR. The generated workflow
 reviews that SQL file directly and retains its source hash with the verdict.
+For an observed migration-window failure, the PR annotation now points to the
+SQL boundary and displays the missing value beside the diff. In
+[three source-location controls](evidence/ci_witness_source_control/README.md),
+the late bridge blocked at SQL line 8, a completed-rollout defect received no
+inferred window line, and Bob's saved repair passed. All three packets were
+independently replayed. The location identifies an observed interleaving,
+not proof that one line alone caused a defect.
 New kits also lock the agreed contract hash. Changing the schema, old-worker
 queries, seed records or payloads is unverified until that contract change is
 reviewed separately. In [four contract-lock controls](evidence/ci_contract_lock_control/README.md),

@@ -3,3 +3,4 @@ evidence/ci_sql_source_control/** -text
 evidence/ci_portable_action_control/** -text
 evidence/ci_browser_action_control/** -text
 evidence/ci_contract_lock_control/** -text
+evidence/ci_witness_source_control/** -text

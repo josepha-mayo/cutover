@@ -8,17 +8,22 @@ from .reporting import render_markdown
 from .reporting import render_reproduction
 
 
-ACTION_REF = '65984c8efd007e2d50d6beaf5afbdac500ec690b'
+ACTION_REF = '3fe6630c41d6220defc1107d9ead18d905720b1a'
+PRIOR_LOCKED_ACTION_REFS = ('65984c8efd007e2d50d6beaf5afbdac500ec690b',)
 LEGACY_ACTION_REF = 'a5bf69f6e8f94788eade58691d292941e009f8ac'
 CHECKOUT_REF = '3d3c42e5aac5ba805825da76410c181273ba90b1'
 
 
-def portable_files(plan, slug, contract_hash=None):
+def portable_files(plan, slug, contract_hash=None, *, action_ref=None):
     """Render data-only inputs and a pinned workflow for a consumer repository."""
     if not re.fullmatch(r'[a-z][a-z0-9-]{0,40}', slug):
         raise ValueError('Portable kit slug is invalid')
     if contract_hash is not None and not re.fullmatch(r'[0-9a-f]{64}', contract_hash):
         raise ValueError('Portable kit contract hash is invalid')
+    allowed = (ACTION_REF, *PRIOR_LOCKED_ACTION_REFS) if contract_hash else (LEGACY_ACTION_REF,)
+    action_ref = action_ref or allowed[0]
+    if action_ref not in allowed:
+        raise ValueError('Portable kit Action version is not supported for this contract lock')
     contract = f'ci/{slug}-contract.json'
     adapters = f'ci/{slug}-adapters.json'
     migration = f'ci/{slug}-migration.sql'
@@ -32,7 +37,7 @@ def portable_files(plan, slug, contract_hash=None):
         '    steps:\n'
         f'      - uses: actions/checkout@{CHECKOUT_REF}\n'
         '        with:\n          persist-credentials: false\n'
-        f'      - uses: josepha-mayo/cutover@{ACTION_REF if contract_hash else LEGACY_ACTION_REF}\n'
+        f'      - uses: josepha-mayo/cutover@{action_ref}\n'
         '        with:\n'
         f'          contract: {contract}\n'
         f'          plan: {adapters}\n'

@@ -3,3 +3,4 @@
 
 .additional-controls{margin:0 0 36px;border:1px solid var(--line);border-radius:5px;padding:0 22px}.additional-controls summary{cursor:pointer;padding:18px 0;color:var(--green);font-weight:600}.additional-controls summary:focus-visible{outline:3px solid var(--orange);outline-offset:4px}.additional-controls[open] summary{margin-bottom:8px}.additional-controls .matrix-proof{margin-bottom:22px}
 .contract-lock-results{width:100%;border-collapse:collapse;margin:17px 0;font-size:12px;text-align:left}.contract-lock-results th,.contract-lock-results td{border-bottom:1px solid var(--line);padding:9px 12px 9px 0;vertical-align:top}.contract-lock-results th{color:var(--muted);font-weight:600}.contract-lock-results td:last-child{color:var(--green)}
+.source-annotation{padding:15px 17px;border-left:3px solid var(--orange);background:var(--bg);color:var(--text);font:12px/1.8 Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}

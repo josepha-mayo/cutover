@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 
 from ci.discover_cases import FIELDS, LABEL, SLUG, discover
-from cutover.ci_kit import portable_files
+from cutover.ci_kit import portable_files, PRIOR_LOCKED_ACTION_REFS
 from cutover.reporting import render_reproduction
 from cutover.service import verify_report_against_replay
 
@@ -65,7 +65,9 @@ def _read_kit(path: Path):
             supplied = {name: archive.read(name) for name in portable}
             # Retain exact support for the earlier, unpinned-contract kit.
             # Never accept arbitrary workflow edits or a new pin with its lock removed.
-            versions = (portable, portable_files(plan, slug))
+            versions = (portable, portable_files(plan, slug),
+                        *(portable_files(plan, slug, report['contract_hash'], action_ref=ref)
+                          for ref in PRIOR_LOCKED_ACTION_REFS))
             if not any(all(supplied[name] == expected.encode('utf-8')
                            for name, expected in version.items()) for version in versions):
                 raise ValueError('CI kit portable file differs from its verified inputs')

@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: josepha-mayo/cutover@65984c8efd007e2d50d6beaf5afbdac500ec690b
+      - uses: josepha-mayo/cutover@3fe6630c41d6220defc1107d9ead18d905720b1a
         with:
           contract: ci/release-contract.json
           plan: ci/release-adapters.json
@@ -50,6 +50,22 @@ when execution produced them. A separate SQL file also produces
 checkout SHA. The SQL-file SHA-256 is retained in the verdict. A blocked
 result shows its differing row value in the job summary and a file-linked
 annotation.
+
+When the first failing witness observes an old-worker operation between migration
+statements, the annotation points to that boundary's SQL line. Its short lines
+show the probe, boundary and exact differing value beside the PR diff. The
+summary retains the SQL context and `verdict.json` records `witness_source`,
+including the line, statement index and source hash. This identifies where the
+operation was observed; it does not establish a single-line cause. The location
+is emitted only when the recorded successful migration prefix and old operation
+agree. Other failures keep a file-level annotation without an inferred line.
+
+[Control PR #14](../evidence/ci_witness_source_control/README.md) independently
+replayed the late bridge at 108/124 with its annotation at line 8, a cross-record
+defect at 100/132 without an invented window location, and Bob's previously saved
+repair at 116/116 without a failure annotation. Each source was bound to the
+actual GitHub checkout. Local and CI checks cover multiline comments, complete
+trigger statements and BOM/CRLF source files.
 
 ## Keep the agreed test contract fixed
 
@@ -95,4 +111,4 @@ data out of public workflow artifacts. A pass is not a deployment approval.
 The reusable packaging is a Codex extension after Bob's original gate;
 [Bob's actual IDE work and limits](PROVENANCE.md) remain separately documented.
 
-The earlier Action version was exercised in [six GitHub control jobs](../evidence/ci_portable_action_control/README.md): pass, verified block, and unverified input error on both Ubuntu and Windows. The current pin adds the contract lock and was exercised in PR #13. Historical artifacts retain their original pins; they are not rewritten as runs of the new version.
+The earlier Action version was exercised in [six GitHub control jobs](../evidence/ci_portable_action_control/README.md): pass, verified block, and unverified input error on both Ubuntu and Windows. PR #13 verified the contract lock; PR #14 verifies the current pin's source locations and readable annotations. Previously downloaded locked and unlocked kits retain exact installer support and their original pins; historical artifacts are not rewritten as runs of the new version.

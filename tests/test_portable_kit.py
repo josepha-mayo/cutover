@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 from ci.install_kit import _read_kit
-from cutover.ci_kit import render_ci_kit
+from cutover.ci_kit import ACTION_REF, PRIOR_LOCKED_ACTION_REFS, render_ci_kit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,8 +31,16 @@ class PortableKitIntegrityTests(unittest.TestCase):
             kit = Path(directory) / 'kit.zip'
             kit.write_bytes(packet)
             self.assertEqual(_read_kit(kit)[0], entry)
+            # Preserve each previously published locked template, byte for byte.
+            for prior in PRIOR_LOCKED_ACTION_REFS:
+                previous = files[portable[0]].replace(ACTION_REF.encode(), prior.encode())
+                with zipfile.ZipFile(kit, 'w') as archive:
+                    for name, content in files.items():
+                        archive.writestr(name, previous if name == portable[0] else content)
+                self.assertEqual(_read_kit(kit)[0], entry)
             for changed_workflow in (files[portable[0]].replace(lock_line, b''),
-                                     files[portable[0]].replace(report['contract_hash'].encode(), b'0' * 64)):
+                                     files[portable[0]].replace(report['contract_hash'].encode(), b'0' * 64),
+                                     files[portable[0]].replace(ACTION_REF.encode(), b'0' * 40)):
                 with zipfile.ZipFile(kit, 'w') as archive:
                     for name, content in files.items():
                         archive.writestr(name, changed_workflow if name == portable[0] else content)
