@@ -56,6 +56,7 @@ class WitnessSourceTests(unittest.TestCase):
                 self.assertEqual(location['path'], 'migration.sql')
                 self.assertEqual(location['sql_file_sha256'], hashlib.sha256(source).hexdigest())
                 self.assertIn('::error file=migration.sql,line=8,endLine=8,', result.stdout)
+                self.assertIn('%0AFirst witness: window_write_after_2-0.%0AObserved old.write', result.stdout)
                 self.assertIn('Observed old.write after SQL statement 2 of 5 (SQL line 8).', result.stdout)
                 summary = (out / 'summary.md').read_text(encoding='utf-8')
                 self.assertIn('````sql\n', summary)
