@@ -60,11 +60,23 @@ def _classify(cli_exit: int | None, audit_exit: int | None) -> str:
     return "unverified"
 
 
+def _workspace_relative(path: Path) -> Path:
+    """Display consumer inputs relative to their checkout in reusable Actions."""
+    workspace = os.environ.get("GITHUB_WORKSPACE")
+    if path.is_absolute() and workspace:
+        try:
+            return path.resolve().relative_to(Path(workspace).resolve())
+        except ValueError:
+            pass
+    return path
+
+
 def _emit_annotation(classification: str, plan: Path, report: dict,
                      cli_exit: int | None, audit_exit: int | None) -> None:
     """Place a bounded verdict on the PR's candidate file in GitHub Checks."""
     if os.environ.get("GITHUB_ACTIONS") != "true" or classification == "verified_pass":
         return
+    plan = _workspace_relative(plan)
     file = plan.as_posix()
     if plan.is_absolute() or ".." in plan.parts or not re.fullmatch(r"[A-Za-z0-9_./-]+", file):
         file = ".github/workflows/cutover-review.yml"
@@ -289,7 +301,7 @@ def main(argv: list[str] | None = None) -> int:
             if review_plan.resolve() in {path.resolve() for _, path in inputs}:
                 raise ValueError("Effective plan output would overwrite a source input")
             review_plan.write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-            migration_source = {"path": migration_path.as_posix(),
+            migration_source = {"path": _workspace_relative(migration_path).as_posix(),
                                 "sha256": hashlib.sha256(sql_bytes).hexdigest()}
         except (OSError, ValueError, TypeError) as exc:
             return _input_failure(out, f"SQL source could not be loaded: {exc}", annotation_path)

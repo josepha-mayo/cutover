@@ -1,0 +1,58 @@
+name: Cutover migration review
+description: Rehearse SQLite migration handovers and retain an independently audited lost-write witness.
+branding:
+  icon: git-pull-request
+  color: green
+inputs:
+  contract:
+    description: Path to the synthetic SQLite contract JSON in your checkout.
+    required: true
+  plan:
+    description: Path to the candidate JSON containing the new-worker adapters.
+    required: true
+  migration-file:
+    description: Optional checked-in SQL file to use instead of the plan's migration text.
+    default: ''
+  output-dir:
+    description: Empty evidence directory relative to your checkout; use a different directory for each call.
+    default: cutover-review
+  artifact-name:
+    description: Unique artifact name for this review job.
+    default: cutover-review-evidence
+outputs:
+  classification:
+    description: verified_pass, verified_block, or unverified.
+    value: ${{ steps.review.outputs.classification }}
+  coverage:
+    description: Passing probes over total probes, when a report exists.
+    value: ${{ steps.review.outputs.coverage }}
+  evidence-path:
+    description: Absolute path to the newly created evidence directory.
+    value: ${{ steps.review.outputs.evidence-path }}
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: '3.12'
+    - name: Rehearse and independently audit
+      id: review
+      shell: bash
+      env:
+        PYTHONIOENCODING: utf-8
+        CUTOVER_ACTION_PATH: ${{ github.action_path }}
+        CUTOVER_ACTION_REPOSITORY: ${{ github.action_repository }}
+        CUTOVER_ACTION_REF: ${{ github.action_ref }}
+        CUTOVER_CONTRACT: ${{ inputs.contract }}
+        CUTOVER_PLAN: ${{ inputs.plan }}
+        CUTOVER_MIGRATION_FILE: ${{ inputs.migration-file }}
+        CUTOVER_OUTPUT_DIR: ${{ inputs.output-dir }}
+      run: python "$CUTOVER_ACTION_PATH/ci/action_entry.py"
+    - name: Retain review evidence
+      if: ${{ always() && steps.review.outputs.evidence-path != '' }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.review.outputs.evidence-path }}
+        if-no-files-found: error
