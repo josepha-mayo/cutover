@@ -42,6 +42,9 @@ function updateModeControls() {
   $('try-cross-record').disabled=busy||!activeCase||custom;
   $('case').disabled=busy||!activeCase;
   $('import-plan').disabled=busy||!activeCase;
+  $('open-plan').disabled=busy||!activeCase;
+  $('open-contract').disabled=busy;
+  $('open-packet').disabled=busy;
   $('retry-catalog').disabled=busy||catalogLoading;
   Object.values(fields).forEach(id=>$(id).disabled=busy||!activeCase);
   $('run').disabled=busy||!activeCase||(custom&&!candidateReady());
@@ -53,7 +56,7 @@ function updateModeControls() {
 }
 function setBusy(value, label='Executing SQL rehearsals…') {
   busy=value;
-  for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract,#import-packet')) node.disabled=value;
+  for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract,#import-packet,#open-contract,#open-packet')) node.disabled=value;
   $('try-warehouse').disabled=value;
   $('try-bob-repair').disabled=value;
   $('build-scenario').disabled=value;
@@ -309,6 +312,27 @@ function renderMatrix() {
   for(const r of report.results) {const key=r.id.slice(0,r.id.lastIndexOf('-')); if(!groups.has(key))groups.set(key,[]); groups.get(key).push(r);}
   $('matrix').innerHTML=[...groups.values()].filter(group=>!only||group.some(r=>!r.passed)).map(group=>`<div class="matrix-row"><span>${escape(group[0].title)}</span><div class="probe-group">${group.map((r,i)=>`<button class="probe ${r.passed?'':'fail'} ${selected===r.id?'chosen':''}" data-probe="${r.id}" title="${escape(r.payload||'(empty string)')} — ${r.passed?'pass':'fail'}" aria-label="${escape(r.title)}; input ${i+1}; ${r.passed?'passed':'failed'}">${r.passed?'✓':'×'}</button>`).join('')}</div></div>`).join('') || '<p class="empty">No failures in this rehearsal.</p>';
   $('matrix').querySelectorAll('[data-probe]').forEach(b=>b.addEventListener('click',()=>renderTrace(report.results.find(r=>r.id===b.dataset.probe))));
+  const rows=[...$('matrix').querySelectorAll('.probe-group')].map(row=>[...row.querySelectorAll('[data-probe]')]);
+  const buttons=rows.flat();
+  const anchor=buttons.find(button=>button.dataset.probe===selected)||buttons[0];
+  for(const button of buttons) {
+    button.tabIndex=button===anchor?0:-1;
+    button.setAttribute('aria-pressed',String(button.dataset.probe===selected));
+  }
+  rows.forEach((row,r)=>row.forEach((button,c)=>button.addEventListener('keydown',event=>{
+    if(event.altKey||event.metaKey||(event.ctrlKey&&!['Home','End'].includes(event.key)))return;
+    let target;
+    if(event.key==='ArrowRight')target=row[Math.min(c+1,row.length-1)];
+    else if(event.key==='ArrowLeft')target=row[Math.max(c-1,0)];
+    else if(event.key==='ArrowDown')target=rows[Math.min(r+1,rows.length-1)][c];
+    else if(event.key==='ArrowUp')target=rows[Math.max(r-1,0)][c];
+    else if(event.key==='Home')target=event.ctrlKey?buttons[0]:row[0];
+    else if(event.key==='End')target=event.ctrlKey?buttons.at(-1):row.at(-1);
+    else return;
+    event.preventDefault();
+    for(const item of buttons)item.tabIndex=item===target?0:-1;
+    target.focus();
+  })));
 }
 function renderTrace(probe) {
   if(!probe)return; selected=probe.id;
@@ -324,7 +348,13 @@ function renderTrace(probe) {
     const role=event.connection?`<span class="connection-role">${escape(String(event.connection).toUpperCase())} CONNECTION</span>`:'';
     return `<div class="trace-step ${event.status}"><h4><span>${escape(event.action)}</span>${role}</h4><p>${escape(event.detail||'Executed.')}</p><details><summary>Executed SQL${event.params?' & inputs':''}</summary><pre>${escape(event.sql)}${event.params?'\n\n'+escape(pretty(event.params)):''}</pre></details>${event.status==='fail'&&event.actual?`<div class="comparison"><div class="expected">EXPECTED ${escape(pretty(event.expected))}</div><div class="actual">OBSERVED ${escape(pretty(event.actual))}</div></div>`:''}</div>`;
   }).join('');
-  document.querySelectorAll('[data-probe]').forEach(b=>b.classList.toggle('chosen',b.dataset.probe===selected));
+  const buttons=[...$('matrix').querySelectorAll('[data-probe]')];
+  const anchor=buttons.find(b=>b.dataset.probe===selected)||buttons.find(b=>b.tabIndex===0)||buttons[0];
+  buttons.forEach(b=>{
+    const chosen=b.dataset.probe===selected;
+    b.classList.toggle('chosen',chosen);b.setAttribute('aria-pressed',String(chosen));
+    b.tabIndex=b===anchor?0:-1;
+  });
   updateReplayExport();
 }
 function updateReplayExport() {
@@ -551,6 +581,12 @@ $('export-review').addEventListener('click',()=>report?.review_markdown&&downloa
 $('save-plan').addEventListener('click',()=>download(`cutover-${activeCase.id}-candidate.json`,pretty(currentPlan())));
 $('save-contract').addEventListener('click',()=>importedContract&&download(`cutover-${fileSlug(importedContract.project)}-contract.json`,pretty(importedContract)));
 $('download-brief').addEventListener('click',()=>download('CUTOVER-BOB-TASK.txt',briefText,'text/plain'));
+for(const name of ['contract','packet','plan']) {
+  $(`open-${name}`).addEventListener('click',()=>{
+    const input=$(`import-${name}`);
+    if(!input.disabled)input.click();
+  });
+}
 $('import-plan').addEventListener('change',async event=>{
   if(busy||!activeCase)return;
   const file=event.target.files[0]; if(!file)return;
