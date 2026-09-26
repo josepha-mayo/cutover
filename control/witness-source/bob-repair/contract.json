@@ -1,0 +1,34 @@
+{
+  "project": "Warehouse / bin relocation",
+  "summary": "Move pick_bin to fulfillment_bin while older scanner workers still update stock locations.",
+  "old_column": "pick_bin",
+  "new_column": "fulfillment_bin",
+  "table": "stock_items",
+  "schema": "CREATE TABLE stock_items (id INTEGER PRIMARY KEY, pick_bin TEXT NOT NULL);",
+  "seed_sql": "INSERT INTO stock_items (id, pick_bin) VALUES (?, ?)",
+  "seed": [
+    [
+      11,
+      "A-01"
+    ],
+    [
+      22,
+      "B-02"
+    ],
+    [
+      33,
+      "C-03"
+    ]
+  ],
+  "payloads": [
+    "R-07",
+    "Z'12",
+    "0",
+    "東京-棚"
+  ],
+  "old": {
+    "read": "SELECT id, pick_bin AS value FROM stock_items ORDER BY id",
+    "write": "UPDATE stock_items SET pick_bin = :value WHERE id = :id",
+    "insert": "INSERT INTO stock_items (id, pick_bin) VALUES (:id, :value)"
+  }
+}

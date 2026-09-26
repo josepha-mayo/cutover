@@ -1,0 +1,26 @@
+[
+  {
+    "name": "late-window",
+    "classification": "verified_block",
+    "coverage": "108/124",
+    "line": 8,
+    "outcome": "failure",
+    "lock": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5"
+  },
+  {
+    "name": "completed-rollout",
+    "classification": "verified_block",
+    "coverage": "100/132",
+    "line": null,
+    "outcome": "failure",
+    "lock": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418"
+  },
+  {
+    "name": "bob-repair",
+    "classification": "verified_pass",
+    "coverage": "116/116",
+    "line": null,
+    "outcome": "success",
+    "lock": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5"
+  }
+]
