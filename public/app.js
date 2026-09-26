@@ -150,13 +150,16 @@ function renderComparison() {
     const row=[...new Set([...Object.keys(failedStep.expected),...Object.keys(failedStep.actual)])]
       .find(id=>failedStep.expected[id]!==failedStep.actual[id]);
     if(row!==undefined) {
-      const expected=failedStep.expected[row]??null, actual=failedStep.actual[row]??null;
+      const hasExpected=Object.hasOwn(failedStep.expected,row), hasActual=Object.hasOwn(failedStep.actual,row);
+      const expected=failedStep.expected[row], actual=failedStep.actual[row];
+      const expectedText=hasExpected?JSON.stringify(expected):'Row absent from write ledger';
+      const actualText=hasActual?JSON.stringify(actual):'Missing row';
       const acknowledged=pinnedReport.witness.trace.slice(0,pinnedReport.witness.trace.indexOf(failedStep)).findLast(step=>
-        step.status==='pass'&&/^(old|new)\.(write|insert)$/.test(step.action)&&
+        hasExpected&&step.status==='pass'&&/^(old|new)\.(write|insert)$/.test(step.action)&&
         String(step.params?.id)===row&&step.params?.value===expected);
       const readerFailure=failedStep.action.endsWith('.read');
       const measuredLabel=candidateProvenance==='event IBM Bob IDE candidate'?'Fresh replay of Bob’s saved repair':'Fresh candidate replay';
-      $('comparison-witness').innerHTML=`<h4>${acknowledged?(readerFailure?'The write was accepted. The reader lost its value.':'The write was accepted. Its stored value changed.'):'The observed value disagreed with the write ledger.'}</h4><div class="write-story"><div><span>${acknowledged?'ACKNOWLEDGED WRITE':'LEDGER EXPECTS'}</span><strong>${escape(JSON.stringify(expected))}</strong><small>Row ${escape(row)}${acknowledged?` · ${escape(acknowledged.action)}`:''}</small></div><div class="lost-value"><span>${readerFailure?'READER RETURNED':'OBSERVED VALUE'}</span><strong>${escape(JSON.stringify(actual))}</strong><small>${escape(failedStep.action)}</small></div></div><p>${escape(pinnedReport.witness.title)}. This is an executed baseline failure.</p><div class="repair-outcome"><strong>${escape(measuredLabel)}: ${report.passed}/${report.total} ${report.status==='pass'?'passed':'blocked'}</strong><span>Same contract · ${newWindows.passed}/${newWindows.total} candidate boundary probes passed. Each SQL sequence is evaluated at its own boundaries.</span></div>`;
+      $('comparison-witness').innerHTML=`<h4>${acknowledged?(readerFailure?'The write was accepted. The reader lost its value.':'The write was accepted. Its stored value changed.'):'The observed value disagreed with the write ledger.'}</h4><div class="write-story"><div><span>${acknowledged?'ACKNOWLEDGED WRITE':'LEDGER EXPECTS'}</span><strong>${escape(expectedText)}</strong><small>Row ${escape(row)}${acknowledged?` · ${escape(acknowledged.action)}`:''}</small></div><div class="lost-value"><span>${!hasActual?(readerFailure?'ROW NOT RETURNED':'ROW MISSING'):readerFailure?'READER RETURNED':'OBSERVED VALUE'}</span><strong>${escape(actualText)}</strong><small>${escape(failedStep.action)}</small></div></div><p>${escape(pinnedReport.witness.title)}. This is an executed baseline failure.</p><div class="repair-outcome"><strong>${escape(measuredLabel)}: ${report.passed}/${report.total} ${report.status==='pass'?'passed':'blocked'}</strong><span>Same contract · ${newWindows.passed}/${newWindows.total} candidate boundary probes passed. Each SQL sequence is evaluated at its own boundaries.</span></div>`;
       $('comparison-witness').hidden=false;
     }
   }
