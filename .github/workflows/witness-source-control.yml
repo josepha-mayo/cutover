@@ -15,7 +15,7 @@ jobs:
         with:
           persist-credentials: false
       - id: review
-        uses: josepha-mayo/cutover@aac1bb70462bbc43e2f9298a66fb09be5906f7aa
+        uses: josepha-mayo/cutover@3fe6630c41d6220defc1107d9ead18d905720b1a
         continue-on-error: true
         with:
           contract: control/witness-source/${{ matrix.name }}/contract.json
