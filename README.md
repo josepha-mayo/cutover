@@ -47,7 +47,7 @@ This path was exercised in [controlled PR #7](https://github.com/josepha-mayo/cu
 The [reusable GitHub Action](docs/ACTION.md) reviews your checked-in contract,
 new-worker adapters, and optional `.sql` migration without copying Cutover's
 engine into your repository. It retains review artifacts even when the gate
-blocks. The workflow example pins the exact Action commit independently checked
+blocks. The earlier Action version was independently checked
 in [six real GitHub jobs](evidence/ci_portable_action_control/README.md): safe,
 broken, and missing SQL on Ubuntu and Windows. Both safe runs passed 116/116;
 both broken runs blocked at 72/108; missing inputs remained unverified. This
@@ -58,12 +58,19 @@ the pinned workflow and three consumer inputs: the contract, new-worker adapters
 and a separate migration SQL file. Its README names the four files to inspect
 and copy into your own repository before opening a PR. The generated workflow
 reviews that SQL file directly and retains its source hash with the verdict.
+New kits also lock the agreed contract hash. Changing the schema, old-worker
+queries, seed records or payloads is unverified until that contract change is
+reviewed separately. In [four contract-lock controls](evidence/ci_contract_lock_control/README.md),
+changing only record IDs made unchanged unsafe SQL pass a different test set;
+the original lock rejected that change, while repaired SQL passed on the
+original records. All three executed packets passed independent replay.
 The existing Cutover-checkout installer remains an alternative; the portable
 workflow does not need that installer or a copy of the engine.
 The [exact downloaded workflow](evidence/ci_browser_action_control/README.md)
 passed 124/124 in controlled PR #12, then blocked 80/116 after removing only
 its old-write synchronization SQL. Both retained review packets passed
-independent replay against their GitHub run checkouts.
+independent replay against their GitHub run checkouts. That historical kit
+retains its earlier Action pin; new downloads include the contract lock.
 
 ## Bring your own contract through the CLI
 

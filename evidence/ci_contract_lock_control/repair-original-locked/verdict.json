@@ -1,0 +1,17 @@
+{
+  "classification": "verified_pass",
+  "cli_exit": 0,
+  "audit_exit": 0,
+  "contract_hash": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+  "plan_hash": "db1490fb7747a988a177444e8261d0e4164f1a2ed6ba55065ec50137e7c3514a",
+  "migration_source": {
+    "path": "control/contract-lock/safe.sql",
+    "sha256": "c3a8bba29ca19a574ee6a44e0b6d70f7cdd2fd2d7878fe49b1d7d8043981c82e"
+  },
+  "source_plan_sha256": "7b91b6cb97ce9ce807993ea66ab71a87d5ebe3b9f9a5065f48e8b852d6dfd5de",
+  "contract_lock": {
+    "expected": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+    "actual": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+    "status": "matched"
+  }
+}

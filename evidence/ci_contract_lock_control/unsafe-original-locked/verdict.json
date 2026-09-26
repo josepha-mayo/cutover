@@ -1,0 +1,28 @@
+{
+  "classification": "verified_block",
+  "cli_exit": 1,
+  "audit_exit": 1,
+  "contract_hash": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+  "plan_hash": "862e5029121fdbd47f341daee93015d55071bbeb35499bc89810833ac70e1867",
+  "migration_source": {
+    "path": "control/contract-lock/unsafe.sql",
+    "sha256": "8e7ad3d4a01e1ba4825e9c2ae18c81cf12c16f2f8899646ea5ac68e2f321777f"
+  },
+  "source_plan_sha256": "7b91b6cb97ce9ce807993ea66ab71a87d5ebe3b9f9a5065f48e8b852d6dfd5de",
+  "contract_lock": {
+    "expected": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+    "actual": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+    "status": "matched"
+  },
+  "witness_id": "old_old_old-0",
+  "witness_failure": {
+    "expected": {
+      "101": "18 Marina Road",
+      "102": "18 Marina Road [updated]"
+    },
+    "actual": {
+      "101": "4 Broad Street",
+      "102": "18 Marina Road [updated]"
+    }
+  }
+}

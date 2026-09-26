@@ -24,10 +24,20 @@ class PortableKitIntegrityTests(unittest.TestCase):
             files = {name: archive.read(name) for name in archive.namelist()}
         portable = [f'.github/workflows/cutover-{slug}.yml',
                     f'ci/{slug}-migration.sql', f'ci/{slug}-adapters.json']
+        lock_line = f"          expected-contract-hash: '{report['contract_hash']}'\n".encode()
+        self.assertIn(lock_line, files[portable[0]])
+        _read_kit(ROOT / 'evidence/ci_browser_action_control/cutover-dispatch-action-kit.zip')
         with tempfile.TemporaryDirectory(prefix='cutover-kit-integrity-') as directory:
             kit = Path(directory) / 'kit.zip'
             kit.write_bytes(packet)
             self.assertEqual(_read_kit(kit)[0], entry)
+            for changed_workflow in (files[portable[0]].replace(lock_line, b''),
+                                     files[portable[0]].replace(report['contract_hash'].encode(), b'0' * 64)):
+                with zipfile.ZipFile(kit, 'w') as archive:
+                    for name, content in files.items():
+                        archive.writestr(name, changed_workflow if name == portable[0] else content)
+                with self.assertRaisesRegex(ValueError, 'portable file differs'):
+                    _read_kit(kit)
             for changed in portable:
                 with self.subTest(changed=changed), zipfile.ZipFile(kit, 'w') as archive:
                     for name, content in files.items():

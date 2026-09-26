@@ -8,14 +8,17 @@ from .reporting import render_markdown
 from .reporting import render_reproduction
 
 
-ACTION_REF = 'a5bf69f6e8f94788eade58691d292941e009f8ac'
+ACTION_REF = '65984c8efd007e2d50d6beaf5afbdac500ec690b'
+LEGACY_ACTION_REF = 'a5bf69f6e8f94788eade58691d292941e009f8ac'
 CHECKOUT_REF = '3d3c42e5aac5ba805825da76410c181273ba90b1'
 
 
-def portable_files(plan, slug):
+def portable_files(plan, slug, contract_hash=None):
     """Render data-only inputs and a pinned workflow for a consumer repository."""
     if not re.fullmatch(r'[a-z][a-z0-9-]{0,40}', slug):
         raise ValueError('Portable kit slug is invalid')
+    if contract_hash is not None and not re.fullmatch(r'[0-9a-f]{64}', contract_hash):
+        raise ValueError('Portable kit contract hash is invalid')
     contract = f'ci/{slug}-contract.json'
     adapters = f'ci/{slug}-adapters.json'
     migration = f'ci/{slug}-migration.sql'
@@ -29,11 +32,12 @@ def portable_files(plan, slug):
         '    steps:\n'
         f'      - uses: actions/checkout@{CHECKOUT_REF}\n'
         '        with:\n          persist-credentials: false\n'
-        f'      - uses: josepha-mayo/cutover@{ACTION_REF}\n'
+        f'      - uses: josepha-mayo/cutover@{ACTION_REF if contract_hash else LEGACY_ACTION_REF}\n'
         '        with:\n'
         f'          contract: {contract}\n'
         f'          plan: {adapters}\n'
         f'          migration-file: {migration}\n'
+        + (f"          expected-contract-hash: '{contract_hash}'\n" if contract_hash else '') +
         f'          output-dir: cutover-review-{slug}\n'
         f'          artifact-name: cutover-{slug}\n'
     )
@@ -75,6 +79,13 @@ def render_ci_kit(report, contract, control=None):
         'file to have later changes rehearsed by the same check. GitHub retains\n'
         'the independently audited verdict, report and replay packet; an unsafe\n'
         'migration or unverifiable input fails the job.\n\n'
+        'The workflow locks the agreed contract hash from this replay. Changing\n'
+        'the schema, old-worker adapters, seed records or payloads fails as\n'
+        '`unverified`, even if the candidate passes the changed test data. JSON\n'
+        'formatting and key order do not affect the lock. Review intentional\n'
+        'contract changes separately before updating the pinned hash; do not\n'
+        'automatically recalculate it inside a pull request. Protect workflow\n'
+        'changes with repository review rules: this hash is not a signature.\n\n'
         'The downloaded contract contains the supplied synthetic seed data.\n'
         'Review all four files before committing. Do not overwrite an existing\n'
         'workflow or input with the same name. Keep the remaining evidence and\n'
@@ -110,7 +121,7 @@ def render_ci_kit(report, contract, control=None):
         'manifest-entry.json': json.dumps(entry, ensure_ascii=False, indent=2) + '\n',
         'evidence/report.json': json.dumps(report, ensure_ascii=False, indent=2) + '\n',
         'evidence/review.md': render_markdown(report),
-        **portable_files(report['plan'], slug),
+        **portable_files(report['plan'], slug, report['contract_hash']),
     }
     if control is not None:
         if (control['case'] != 'custom' or control['status'] != 'blocked' or

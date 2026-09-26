@@ -1,0 +1,7 @@
+{
+  "read": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
+  "write": "UPDATE orders SET shipping_address = :value WHERE id = :id",
+  "insert": "INSERT INTO orders (id, delivery_address, shipping_address) VALUES (:id, :value, :value)",
+  "name": "Cross-record reset trap",
+  "migration": "ALTER TABLE orders ADD COLUMN shipping_address TEXT;\n\n-- Preserve both reader contracts throughout the rollback window.\nCREATE TRIGGER sync_old_update AFTER UPDATE OF delivery_address ON orders\nWHEN NEW.delivery_address IS NOT NEW.shipping_address\nBEGIN\n  UPDATE orders SET shipping_address = NEW.delivery_address WHERE id = NEW.id;\nEND;\n\nCREATE TRIGGER sync_new_update AFTER UPDATE OF shipping_address ON orders\nWHEN NEW.shipping_address IS NOT NEW.delivery_address\nBEGIN\n  UPDATE orders SET delivery_address = NEW.shipping_address WHERE id = NEW.id;\nEND;\n\nCREATE TRIGGER sync_old_insert AFTER INSERT ON orders\nWHEN NEW.shipping_address IS NULL\nBEGIN\n  UPDATE orders SET shipping_address = NEW.delivery_address WHERE id = NEW.id;\nEND;\n\n-- Backfill only after the synchronization triggers are active.\nUPDATE orders SET shipping_address = delivery_address;\n"
+}

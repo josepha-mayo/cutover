@@ -1,0 +1,97 @@
+{
+  "run": "https://github.com/josepha-mayo/cutover/actions/runs/36215341123",
+  "head_sha": "97431e04441942d243a19e8a55006ea543855561",
+  "checkout_sha": "5ffa63d5ca6aac4762cccb35c6415b3c3c256e94",
+  "action_ref": "65984c8efd007e2d50d6beaf5afbdac500ec690b",
+  "pr": "https://github.com/josepha-mayo/cutover/pull/13",
+  "controls": [
+    {
+      "name": "unsafe-original-locked",
+      "contract": "original.json",
+      "sql": "unsafe.sql",
+      "lock": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+      "classification": "verified_block",
+      "coverage": "100/132",
+      "outcome": "failure",
+      "plan_hash": "862e5029121fdbd47f341daee93015d55071bbeb35499bc89810833ac70e1867",
+      "contract_hash": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+      "verification": "independent_packet_replay_verified",
+      "files": {
+        "action.json": "cef785151b8c529eaa68b6f5315ce5713f5898a9e3f8b06fba07c2b182ee5b67",
+        "effective-plan.json": "d463eb28667beb29fa16b9bc4a01868b279a1761d31204a317bff97c27e43824",
+        "report.json": "369bb6bdf5b85def080b10689533621a400beb5b9d9b1c703318fa0d60b967a6",
+        "review.md": "226a5d5dac603a39739358cd5bf12c4ce0654332a944c5680bdf6e50fcda9e38",
+        "review.zip": "d3dbde725144f89ce7db0bedf726f82ff955e51ce5713c06b600d9fe7015ce01",
+        "summary.md": "183f8421a196ab8799714429446600b04216dd5eb4e0e6622ca4d9bb6c2ac9ea",
+        "verdict.json": "cee0301d4b74831588738b988bedbe36149bfb3fb36b1c83129ad3c44ffd73ea"
+      }
+    },
+    {
+      "name": "unsafe-changed-unlocked",
+      "contract": "changed.json",
+      "sql": "unsafe.sql",
+      "lock": "",
+      "classification": "verified_pass",
+      "coverage": "132/132",
+      "outcome": "success",
+      "plan_hash": "862e5029121fdbd47f341daee93015d55071bbeb35499bc89810833ac70e1867",
+      "contract_hash": "17850c1af80fe449c9a32930bb6ffd796123efaad31480366d8751e301668849",
+      "verification": "independent_packet_replay_verified",
+      "files": {
+        "action.json": "c27bf9983bdbd0c46d2013f924bbacf298ec0b40cffdc94e3f3d3e1c3a2cb9d8",
+        "effective-plan.json": "d463eb28667beb29fa16b9bc4a01868b279a1761d31204a317bff97c27e43824",
+        "report.json": "339502e4bfbff892da1ef93db91fb2607536b2d1eb969784d8c28eb317624f23",
+        "review.md": "2bbbc4ac5350f58e7048d4b60c7683cbf5e65602bbce46f2c9da697b02be3569",
+        "review.zip": "64c748217fb784f249e0f281e0d9c1efa7509120d70965038d4dace45b78a7dd",
+        "summary.md": "756c8fca7b5e6b3d2f91a9530b2b304d2bde58b6c47f248612b7d9e093353cbd",
+        "verdict.json": "fe686fcb28b1cb87bfc7e959e24f706ff7852eb490a5f1efc28cecef8eee0d5a"
+      }
+    },
+    {
+      "name": "unsafe-changed-locked",
+      "contract": "changed.json",
+      "sql": "unsafe.sql",
+      "lock": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+      "classification": "unverified",
+      "coverage": "",
+      "outcome": "failure",
+      "plan_hash": "862e5029121fdbd47f341daee93015d55071bbeb35499bc89810833ac70e1867",
+      "contract_hash": "17850c1af80fe449c9a32930bb6ffd796123efaad31480366d8751e301668849",
+      "verification": "not_executed_contract_changed",
+      "files": {
+        "action.json": "9a51b39bf30570496ff880af6b62bed30e1b7be3903d06fdcbe35b1a72ac8cf6",
+        "summary.md": "15ec65e79322bf9343d0a4430154467856a775ce183c02648f014c4e2254dc98",
+        "verdict.json": "09b3f5470d5a6f70a3933b03b36941d32d6c770b128463610d30015144a17801"
+      }
+    },
+    {
+      "name": "repair-original-locked",
+      "contract": "original.json",
+      "sql": "safe.sql",
+      "lock": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+      "classification": "verified_pass",
+      "coverage": "124/124",
+      "outcome": "success",
+      "plan_hash": "db1490fb7747a988a177444e8261d0e4164f1a2ed6ba55065ec50137e7c3514a",
+      "contract_hash": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+      "verification": "independent_packet_replay_verified",
+      "files": {
+        "action.json": "06f688787b2dd558be215aa9dc5519c8ad24aebea44d27aaf81144f1ece705c1",
+        "effective-plan.json": "cfc17a79b2c7524228a24569d4f0a6a2f3e421eb51c31ea53462cdb1f1506c89",
+        "report.json": "b012deeec53183d4ceb7eeb367381a29c1316bfea30119ddad309d051ef653fa",
+        "review.md": "26140dabde0f498bcf7b6094d79988adf5eef08837f4d552bc880a01466d3ce3",
+        "review.zip": "2ef724249be0fb53b976b8b7555bb054472b6e09bcd411df7b90e2b97bfd9c4a",
+        "summary.md": "015d4191a93626d8816638d4668b1e47e3d4c248c982738be18f472dd8d7804e",
+        "verdict.json": "08dbc6ea53305cfab39cf7b4fb809169da0cad5159e52c0368c7969ba9155925"
+      }
+    }
+  ],
+  "input_sha256": {
+    "adapters.json": "7b91b6cb97ce9ce807993ea66ab71a87d5ebe3b9f9a5065f48e8b852d6dfd5de",
+    "changed.json": "0cdba8ebf3e64cf4cac2c2ab5bcc3f18b3dc9ceab3965cba779664a484953d61",
+    "expected.json": "d9ec3ffafeab5fb1ec7c1ebb39c91afff8e2612d4b2840fa235d87facc9d61bf",
+    "original.json": "430277e9ee703482a885326e922ed4ff145d7f090d917d2394a6ba38e43fa6a3",
+    "safe.sql": "c3a8bba29ca19a574ee6a44e0b6d70f7cdd2fd2d7878fe49b1d7d8043981c82e",
+    "unsafe.sql": "8e7ad3d4a01e1ba4825e9c2ae18c81cf12c16f2f8899646ea5ac68e2f321777f"
+  }
+}

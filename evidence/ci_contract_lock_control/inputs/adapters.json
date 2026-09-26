@@ -1,0 +1,6 @@
+{
+  "read": "SELECT id, shipping_address AS value FROM orders ORDER BY id",
+  "write": "UPDATE orders SET shipping_address = :value WHERE id = :id",
+  "insert": "INSERT INTO orders (id, delivery_address, shipping_address) VALUES (:id, :value, :value)",
+  "name": "Cross-record reset trap"
+}

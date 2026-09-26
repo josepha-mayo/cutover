@@ -58,13 +58,17 @@ def _read_kit(path: Path):
         from cutover.reporting import render_markdown
         if archive.read('evidence/review.md') != render_markdown(report).encode('utf-8'):
             raise ValueError('CI kit review differs from its replayed report')
-        portable = portable_files(plan, slug)
+        portable = portable_files(plan, slug, report['contract_hash'])
         if set(portable).intersection(names):
             if not set(portable).issubset(names):
                 raise ValueError('CI kit portable workflow inputs are incomplete')
-            for name, expected in portable.items():
-                if archive.read(name) != expected.encode('utf-8'):
-                    raise ValueError(f'CI kit portable file differs from its verified inputs: {name}')
+            supplied = {name: archive.read(name) for name in portable}
+            # Retain exact support for the earlier, unpinned-contract kit.
+            # Never accept arbitrary workflow edits or a new pin with its lock removed.
+            versions = (portable, portable_files(plan, slug))
+            if not any(all(supplied[name] == expected.encode('utf-8')
+                           for name, expected in version.items()) for version in versions):
+                raise ValueError('CI kit portable file differs from its verified inputs')
         control_name = f'ci/{slug}-unsafe-control.json'
         control_files = {control_name, 'evidence/unsafe-control-report.json',
                          'evidence/unsafe-control-review.md', 'evidence/unsafe-control-witness.py'}

@@ -124,7 +124,8 @@ class HttpTests(unittest.TestCase):
             workflow = archive.read(workflow_name).decode('utf-8')
             inputs = dict(re.findall(r'^          ([a-z-]+): (.+)$', workflow, re.M))
             self.assertIn('on: pull_request\n', workflow)
-            self.assertIn('uses: josepha-mayo/cutover@a5bf69f6e8f94788eade58691d292941e009f8ac', workflow)
+            self.assertIn('uses: josepha-mayo/cutover@65984c8efd007e2d50d6beaf5afbdac500ec690b', workflow)
+            self.assertIn(f"expected-contract-hash: '{report['contract_hash']}'", workflow)
             self.assertNotIn('migration', json.loads(archive.read(inputs['plan'])))
             with tempfile.TemporaryDirectory(prefix='cutover-downloaded-consumer-') as directory:
                 root = Path(directory)
@@ -135,6 +136,7 @@ class HttpTests(unittest.TestCase):
                 env = {**os.environ, 'GITHUB_WORKSPACE': str(root),
                        'CUTOVER_CONTRACT': inputs['contract'], 'CUTOVER_PLAN': inputs['plan'],
                        'CUTOVER_MIGRATION_FILE': inputs['migration-file'],
+                       'CUTOVER_EXPECTED_CONTRACT_HASH': inputs['expected-contract-hash'].strip("'"),
                        'CUTOVER_OUTPUT_DIR': inputs['output-dir'], 'PYTHONIOENCODING': 'utf-8'}
                 result = subprocess.run([sys.executable, str(WAREHOUSE.parents[1] / 'ci/action_entry.py')],
                                         cwd=root, env=env, capture_output=True, text=True,
@@ -146,6 +148,9 @@ class HttpTests(unittest.TestCase):
                 self.assertEqual((replayed['plan_hash'], replayed['contract_hash']),
                                  (report['plan_hash'], report['contract_hash']))
                 self.assertEqual((replayed['passed'], replayed['total']), (124, 124))
+                verdict = json.loads((evidence / 'verdict.json').read_text(encoding='utf-8'))
+                self.assertEqual(verdict['contract_lock'], {
+                    'expected': report['contract_hash'], 'actual': report['contract_hash'], 'status': 'matched'})
                 self.assertFalse((root / 'cutover').exists())
                 self.assertFalse((root / 'ci/cases.json').exists())
         altered = {**request, 'plan_hash': '0' * 64}

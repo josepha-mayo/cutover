@@ -1,0 +1,11 @@
+{
+  "classification": "unverified",
+  "cli_exit": null,
+  "audit_exit": null,
+  "reason": "Contract changed from the reviewed lock; review the test contract separately",
+  "contract_lock": {
+    "expected": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+    "actual": "17850c1af80fe449c9a32930bb6ffd796123efaad31480366d8751e301668849",
+    "status": "changed"
+  }
+}

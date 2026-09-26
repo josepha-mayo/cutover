@@ -1,0 +1,38 @@
+[
+  {
+    "name": "unsafe-original-locked",
+    "contract": "original.json",
+    "sql": "unsafe.sql",
+    "lock": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+    "classification": "verified_block",
+    "coverage": "100/132",
+    "outcome": "failure"
+  },
+  {
+    "name": "unsafe-changed-unlocked",
+    "contract": "changed.json",
+    "sql": "unsafe.sql",
+    "lock": "",
+    "classification": "verified_pass",
+    "coverage": "132/132",
+    "outcome": "success"
+  },
+  {
+    "name": "unsafe-changed-locked",
+    "contract": "changed.json",
+    "sql": "unsafe.sql",
+    "lock": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+    "classification": "unverified",
+    "coverage": "",
+    "outcome": "failure"
+  },
+  {
+    "name": "repair-original-locked",
+    "contract": "original.json",
+    "sql": "safe.sql",
+    "lock": "ecf66707fc8fe5a8a59f4dbfda92bed4377352cb190c6ad23d69271c8b325418",
+    "classification": "verified_pass",
+    "coverage": "124/124",
+    "outcome": "success"
+  }
+]
