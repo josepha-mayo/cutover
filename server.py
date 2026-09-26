@@ -276,7 +276,7 @@ class Handler(BaseHTTPRequestHandler):
                             if report[key] != body[key]:
                                 raise ValueError('Fresh repair workspace differs from the displayed rehearsal')
                         verify_report_against_replay('custom', body['plan'], report, contract)
-                        packet = render_repair_workspace(report, contract)
+                        packet = render_repair_workspace(report, contract, body.get('selected_probe'))
                         self.send(200, packet, 'application/zip', {
                             'Content-Disposition': 'attachment; filename="cutover-bob-workspace.zip"',
                             'X-Cutover-Plan-SHA256': report['plan_hash'],

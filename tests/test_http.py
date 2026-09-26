@@ -29,12 +29,19 @@ class HttpTests(unittest.TestCase):
         report = run_rehearsal('custom', plan, contract)
         body = {'case': 'custom', 'contract': contract, 'plan': plan,
                 **{key: report[key] for key in ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}}
+        probe = next(p for p in report['results'] if not p['passed'] and p['id'] != report['witness']['id'])
+        body['selected_probe'] = probe
         status, packet = self.request('/api/repair-workspace', body, timeout=30)
         self.assertEqual(status, 200)
         with zipfile.ZipFile(io.BytesIO(packet)) as archive:
             manifest = json.loads(archive.read('WORKSPACE_MANIFEST.json'))
             self.assertEqual(manifest['contract_hash'], report['contract_hash'])
             self.assertNotIn('.bob/mcp.json', archive.namelist())
+            self.assertEqual(json.loads(archive.read('selected-failure.json')), probe)
+        body['selected_probe'] = dict(probe, payload='stale selection')
+        status, _ = self.request('/api/repair-workspace', body, timeout=30)
+        self.assertEqual(status, 400)
+        body['selected_probe'] = probe
         body['plan_hash'] = '0' * 64
         status, _ = self.request('/api/repair-workspace', body, timeout=30)
         self.assertEqual(status, 400)

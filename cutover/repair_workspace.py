@@ -17,7 +17,7 @@ SOURCES = (
 )
 
 
-def render_repair_workspace(report, contract):
+def render_repair_workspace(report, contract, selected_probe=None):
     """Caller must obtain this report through fresh independent execution."""
     validate_contract(contract)
     validate_plan(report['plan'])
@@ -25,6 +25,12 @@ def render_repair_workspace(report, contract):
         raise ValueError('Prepare a repair workspace from a blocked rehearsal')
     if digest(contract) != report['contract_hash'] or digest(report['plan']) != report['plan_hash']:
         raise ValueError('Repair workspace inputs do not match the executed report')
+    if selected_probe is not None:
+        if not isinstance(selected_probe, dict):
+            raise ValueError('Selected repair failure must be a probe object')
+        actual = next((p for p in report['results'] if p['id'] == selected_probe.get('id')), None)
+        if actual is None or actual['passed'] or actual != selected_probe:
+            raise ValueError('Selected repair failure differs from the fresh report')
     files = {name: (ROOT / name).read_bytes() for name in SOURCES}
     if hashlib.sha256(files['cutover/engine.py'].replace(b'\r\n', b'\n')).hexdigest() != report['engine_sha256']:
         raise ValueError('Repair workspace evaluator differs from the executed report')
@@ -37,6 +43,8 @@ def render_repair_workspace(report, contract):
     put('contract.json', contract)
     put('baseline-plan.json', report['plan'])
     put('baseline-report.json', report)
+    if selected_probe is not None:
+        put('selected-failure.json', selected_probe)
     files['.bob/custom_modes.yaml'] = b'''customModes:
   - slug: cutover-local-repair
     name: Cutover local repair
@@ -68,6 +76,14 @@ def render_repair_workspace(report, contract):
         'it does not establish Bob usage or a successful repair. A pass is limited to '
         'these synthetic SQLite contracts and executed schedules.\n'
     ).encode()
+    if selected_probe is not None:
+        files['TASK.md'] += (
+            '\n## Developer-selected failure\n\n'
+            f'Investigate probe {selected_probe["id"]} in selected-failure.json first. '
+            'It matches the fresh full report; its canonical first witness is retained separately. '
+            'Explain the observed actions, expected data and actual failure. '
+            'Fixing this probe alone is insufficient: independently rerun the entire fixed suite.\n'
+        ).encode()
     files['README.md'] = b'''# Local Bob repair workspace
 
 Extract this ZIP into a new folder. Use synthetic data in the hosted demo;

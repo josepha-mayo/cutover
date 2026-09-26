@@ -13,6 +13,18 @@ from cutover.service import run_rehearsal
 
 
 class RepairWorkspaceTests(unittest.TestCase):
+    def test_selected_failure_is_retained_without_replacing_full_evidence(self):
+        probe = next(p for p in self.report['results'] if not p['passed'] and p['id'] != self.report['witness']['id'])
+        packet = render_repair_workspace(self.report, self.contract, probe)
+        with zipfile.ZipFile(io.BytesIO(packet)) as archive:
+            self.assertEqual(json.loads(archive.read('selected-failure.json')), probe)
+            self.assertEqual(json.loads(archive.read('baseline-report.json')), self.report)
+            self.assertIn(probe['id'].encode(), archive.read('TASK.md'))
+            manifest = json.loads(archive.read('WORKSPACE_MANIFEST.json'))
+            self.assertIn('selected-failure.json', manifest['files'])
+        for invalid in ([], dict(probe, payload='Changed'), {'id': 'nonexistent'}, next(p for p in self.report['results'] if p['passed'])):
+            with self.assertRaises(ValueError):
+                render_repair_workspace(self.report, self.contract, invalid)
     @classmethod
     def setUpClass(cls):
         cls.contract = json.loads(Path('examples/warehouse/contract.json').read_text(encoding='utf-8'))

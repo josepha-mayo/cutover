@@ -380,6 +380,7 @@ function updateReplayExport() {
     :'Select a failed data-mismatch probe to export its replay.';
 }
 async function showBob() {
+  const selectedFailure=report?.results.find(p=>p.id===selected&&!p.passed)||null;
   const workspaceReady=!busy&&report?.case==='custom'&&report.status==='blocked';
   $('download-workspace').disabled=!workspaceReady;
   $('download-workspace').classList.toggle('primary',workspaceReady);
@@ -390,6 +391,7 @@ async function showBob() {
       $('bob-task').value=briefText; $('download-brief').disabled=true; $('bob-dialog').showModal(); return;
     }
     briefText=`Repair this imported SQLite contract in IBM Bob. First call inspect_imported_contract with the contract object below. Call rehearse_candidate with case="custom", this same complete contract object, and your five candidate SQL fields on every attempt. Preserve the fixed old adapter, seed data, and evaluator. Keep old reads and writes correct between completed migration statements. Save your own final plan to work/bob-candidate.json and retain Bob's actual tool calls, task summary, failed attempts and screenshots. Any browser verdict is deterministic evidence, not proof Bob did this work. Use a local Bob session for private schemas. Report measured coverage and untested boundaries.\n\n`+pretty({contract:importedContract,contract_hash:importedMeta?.contract_hash,candidate:currentPlan(),plan_hash:report?.plan_hash||null,shortest_observed_witness:report?.witness||null});
+    if(selectedFailure)briefText+='\n\nDeveloper-selected failure (investigate first, then rerun the entire fixed suite):\n'+pretty(selectedFailure);
     $('bob-task').value=briefText; $('download-brief').disabled=false; $('bob-dialog').showModal(); return;
   }
   $('download-brief').disabled=false;
@@ -397,6 +399,7 @@ async function showBob() {
   if(report) {
     briefText=intro+pretty({case:report.case,plan_hash:report.plan_hash,candidate:report.plan,shortest_observed_witness:report.witness,constraints:['Preserve old/new updates and inserts.','Application rollback must preserve new-version writes.','Protect old writes and reads at every migration statement boundary.','Do not change the old adapter, oracle, seeds or suite to make a plan pass.',`Rerun all ${report.total} probes, then report coverage limits.`]});
   } else briefText=intro+'Begin with the late-bridge candidate. The task is to produce an evidence-backed repair, not to generate a risk score.';
+  if(selectedFailure)briefText+='\n\nDeveloper-selected failure (investigate first, then rerun the entire fixed suite):\n'+pretty(selectedFailure);
   $('bob-task').value=briefText; $('bob-dialog').showModal();
 }
 
@@ -833,15 +836,18 @@ let repairWorkspaceBusy=false;
 $('download-workspace').addEventListener('click',async()=>{
   if(busy||repairWorkspaceBusy||!report||report.case!=='custom'||report.status!=='blocked')return;
   const snapshot=report, contract=importedContract, button=$('download-workspace');
+  const selectedAtStart=selected;
+  const selectedFailure=snapshot.results.find(p=>p.id===selectedAtStart&&!p.passed)||null;
   repairWorkspaceBusy=true;button.disabled=true;button.textContent='Preparing local workspace…';
   try {
     const request={case:'custom',contract,plan:snapshot.plan,plan_hash:snapshot.plan_hash,
-      contract_hash:snapshot.contract_hash,engine_sha256:snapshot.engine_sha256,suite_hash:snapshot.suite_hash};
+      contract_hash:snapshot.contract_hash,engine_sha256:snapshot.engine_sha256,suite_hash:snapshot.suite_hash,
+      selected_probe:selectedFailure};
     const response=await requestResource('/api/repair-workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)},{binary:true});
     for(const [header,key] of [['Plan','plan_hash'],['Contract','contract_hash'],['Engine','engine_sha256'],['Suite','suite_hash']])
       if(response.headers.get(`X-Cutover-${header}-SHA256`)!==snapshot[key])throw Error('Workspace identity differs from the displayed rehearsal.');
     if(response.headers.get('Content-Type')!=='application/zip')throw Error('Expected a repair workspace ZIP.');
-    if(report!==snapshot||importedContract!==contract)throw Error('The candidate changed during export. Reopen the Bob workflow after a fresh run.');
+    if(report!==snapshot||importedContract!==contract||selected!==selectedAtStart)throw Error('The candidate or selected failure changed during export. Reopen the Bob workflow after a fresh run.');
     download(`cutover-${fileSlug(contract.project)}-bob-workspace.zip`,response.data,'application/zip');
     notify('Local Bob workspace downloaded. Extract into a new folder, inspect it, and follow its README.');
   }catch(error){notify(error.message);}
