@@ -57,6 +57,7 @@ function invalidate() {
   report=null; selected=null;
   $('fragility-panel').hidden=true; $('fragility-results').replaceChildren();
   $('export-ci-kit').hidden=true;
+  $('ci-kit-note').hidden=true;
   $('status-badge').textContent='NOT RUN'; $('status-badge').className='status-badge';
   $('verdict-title').textContent='Ready to rehearse.';
   $('verdict-description').textContent='This candidate has not been executed. Run it to produce fresh evidence.';
@@ -252,6 +253,7 @@ function renderReport() {
   $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p>${gap}</div>`;
   $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('export-bundle').disabled=bundleBusy; $('brief').disabled=false;
   $('export-ci-kit').hidden=!(report.case==='custom'&&report.status==='pass');
+  $('ci-kit-note').hidden=$('export-ci-kit').hidden;
   $('export-ci-kit').disabled=ciKitBusy;
   $('hashes').textContent=`Plan SHA-256: ${report.plan_hash} · Contract SHA-256: ${report.contract_hash} · Suite SHA-256: ${report.suite_hash}`;
   $('fragility-panel').hidden=!passed;
@@ -463,7 +465,7 @@ $('export-ci-kit').addEventListener('click',async()=>{
     const packet=await response.blob();
     if(report!==snapshot||(control&&pinnedReport!==control))throw Error('The displayed comparison changed. Rerun it before exporting.');
     download(`cutover-${fileSlug(importedContract.project)}-ci-kit.zip`,packet,'application/zip');
-    notify(control?'CI kit downloaded with verified red and green controls plus the PR manifest entry.':'CI kit downloaded with a fresh passing report, candidate, contract and manifest entry.');
+    notify(control?'Kit downloaded: copy the four files listed in its README into your repository. Red and green evidence is included.':'Kit downloaded: copy the four files listed in its README into your repository to run the pinned GitHub Action.');
   }catch(error){notify(error.message);}
   finally{ciKitBusy=false;button.textContent='Download PR gate kit ↓';button.disabled=!report||report.status!=='pass';}
 });

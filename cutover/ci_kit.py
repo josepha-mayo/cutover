@@ -8,6 +8,43 @@ from .reporting import render_markdown
 from .reporting import render_reproduction
 
 
+ACTION_REF = 'a5bf69f6e8f94788eade58691d292941e009f8ac'
+CHECKOUT_REF = '3d3c42e5aac5ba805825da76410c181273ba90b1'
+
+
+def portable_files(plan, slug):
+    """Render data-only inputs and a pinned workflow for a consumer repository."""
+    if not re.fullmatch(r'[a-z][a-z0-9-]{0,40}', slug):
+        raise ValueError('Portable kit slug is invalid')
+    contract = f'ci/{slug}-contract.json'
+    adapters = f'ci/{slug}-adapters.json'
+    migration = f'ci/{slug}-migration.sql'
+    workflow = (
+        f'name: Cutover {slug}\n'
+        'on: pull_request\n'
+        'permissions:\n  contents: read\n'
+        'jobs:\n  review:\n'
+        '    runs-on: ubuntu-latest\n'
+        '    timeout-minutes: 10\n'
+        '    steps:\n'
+        f'      - uses: actions/checkout@{CHECKOUT_REF}\n'
+        '        with:\n          persist-credentials: false\n'
+        f'      - uses: josepha-mayo/cutover@{ACTION_REF}\n'
+        '        with:\n'
+        f'          contract: {contract}\n'
+        f'          plan: {adapters}\n'
+        f'          migration-file: {migration}\n'
+        f'          output-dir: cutover-review-{slug}\n'
+        f'          artifact-name: cutover-{slug}\n'
+    )
+    return {
+        f'.github/workflows/cutover-{slug}.yml': workflow,
+        adapters: json.dumps({key: value for key, value in plan.items()
+                              if key != 'migration'}, ensure_ascii=False, indent=2) + '\n',
+        migration: plan['migration'],
+    }
+
+
 def render_ci_kit(report, contract, control=None):
     if report['case'] != 'custom' or report['status'] != 'pass':
         raise ValueError('A passing custom-contract rehearsal is required for a CI kit')
@@ -24,6 +61,27 @@ def render_ci_kit(report, contract, control=None):
         f"Plan SHA-256: {report['plan_hash']}\n"
         f"Contract SHA-256: {report['contract_hash']}\n"
         f"Engine SHA-256: {report['engine_sha256']}\n\n"
+        '## Add this check to your own repository\n\n'
+        'Inspect and copy only these four files, preserving their paths:\n\n'
+        f'- `.github/workflows/cutover-{slug}.yml`\n'
+        f'- `{contract_name}`\n'
+        f'- `ci/{slug}-adapters.json`\n'
+        f'- `ci/{slug}-migration.sql`\n\n'
+        'Commit them on a branch and open a pull request. The workflow calls\n'
+        f'`josepha-mayo/cutover@{ACTION_REF}`; no Cutover clone, engine copy,\n'
+        'package installation or API key is needed in your repository. The\n'
+        'SQL file is the migration source of truth; the adapters JSON contains\n'
+        'only the candidate name and new-worker queries. Keep editing that SQL\n'
+        'file to have later changes rehearsed by the same check. GitHub retains\n'
+        'the independently audited verdict, report and replay packet; an unsafe\n'
+        'migration or unverifiable input fails the job.\n\n'
+        'The downloaded contract contains the supplied synthetic seed data.\n'
+        'Review all four files before committing. Do not overwrite an existing\n'
+        'workflow or input with the same name. Keep the remaining evidence and\n'
+        'unsafe-control files for local review; do not copy the whole archive\n'
+        'into an application repository. A check runs on pull requests; make it\n'
+        'required in your repository settings if your team wants to enforce it.\n\n'
+        '## Alternatively: add a case inside a Cutover checkout\n\n'
         'From a checkout of the Cutover repository, verify this downloaded ZIP\n'
         'and preview the files it would add, then apply it explicitly:\n\n'
         '    python -m ci.install_kit --kit path/to/downloaded-kit.zip\n'
@@ -31,7 +89,8 @@ def render_ci_kit(report, contract, control=None):
         '    python -m ci.install_kit --kit path/to/downloaded-kit.zip --verify-installed\n\n'
         'The installer rejects path or slug collisions, independently replays\n'
         'the report (and unsafe control, if present), then adds only the passing\n'
-        'inputs and one manifest entry. Or copy the two JSON files under `ci/`\n'
+        'inputs and one manifest entry. Or copy these exact two JSON files:\n'
+        f'`{contract_name}` and `{plan_name}`,\n'
         'and append `manifest-entry.json` to `ci/cases.json` manually. Run:\n\n'
         '    python -m ci.discover_cases\n'
         f'    python -m cutover.audit_report --contract {contract_name} '
@@ -51,6 +110,7 @@ def render_ci_kit(report, contract, control=None):
         'manifest-entry.json': json.dumps(entry, ensure_ascii=False, indent=2) + '\n',
         'evidence/report.json': json.dumps(report, ensure_ascii=False, indent=2) + '\n',
         'evidence/review.md': render_markdown(report),
+        **portable_files(report['plan'], slug),
     }
     if control is not None:
         if (control['case'] != 'custom' or control['status'] != 'blocked' or

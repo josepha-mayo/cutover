@@ -1,5 +1,7 @@
 import io
 import json
+import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -118,6 +120,34 @@ class HttpTests(unittest.TestCase):
                     target.write_bytes(archive.read(name))
                 (root / 'ci/cases.json').write_text(json.dumps([entry]), encoding='utf-8')
                 self.assertEqual(discover(root)['include'], [entry])
+            workflow_name = f'.github/workflows/cutover-{entry["slug"]}.yml'
+            workflow = archive.read(workflow_name).decode('utf-8')
+            inputs = dict(re.findall(r'^          ([a-z-]+): (.+)$', workflow, re.M))
+            self.assertIn('on: pull_request\n', workflow)
+            self.assertIn('uses: josepha-mayo/cutover@a5bf69f6e8f94788eade58691d292941e009f8ac', workflow)
+            self.assertNotIn('migration', json.loads(archive.read(inputs['plan'])))
+            with tempfile.TemporaryDirectory(prefix='cutover-downloaded-consumer-') as directory:
+                root = Path(directory)
+                for name in (workflow_name, inputs['contract'], inputs['plan'], inputs['migration-file']):
+                    destination = root / name
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_bytes(archive.read(name))
+                env = {**os.environ, 'GITHUB_WORKSPACE': str(root),
+                       'CUTOVER_CONTRACT': inputs['contract'], 'CUTOVER_PLAN': inputs['plan'],
+                       'CUTOVER_MIGRATION_FILE': inputs['migration-file'],
+                       'CUTOVER_OUTPUT_DIR': inputs['output-dir'], 'PYTHONIOENCODING': 'utf-8'}
+                result = subprocess.run([sys.executable, str(WAREHOUSE.parents[1] / 'ci/action_entry.py')],
+                                        cwd=root, env=env, capture_output=True, text=True,
+                                        encoding='utf-8', timeout=300)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                evidence = root / inputs['output-dir']
+                from cutover.audit_bundle import audit
+                replayed = audit(evidence / 'review.zip')[0]
+                self.assertEqual((replayed['plan_hash'], replayed['contract_hash']),
+                                 (report['plan_hash'], report['contract_hash']))
+                self.assertEqual((replayed['passed'], replayed['total']), (124, 124))
+                self.assertFalse((root / 'cutover').exists())
+                self.assertFalse((root / 'ci/cases.json').exists())
         altered = {**request, 'plan_hash': '0' * 64}
         self.assertEqual(self.request('/api/ci-kit', altered)[0], 400)
         altered_control = {**request, 'baseline_plan_hash': '0' * 64}

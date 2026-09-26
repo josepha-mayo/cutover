@@ -9,6 +9,7 @@ import zipfile
 from pathlib import Path
 
 from ci.discover_cases import FIELDS, LABEL, SLUG, discover
+from cutover.ci_kit import portable_files
 from cutover.reporting import render_reproduction
 from cutover.service import verify_report_against_replay
 
@@ -57,6 +58,13 @@ def _read_kit(path: Path):
         from cutover.reporting import render_markdown
         if archive.read('evidence/review.md') != render_markdown(report).encode('utf-8'):
             raise ValueError('CI kit review differs from its replayed report')
+        portable = portable_files(plan, slug)
+        if set(portable).intersection(names):
+            if not set(portable).issubset(names):
+                raise ValueError('CI kit portable workflow inputs are incomplete')
+            for name, expected in portable.items():
+                if archive.read(name) != expected.encode('utf-8'):
+                    raise ValueError(f'CI kit portable file differs from its verified inputs: {name}')
         control_name = f'ci/{slug}-unsafe-control.json'
         control_files = {control_name, 'evidence/unsafe-control-report.json',
                          'evidence/unsafe-control-review.md', 'evidence/unsafe-control-witness.py'}

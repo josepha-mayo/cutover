@@ -53,6 +53,14 @@ broken, and missing SQL on Ubuntu and Windows. Both safe runs passed 116/116;
 both broken runs blocked at 72/108; missing inputs remained unverified. This
 packaging is a Codex extension of Bob's original gate.
 
+After a passing custom browser rehearsal, **Download PR gate kit** now includes
+the pinned workflow and three consumer inputs: the contract, new-worker adapters,
+and a separate migration SQL file. Its README names the four files to inspect
+and copy into your own repository before opening a PR. The generated workflow
+reviews that SQL file directly and retains its source hash with the verdict.
+The existing Cutover-checkout installer remains an alternative; the portable
+workflow does not need that installer or a copy of the engine.
+
 ## Bring your own contract through the CLI
 
 A developer can supply a bounded single-table SQLite contract and candidate plan as JSON. The [warehouse contract](examples/warehouse/contract.json) is a complete example with its own bin-code payloads. Its [late synchronization plan](examples/warehouse/late_bridge.json) misses an acknowledged old-worker move; its [window-safe plan](examples/warehouse/bridge.json) passes the reported suite.
