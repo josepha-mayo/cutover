@@ -60,6 +60,10 @@ and copy into your own repository before opening a PR. The generated workflow
 reviews that SQL file directly and retains its source hash with the verdict.
 The existing Cutover-checkout installer remains an alternative; the portable
 workflow does not need that installer or a copy of the engine.
+The [exact downloaded workflow](evidence/ci_browser_action_control/README.md)
+passed 124/124 in controlled PR #12, then blocked 80/116 after removing only
+its old-write synchronization SQL. Both retained review packets passed
+independent replay against their GitHub run checkouts.
 
 ## Bring your own contract through the CLI
 

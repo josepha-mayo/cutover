@@ -1,0 +1,7 @@
+{
+  "name": "Generated compatibility bridge · verify before use",
+  "read": "SELECT id, \"dispatch_bay\" AS value FROM \"consignments\" ORDER BY id",
+  "write": "UPDATE \"consignments\" SET \"dispatch_bay\" = :value WHERE id = :id",
+  "insert": "INSERT INTO \"consignments\" (id, \"loading_bay\", \"dispatch_bay\") VALUES (:id, :value, :value)",
+  "migration": "ALTER TABLE \"consignments\" ADD COLUMN \"dispatch_bay\" TEXT;\nCREATE TRIGGER cutover_old_update AFTER UPDATE OF \"loading_bay\" ON \"consignments\"\nWHEN NEW.\"loading_bay\" IS NOT NEW.\"dispatch_bay\"\nBEGIN\n  UPDATE \"consignments\" SET \"dispatch_bay\" = NEW.\"loading_bay\" WHERE id = NEW.id;\nEND;\nCREATE TRIGGER cutover_new_update AFTER UPDATE OF \"dispatch_bay\" ON \"consignments\"\nWHEN NEW.\"dispatch_bay\" IS NOT NEW.\"loading_bay\"\nBEGIN\n  UPDATE \"consignments\" SET \"loading_bay\" = NEW.\"dispatch_bay\" WHERE id = NEW.id;\nEND;\nCREATE TRIGGER cutover_old_insert AFTER INSERT ON \"consignments\"\nWHEN NEW.\"dispatch_bay\" IS NULL\nBEGIN\n  UPDATE \"consignments\" SET \"dispatch_bay\" = NEW.\"loading_bay\" WHERE id = NEW.id;\nEND;\nUPDATE \"consignments\" SET \"dispatch_bay\" = \"loading_bay\";"
+}

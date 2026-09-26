@@ -37,8 +37,11 @@ embedded `migration` field when that file is your source of truth. Without
 `migration-file`, the plan must contain migration SQL. Use the
 [Warehouse contract](../examples/warehouse/contract.json) and
 [saved plan](../ci/candidate.json) as format examples, or download a custom
-scenario's PR gate kit from the browser and copy its two `ci/` inputs into
-your repository.
+scenario's PR gate kit from the browser. Its README lists four files to copy:
+the generated pinned workflow, contract, adapters and migration SQL. The
+[checked browser kit](../evidence/ci_browser_action_control/README.md) passed
+124/124 in a real PR; removing only its old-write synchronization SQL blocked
+80/116 with the same workflow and adapters.
 
 Each review retains an artifact, including on verified blocks or input errors:
 `verdict.json` and `summary.md`, plus the report, Markdown review and replay ZIP

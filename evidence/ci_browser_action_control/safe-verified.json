@@ -1,0 +1,21 @@
+{
+  "run_url": "https://github.com/josepha-mayo/cutover/actions/runs/36212493247",
+  "run_id": 36212493247,
+  "pr_head": "a2e3cedcea3a70be3502034467c8bb947edb0fa2",
+  "checkout_sha": "2962da8504d8795b132f71c97e1be33fdefc073d",
+  "classification": "verified_pass",
+  "coverage": "124/124",
+  "plan_hash": "e025fa3c3e4fb4acc155505ce4d0f978896ae9b5b199f5f841a5e15298c61a18",
+  "contract_hash": "360b26dff33b79ea62bb12cd150d99dbb39ce0df764783b1dcf30d613bc2b7d5",
+  "migration_sha256": "4e0e9ebe0259e10197b6c692e90956f902332255b269c845db6479bc9fbb2496",
+  "exact_checkout_inputs_and_independent_replay_verified": true,
+  "files": {
+    "action.json": "d8a10904cc013d5946a378f0c967ebb3082c05501c0bd16ac236184a43557a95",
+    "effective-plan.json": "bb419fde2de90f1d3a98b5313c56584b1392347c5e528987339bdd26d36aa8fd",
+    "report.json": "7e47380ffc43564f23a14abf1de4bc1f222c8af33a9c2b91cf1eabaf526e269f",
+    "review.md": "d40363f60cf1116a5121de69710af6e8c0483d1eae50b2725a31f3d3518f676c",
+    "review.zip": "71dc0789e84112d32d53bb3b92ac62a94b5fbfdb179bf69e10e3cb5062e25d01",
+    "summary.md": "f4913855f67a6aeb6af8b5a3f47a1aa6de9be2511871ed49092d5fb08aecdd75",
+    "verdict.json": "a509333aca1efaa4ed16823fdab65f9260ce6232d3d5b1d87109811604a9c996"
+  }
+}

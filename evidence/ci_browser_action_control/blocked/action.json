@@ -1,0 +1,9 @@
+{
+  "action_repository": "josepha-mayo/cutover",
+  "action_ref": "a5bf69f6e8f94788eade58691d292941e009f8ac",
+  "consumer_repository": "josepha-mayo/cutover",
+  "consumer_checkout_sha": "946ba259f7ed0a573c02f628b3658e6a1c793e09",
+  "contract": "ci/release-dispatch-handover-contract.json",
+  "plan": "ci/release-dispatch-handover-adapters.json",
+  "migration_file": "ci/release-dispatch-handover-migration.sql"
+}

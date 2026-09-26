@@ -1,0 +1,23 @@
+{
+  "classification": "verified_block",
+  "cli_exit": 1,
+  "audit_exit": 1,
+  "contract_hash": "360b26dff33b79ea62bb12cd150d99dbb39ce0df764783b1dcf30d613bc2b7d5",
+  "plan_hash": "e48f7bab7fdcc645217abf68de77101b0162df7254e584263d5afb9ea2b9c31f",
+  "migration_source": {
+    "path": "ci/release-dispatch-handover-migration.sql",
+    "sha256": "48a878cd29ce42e157e881a34524c0208b1beaa1a3e5fa956cf8819d96c7594f"
+  },
+  "source_plan_sha256": "e75e395d2928bd3c0919cee93571aea8c239ca209241c5cc0438b014c5f4071c",
+  "witness_id": "old_to_new-0",
+  "witness_failure": {
+    "expected": {
+      "1": "DOCK-07",
+      "2": "B-02"
+    },
+    "actual": {
+      "1": "A-01",
+      "2": "B-02"
+    }
+  }
+}

@@ -1,3 +1,4 @@
 *.pdf binary
 evidence/ci_sql_source_control/** -text
 evidence/ci_portable_action_control/** -text
+evidence/ci_browser_action_control/** -text

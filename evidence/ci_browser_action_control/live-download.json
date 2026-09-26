@@ -1,0 +1,11 @@
+{
+  "source": "CUA browser download from public Render demo",
+  "zip_sha256": "2b809a31fea32e7563c9a38987d0895dfc0b1cc720631f0e6e4f1ce21f4d59cc",
+  "four_consumer_files_match_control": true,
+  "files": {
+    ".github/workflows/cutover-release-dispatch-handover.yml": "80fcfab1c336c554b08d8916aaf10342619bce97c30b646a41e21bd42643c742",
+    "ci/release-dispatch-handover-contract.json": "21ae565fcc6b0820f4cd9d0eb04b05f6cf367f3789126bdc9876e7ac05392317",
+    "ci/release-dispatch-handover-adapters.json": "e75e395d2928bd3c0919cee93571aea8c239ca209241c5cc0438b014c5f4071c",
+    "ci/release-dispatch-handover-migration.sql": "4e0e9ebe0259e10197b6c692e90956f902332255b269c845db6479bc9fbb2496"
+  }
+}
