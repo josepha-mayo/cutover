@@ -22,6 +22,23 @@ WAREHOUSE = Path(__file__).resolve().parents[1] / 'examples' / 'warehouse'
 
 
 class HttpTests(unittest.TestCase):
+    def test_repair_workspace_requires_fresh_blocked_custom_identity(self):
+        contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
+        plan = json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))
+        from cutover.service import run_rehearsal
+        report = run_rehearsal('custom', plan, contract)
+        body = {'case': 'custom', 'contract': contract, 'plan': plan,
+                **{key: report[key] for key in ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}}
+        status, packet = self.request('/api/repair-workspace', body, timeout=30)
+        self.assertEqual(status, 200)
+        with zipfile.ZipFile(io.BytesIO(packet)) as archive:
+            manifest = json.loads(archive.read('WORKSPACE_MANIFEST.json'))
+            self.assertEqual(manifest['contract_hash'], report['contract_hash'])
+            self.assertNotIn('.bob/mcp.json', archive.namelist())
+        body['plan_hash'] = '0' * 64
+        status, _ = self.request('/api/repair-workspace', body, timeout=30)
+        self.assertEqual(status, 400)
+
     @classmethod
     def setUpClass(cls):
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)

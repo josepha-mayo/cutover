@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from cutover.bundle import render_bundle, render_comparison_bundle
 from cutover.audit_bundle import audit_bytes
 from cutover.ci_kit import render_ci_kit
+from cutover.repair_workspace import render_repair_workspace
 from cutover.engine import load_case, repair_brief
 from cutover.fragility import challenge_steps
 from cutover.reporting import render_markdown, render_reproduction
@@ -168,7 +169,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path not in ('/api/rehearse', '/api/replay', '/api/brief', '/api/bundle', '/api/ci-kit', '/api/fragility',
-                             '/api/comparison-bundle', '/api/contract/validate', '/api/audit-bundle'):
+                             '/api/comparison-bundle', '/api/contract/validate', '/api/audit-bundle', '/api/repair-workspace'):
             return self.send(404, {'error': 'Not found'})
         origin = self.headers.get('Origin')
         if origin and urlparse(origin).netloc != self.headers.get('Host'):
@@ -268,6 +269,21 @@ class Handler(BaseHTTPRequestHandler):
                                 'X-Cutover-Control-Coverage': f'{control["passed"]}/{control["total"]}',
                             })
                         self.send(200, packet, 'application/zip', headers)
+                    elif self.path == '/api/repair-workspace':
+                        if contract is None or body['case'] != 'custom':
+                            raise ValueError('Local repair workspaces require a custom contract')
+                        for key in ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash'):
+                            if report[key] != body[key]:
+                                raise ValueError('Fresh repair workspace differs from the displayed rehearsal')
+                        verify_report_against_replay('custom', body['plan'], report, contract)
+                        packet = render_repair_workspace(report, contract)
+                        self.send(200, packet, 'application/zip', {
+                            'Content-Disposition': 'attachment; filename="cutover-bob-workspace.zip"',
+                            'X-Cutover-Plan-SHA256': report['plan_hash'],
+                            'X-Cutover-Contract-SHA256': report['contract_hash'],
+                            'X-Cutover-Engine-SHA256': report['engine_sha256'],
+                            'X-Cutover-Suite-SHA256': report['suite_hash'],
+                        })
                     elif self.path == '/api/bundle':
                         source_contract = contract if contract is not None else load_case(body['case'])
                         self.send(200, render_bundle(report, source_contract), 'application/zip', {

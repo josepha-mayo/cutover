@@ -380,6 +380,10 @@ function updateReplayExport() {
     :'Select a failed data-mismatch probe to export its replay.';
 }
 async function showBob() {
+  const workspaceReady=!busy&&report?.case==='custom'&&report.status==='blocked';
+  $('download-workspace').disabled=!workspaceReady;
+  $('download-workspace').classList.toggle('primary',workspaceReady);
+  $('download-brief').classList.toggle('primary',!workspaceReady);
   if(activeCase?.id==='custom') {
     if(!candidateReady()||!report) {
       briefText='Import or enter a five-field candidate plan and run a fresh rehearsal before preparing the Bob repair task. The imported contract remains available in this browser session.';
@@ -824,3 +828,22 @@ async function loadCatalog() {
 }
 $('retry-catalog').addEventListener('click',loadCatalog);
 await loadCatalog();
+
+let repairWorkspaceBusy=false;
+$('download-workspace').addEventListener('click',async()=>{
+  if(busy||repairWorkspaceBusy||!report||report.case!=='custom'||report.status!=='blocked')return;
+  const snapshot=report, contract=importedContract, button=$('download-workspace');
+  repairWorkspaceBusy=true;button.disabled=true;button.textContent='Preparing local workspace…';
+  try {
+    const request={case:'custom',contract,plan:snapshot.plan,plan_hash:snapshot.plan_hash,
+      contract_hash:snapshot.contract_hash,engine_sha256:snapshot.engine_sha256,suite_hash:snapshot.suite_hash};
+    const response=await requestResource('/api/repair-workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)},{binary:true});
+    for(const [header,key] of [['Plan','plan_hash'],['Contract','contract_hash'],['Engine','engine_sha256'],['Suite','suite_hash']])
+      if(response.headers.get(`X-Cutover-${header}-SHA256`)!==snapshot[key])throw Error('Workspace identity differs from the displayed rehearsal.');
+    if(response.headers.get('Content-Type')!=='application/zip')throw Error('Expected a repair workspace ZIP.');
+    if(report!==snapshot||importedContract!==contract)throw Error('The candidate changed during export. Reopen the Bob workflow after a fresh run.');
+    download(`cutover-${fileSlug(contract.project)}-bob-workspace.zip`,response.data,'application/zip');
+    notify('Local Bob workspace downloaded. Extract into a new folder, inspect it, and follow its README.');
+  }catch(error){notify(error.message);}
+  finally{repairWorkspaceBusy=false;button.textContent='Download local Bob workspace ↓';button.disabled=busy||!report||report.case!=='custom'||report.status!=='blocked';}
+});
