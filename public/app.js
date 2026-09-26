@@ -25,6 +25,9 @@ function notify(message) { $('toast').textContent = message; $('toast').hidden =
 function download(name, content, type='application/json') { const url = URL.createObjectURL(new Blob([content], {type})); const a = document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); }
 function updateModeControls() {
   const custom=activeCase?.id==='custom';
+  const missing=Object.entries(fields).filter(([,id])=>!$(id).value.trim()).map(([key])=>({name:'candidate name',migration:'migration SQL',read:'new-version read query',write:'new-version update query',insert:'new-version insert query'}[key]));
+  $('candidate-ready-note').hidden=!custom||!missing.length;
+  $('candidate-ready-note').textContent=missing.length?`Before rehearsal, add: ${missing.join(', ')}. Candidate name and new-version queries are under Application queries.`:'';
   const bobRepair=custom&&candidateProvenance==='event IBM Bob IDE candidate';
   const challenge=custom&&candidateProvenance==='controlled mutation of Bob repair';
   const generated=custom&&candidateProvenance==='generated starter';
@@ -36,7 +39,7 @@ function updateModeControls() {
     :challenge?'The old-insert synchronization write was replaced with SELECT 1. The fresh replay shows whether a new reader loses an acknowledged insert; the original Bob repair is pinned for comparison.'
     :generated?'A deterministic template supplied this SQL, then Cutover executed it against your validated contract. Edit the candidate and rerun before using any part of it outside this disposable SQLite rehearsal.'
     :packet?'The contract and candidate came from a saved packet checked against independent execution. Inspect its replay, prepare a Bob repair task, or edit the SQL and run again. Packet origin and authorship are not authenticated.'
-    :'Import a five-field plan JSON below, or enter its migration and new-version queries in the editor. No verdict appears until you run it.';
+    :'Import a migration .sql file and review the Application queries, or import a complete plan JSON. No verdict appears until you run it.';
   $('plan-options').hidden=custom; $('custom-plan-intro').hidden=!custom; $('save-contract').hidden=!custom;
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||!activeCase||custom);
   $('try-cross-record').disabled=busy||!activeCase||custom;
@@ -635,6 +638,7 @@ $('import-sql').addEventListener('change',async event=>{
     $('migration').dispatchEvent(new Event('input',{bubbles:true}));
     candidateSource=`Imported ${file.name} · not yet executed`;
     candidateProvenance='imported migration candidate';
+    document.querySelector('.adapters').open=true;
     $('source-label').textContent=candidateSource;
     notify('Migration imported. Contract and application queries retained. Run a fresh rehearsal.');
   } catch(error){notify(`Migration not imported. ${error.message}`);}
