@@ -85,6 +85,7 @@ function invalidate() {
   $('matrix').innerHTML='<p class="empty">Run this candidate to inspect its evidence.</p>';
   $('trace').replaceChildren(); $('trace-title').textContent='Nothing inferred. Everything replayed.'; $('trace-id').textContent=''; $('trace-payload').textContent='';
   $('trace-label').textContent='REPLAY';
+  $('trace-story').hidden=true; $('trace-story').textContent='';
   $('window-map').hidden=true; $('window-stages').replaceChildren();
   $('finding').innerHTML='<span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div>';
   $('export').disabled=true; $('export-review').disabled=true; $('export-repro').disabled=true; $('export-bundle').disabled=true; $('brief').disabled=true;
@@ -355,6 +356,19 @@ function renderTrace(probe) {
   const inserted=probe.actions?.some(action=>action.endsWith('.insert'));
   const insertNote=inserted?` · ${probe.passed?'Shown':'Failed'} inserted ID ${probe.insert_id} · checked IDs ${probe.insert_ids_tested.join(', ')}`:'';
   $('trace-payload').textContent=`Input: ${JSON.stringify(probe.payload)}${rowNote}${insertNote}`;
+  const mismatch=probe.trace.find(event=>event.status==='fail'&&event.expected&&event.actual);
+  const story=$('trace-story'); story.hidden=true; story.textContent='';
+  if(mismatch){
+    const rows=[...new Set([...Object.keys(mismatch.expected),...Object.keys(mismatch.actual)])];
+    const changed=rows.filter(row=>Object.hasOwn(mismatch.expected,row)!==Object.hasOwn(mismatch.actual,row)||JSON.stringify(mismatch.expected[row])!==JSON.stringify(mismatch.actual[row]));
+    if(changed.length){
+      const row=changed[0];
+      const shown=(values)=>Object.hasOwn(values,row)?JSON.stringify(values[row]):'Missing row';
+      const write=probe.trace.slice(0,probe.trace.indexOf(mismatch)).findLast(event=>event.status==='pass'&&/\.(write|insert)$/.test(event.action)&&String(event.params?.id)===row&&JSON.stringify(event.params?.value)===JSON.stringify(mismatch.expected[row]));
+      story.textContent=`${write?`${write.action} acknowledged the value. `:''}At ${mismatch.action}, the ledger expects row ${row}: ${shown(mismatch.expected)}; observed: ${shown(mismatch.actual)}.${changed.length>1?` ${changed.length} rows differ; inspect the full observation below.`:''}`;
+      story.hidden=false;
+    }
+  }
   $('trace').innerHTML=probe.trace.map(event=>{
     const role=event.connection?`<span class="connection-role">${escape(String(event.connection).toUpperCase())} CONNECTION</span>`:'';
     return `<div class="trace-step ${event.status}"><h4><span>${escape(event.action)}</span>${role}</h4><p>${escape(event.detail||'Executed.')}</p><details><summary>Executed SQL${event.params?' & inputs':''}</summary><pre>${escape(event.sql)}${event.params?'\n\n'+escape(pretty(event.params)):''}</pre></details>${event.status==='fail'&&event.actual?`<div class="comparison"><div class="expected">EXPECTED ${escape(pretty(event.expected))}</div><div class="actual">OBSERVED ${escape(pretty(event.actual))}</div></div>`:''}</div>`;
