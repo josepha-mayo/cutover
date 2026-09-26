@@ -1,0 +1,30 @@
+{
+  "project": "Dispatch handover",
+  "summary": "Rehearse loading_bay → dispatch_bay while old consignments workers still read and write.",
+  "old_column": "loading_bay",
+  "new_column": "dispatch_bay",
+  "table": "consignments",
+  "schema": "CREATE TABLE \"consignments\" (id INTEGER PRIMARY KEY, \"loading_bay\" TEXT NOT NULL);",
+  "seed_sql": "INSERT INTO \"consignments\" (id, \"loading_bay\") VALUES (?, ?)",
+  "seed": [
+    [
+      1,
+      "A-01"
+    ],
+    [
+      2,
+      "B-02"
+    ]
+  ],
+  "old": {
+    "read": "SELECT id, \"loading_bay\" AS value FROM \"consignments\" ORDER BY id",
+    "write": "UPDATE \"consignments\" SET \"loading_bay\" = :value WHERE id = :id",
+    "insert": "INSERT INTO \"consignments\" (id, \"loading_bay\") VALUES (:id, :value)"
+  },
+  "payloads": [
+    "DOCK-07",
+    "O'Connell",
+    "0",
+    "東京-棚"
+  ]
+}

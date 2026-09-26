@@ -1,0 +1,6 @@
+{
+  "name": "Generated compatibility bridge · verify before use",
+  "read": "SELECT id, \"dispatch_bay\" AS value FROM \"consignments\" ORDER BY id",
+  "write": "UPDATE \"consignments\" SET \"dispatch_bay\" = :value WHERE id = :id",
+  "insert": "INSERT INTO \"consignments\" (id, \"loading_bay\", \"dispatch_bay\") VALUES (:id, :value, :value)"
+}

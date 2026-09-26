@@ -1,0 +1,19 @@
+name: Cutover release-dispatch-handover
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: josepha-mayo/cutover@a5bf69f6e8f94788eade58691d292941e009f8ac
+        with:
+          contract: ci/release-dispatch-handover-contract.json
+          plan: ci/release-dispatch-handover-adapters.json
+          migration-file: ci/release-dispatch-handover-migration.sql
+          output-dir: cutover-review-release-dispatch-handover
+          artifact-name: cutover-release-dispatch-handover
