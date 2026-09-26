@@ -12,6 +12,7 @@ witness.failure.
 """
 
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -30,11 +31,12 @@ BOB_PARCEL = ROOT / "ci" / "parcel-candidate.json"
 
 
 def _run_gate(plan: Path, output_dir: Path, contract: Path = CONTRACT,
-              env: dict | None = None) -> subprocess.CompletedProcess:
+              env: dict | None = None, migration_file: Path | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(CI_GATE),
          "--contract", str(contract),
          "--plan", str(plan),
+         *(["--migration-file", str(migration_file)] if migration_file else []),
          "--output-dir", str(output_dir)],
         cwd=ROOT,
         capture_output=True,
@@ -97,6 +99,31 @@ class GateVerifiedPassTests(unittest.TestCase):
 
 
 class GateVerifiedBlockTests(unittest.TestCase):
+    def test_sql_file_change_is_reviewed_even_when_plan_json_stays_safe(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sql = root / "release.sql"
+            safe = json.loads(BRIDGE.read_text(encoding="utf-8"))
+            unsafe = json.loads(LATE_BRIDGE.read_text(encoding="utf-8"))
+            source_bytes = BRIDGE.read_bytes()
+            for label, migration, expected in (("unsafe", unsafe["migration"], 1),
+                                                ("safe", safe["migration"], 0)):
+                with self.subTest(label=label):
+                    sql.write_bytes(migration.encode("utf-8"))
+                    out = root / label
+                    result = _run_gate(BRIDGE, out, migration_file=sql)
+                    self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+                    verdict = json.loads((out / "verdict.json").read_text(encoding="utf-8"))
+                    report = json.loads((out / "report.json").read_text(encoding="utf-8"))
+                    effective = json.loads((out / "effective-plan.json").read_text(encoding="utf-8"))
+                    self.assertEqual(effective, {**safe, "migration": migration})
+                    self.assertEqual(report["plan"], effective)
+                    self.assertEqual(verdict["migration_source"]["sha256"],
+                                     hashlib.sha256(sql.read_bytes()).hexdigest())
+                    self.assertIn(verdict["migration_source"]["sha256"],
+                                  (out / "summary.md").read_text(encoding="utf-8"))
+                    self.assertEqual(BRIDGE.read_bytes(), source_bytes)
+
     def test_github_check_annotates_exact_failure_without_exposing_workflow_commands(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
@@ -172,6 +199,16 @@ class GateVerifiedBlockTests(unittest.TestCase):
 
 
 class GateUnverifiedTests(unittest.TestCase):
+    def test_missing_sql_source_is_unverified_instead_of_using_embedded_sql(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            result = _run_gate(BRIDGE, out, migration_file=out / "missing.sql")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            verdict = json.loads((out / "verdict.json").read_text(encoding="utf-8"))
+            self.assertEqual(verdict["classification"], "unverified")
+            self.assertIn("migration file not found", verdict["reason"])
+            self.assertFalse((out / "report.json").exists())
+
     def test_malformed_plan_is_unverified_not_verified_block(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)

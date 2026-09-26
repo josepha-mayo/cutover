@@ -55,6 +55,26 @@ class CaseDiscoveryTests(unittest.TestCase):
             manifest.write_text(json.dumps(source), encoding="utf-8")
             self.assertEqual(len(discover(root)["include"]), 3)
 
+    def test_manifest_can_bind_adapters_to_a_checked_in_sql_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "ci").mkdir()
+            original = json.loads((ROOT / "ci/candidate.json").read_text(encoding="utf-8"))
+            (root / "ci/adapters-candidate.json").write_text(
+                json.dumps({key: value for key, value in original.items() if key != "migration"}),
+                encoding="utf-8")
+            (root / "ci/contract.json").write_bytes((ROOT / "examples/warehouse/contract.json").read_bytes())
+            (root / "ci/release.sql").write_text(original["migration"], encoding="utf-8")
+            entry = {"case": "SQL source", "slug": "sql-source", "contract": "ci/contract.json",
+                     "plan": "ci/adapters-candidate.json", "migration_file": "ci/release.sql"}
+            manifest = root / "ci/cases.json"
+            manifest.write_text(json.dumps([entry]), encoding="utf-8")
+            self.assertEqual(discover(root)["include"], [entry])
+            for invalid in ("../release.sql", "ci/missing.sql", "ci/contract.json"):
+                manifest.write_text(json.dumps([{**entry, "migration_file": invalid}]), encoding="utf-8")
+                with self.subTest(path=invalid), self.assertRaises(ValueError):
+                    discover(root)
+
 
 if __name__ == "__main__":
     unittest.main()

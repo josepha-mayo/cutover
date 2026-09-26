@@ -47,6 +47,7 @@ summary are written even when malformed input prevents a rehearsal:
 | `review.zip` | CLI succeeds | ZIP with inputs, evidence, and review |
 | `summary.md` | Always | Human-readable verdict with hashes and coverage |
 | `verdict.json` | Always | Machine-readable verdict with exit codes |
+| `effective-plan.json` | SQL file supplied | Exact SQL and adapters passed to the CLI and audit |
 
 `verdict.json` always contains `classification`, `cli_exit`, `audit_exit`,
 `contract_hash`, and `plan_hash`.  For a `verified_block` it also contains
@@ -91,6 +92,31 @@ and plan JSON beside the existing inputs, add their paths and a unique lowercase
 slug, then run `python -m ci.discover_cases` locally. No workflow YAML edit is
 needed. Contract and plan files are read-only inputs. One verified block makes
 its case check red while other cases still run and retain their evidence.
+
+### Review the actual migration file
+
+If the project already keeps migration SQL in a `.sql` file, add the optional
+`migration_file` path to its manifest entry:
+
+```json
+{"case":"Warehouse","slug":"warehouse","contract":"examples/warehouse/contract.json","plan":"ci/candidate.json","migration_file":"migrations/warehouse.sql"}
+```
+
+That file supplies the authoritative migration SQL. The plan JSON supplies the
+name and new-worker `read`, `write`, and `insert` adapters; its `migration`
+field may be omitted, and is replaced when present. Discovery requires a real
+UTF-8 `.sql` file inside the checkout and validates the assembled plan. Run the
+same review locally with:
+
+```bash
+python ci/review_gate.py --contract examples/warehouse/contract.json --plan ci/candidate.json --migration-file migrations/warehouse.sql --output-dir work/file-review
+```
+
+The gate retains `effective-plan.json`, records the exact source-file SHA-256
+in `verdict.json` and the job summary, and independently audits the assembled
+plan. A missing source file is unverified; it never falls back to embedded SQL.
+In GitHub, a blocking annotation points at the SQL file. This source-file
+integration is a Codex extension after Bob's original review-gate task.
 
 For a browser-built custom scenario that passed a fresh rehearsal, click
 **Download PR gate kit**. Its ZIP contains `ci/` contract and candidate files,

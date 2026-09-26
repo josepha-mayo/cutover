@@ -12,12 +12,12 @@ from cutover.engine import validate_contract, validate_plan
 ROOT = Path(__file__).resolve().parents[1]
 SLUG = re.compile(r"[a-z][a-z0-9-]{0,40}\Z")
 LABEL = re.compile(r"[A-Za-z][A-Za-z0-9 _-]{0,49}\Z")
-SAFE_PATH = re.compile(r"[A-Za-z0-9_./-]+\.json\Z")
 FIELDS = {"case", "slug", "contract", "plan"}
 
 
-def _checked_file(root: Path, path: str) -> Path:
-    if (not isinstance(path, str) or not SAFE_PATH.fullmatch(path) or
+def _checked_file(root: Path, path: str, suffix: str = ".json") -> Path:
+    if (not isinstance(path, str) or
+            not re.fullmatch(r"[A-Za-z0-9_./-]+" + re.escape(suffix), path) or
             path.startswith("/") or any(part in ("", ".", "..") for part in path.split("/"))):
         raise ValueError(f"Unsafe case input path: {path!r}")
     target = (root / path).resolve()
@@ -35,8 +35,8 @@ def discover(root: Path = ROOT, manifest: str = "ci/cases.json") -> dict:
     seen = set()
     registered_plans = set()
     for entry in cases:
-        if not isinstance(entry, dict) or set(entry) != FIELDS:
-            raise ValueError("Each case requires exactly case, slug, contract and plan")
+        if not isinstance(entry, dict) or set(entry) not in (FIELDS, FIELDS | {"migration_file"}):
+            raise ValueError("Each case requires case, slug, contract and plan; migration_file is optional")
         if not isinstance(entry["case"], str) or not LABEL.fullmatch(entry["case"]):
             raise ValueError("Case label must be short and contain only letters, digits, spaces, _ or -")
         slug = entry["slug"]
@@ -49,7 +49,13 @@ def discover(root: Path = ROOT, manifest: str = "ci/cases.json") -> dict:
             raise ValueError(f"Candidate plan is registered more than once: {entry['plan']}")
         registered_plans.add(plan_path)
         validate_contract(json.loads(contract_path.read_text(encoding="utf-8")))
-        validate_plan(json.loads(plan_path.read_text(encoding="utf-8")))
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        if "migration_file" in entry:
+            migration_path = _checked_file(root, entry["migration_file"], ".sql")
+            if not isinstance(plan, dict):
+                raise ValueError("Candidate plan must be a JSON object")
+            plan = {**plan, "migration": migration_path.read_text(encoding="utf-8-sig")}
+        validate_plan(plan)
     # The kit installer writes ci/<slug>-candidate.json. A PR must not be able
     # to add one of those inputs without getting its own review job. Keep the
     # original ci/candidate.json under the same rule.

@@ -107,6 +107,7 @@ def _build_summary(
     audit_stdout: str,
     audit_stderr: str,
     report: dict,
+    migration_source: dict | None = None,
 ) -> str:
     """Build the Markdown job summary.
 
@@ -135,7 +136,15 @@ def _build_summary(
         lines.append(f"| Contract hash (report) | `{contract_hash}` |")
     if plan_hash:
         lines.append(f"| Plan hash (report) | `{plan_hash}` |")
+    if migration_source:
+        source_path = migration_source["path"].replace("|", "&#124;").replace("`", "&#96;")
+        source_path = source_path.replace("\r", " ").replace("\n", " ")
+        lines.append(f"| SQL source file | `{source_path}` |")
+        lines.append(f"| SQL file SHA-256 | `{migration_source['sha256']}` |")
     lines.append("")
+    if migration_source:
+        lines += ["The migration was loaded from this SQL file. `effective-plan.json`",
+                  "retains the SQL and adapters supplied to the CLI and independent audit.", ""]
 
     passed = report.get("passed")
     total = report.get("total")
@@ -224,12 +233,26 @@ def _build_summary(
     return "\n".join(lines)
 
 
+def _input_failure(out: Path, reason: str, annotation_path: Path) -> int:
+    verdict = {"classification": "unverified", "cli_exit": None,
+               "audit_exit": None, "reason": reason}
+    (out / "verdict.json").write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
+    summary = _build_summary("unverified", None, None, "", "", reason, {})
+    (out / "summary.md").write_text(summary + "\n", encoding="utf-8")
+    _append_step_summary(summary)
+    _emit_annotation("unverified", annotation_path, {}, None, None)
+    sys.stderr.write(f"ERROR: {reason}\n")
+    return 2
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Cutover PR gate: run CLI + audit, write verdict.json."
     )
     parser.add_argument("--contract", required=True, type=Path)
     parser.add_argument("--plan", required=True, type=Path)
+    parser.add_argument("--migration-file", default="",
+                        help="Use this checked-in SQL file instead of the plan's migration text")
     parser.add_argument("--output-dir", required=True, type=Path)
     args = parser.parse_args(argv)
 
@@ -242,33 +265,40 @@ def main(argv: list[str] | None = None) -> int:
     summary_path = out / "summary.md"
     verdict_path = out / "verdict.json"
 
-    # Validate inputs exist before touching subprocesses.
-    for label, path in (("contract", args.contract), ("plan", args.plan)):
-        if not path.exists():
-            verdict = {
-                "classification": "unverified",
-                "cli_exit": None,
-                "audit_exit": None,
-                "reason": f"{label} file not found: {path}",
-            }
-            verdict_path.write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
-            summary = _build_summary(
-                "unverified", None, None, "", "", f"{label} not found: {path}", {}
-            )
-            summary_path.write_text(summary + "\n", encoding="utf-8")
-            _append_step_summary(summary)
-            _emit_annotation("unverified", args.plan, {}, None, None)
-            sys.stderr.write(f"ERROR: {label} file not found: {path}\n")
-            return 2
+    migration_path = Path(args.migration_file) if args.migration_file else None
+    annotation_path = migration_path or args.plan
+    inputs = [("contract", args.contract), ("plan", args.plan)]
+    if migration_path:
+        inputs.append(("migration", migration_path))
+    for label, path in inputs:
+        if not path.is_file():
+            return _input_failure(out, f"{label} file not found: {path}", annotation_path)
 
     contract_hash = _sha256(args.contract)
     plan_hash = _sha256(args.plan)
+    review_plan = args.plan
+    migration_source = None
+    if migration_path:
+        try:
+            plan = json.loads(args.plan.read_text(encoding="utf-8"))
+            if not isinstance(plan, dict):
+                raise ValueError("Candidate plan must be a JSON object")
+            sql_bytes = migration_path.read_bytes()
+            plan["migration"] = sql_bytes.decode("utf-8-sig")
+            review_plan = out / "effective-plan.json"
+            if review_plan.resolve() in {path.resolve() for _, path in inputs}:
+                raise ValueError("Effective plan output would overwrite a source input")
+            review_plan.write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            migration_source = {"path": migration_path.as_posix(),
+                                "sha256": hashlib.sha256(sql_bytes).hexdigest()}
+        except (OSError, ValueError, TypeError) as exc:
+            return _input_failure(out, f"SQL source could not be loaded: {exc}", annotation_path)
 
     # ── Step 1: CLI rehearsal ──────────────────────────────────────────────
     cli_cmd = [
         sys.executable, "-m", "cutover",
         "--contract", str(args.contract),
-        "--plan", str(args.plan),
+        "--plan", str(review_plan),
         "--output", str(report_path),
         "--markdown", str(review_path),
         "--bundle", str(bundle_path),
@@ -284,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
         audit_cmd = [
             sys.executable, "-m", "cutover.audit_report",
             "--report", str(report_path),
-            "--plan", str(args.plan),
+            "--plan", str(review_plan),
             "--contract", str(args.contract),
         ]
         audit_exit, audit_stdout, audit_stderr = _run(audit_cmd, AUDIT_TIMEOUT)
@@ -306,6 +336,9 @@ def main(argv: list[str] | None = None) -> int:
         "contract_hash": report.get("contract_hash") or contract_hash,
         "plan_hash": report.get("plan_hash") or plan_hash,
     }
+    if migration_source:
+        verdict["migration_source"] = migration_source
+        verdict["source_plan_sha256"] = plan_hash
     witness = report.get("witness") or {}
     if witness.get("id"):
         verdict["witness_id"] = witness["id"]
@@ -326,10 +359,11 @@ def main(argv: list[str] | None = None) -> int:
         audit_stdout or "",
         audit_stderr or "",
         report,
+        migration_source,
     )
     summary_path.write_text(summary + "\n", encoding="utf-8")
     _append_step_summary(summary)
-    _emit_annotation(classification, args.plan, report, cli_exit, audit_exit)
+    _emit_annotation(classification, annotation_path, report, cli_exit, audit_exit)
 
     # ── Log to stdout for workflow visibility ──────────────────────────────
     print(f"classification: {classification}")

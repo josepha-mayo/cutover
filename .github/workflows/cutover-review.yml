@@ -48,6 +48,7 @@ jobs:
           python ci/review_gate.py
           --contract "${{ matrix.contract }}"
           --plan "${{ matrix.plan }}"
+          --migration-file "${{ matrix.migration_file }}"
           --output-dir "work/ci-review/${{ matrix.slug }}"
 
       - name: Upload review evidence
@@ -61,4 +62,5 @@ jobs:
             work/ci-review/${{ matrix.slug }}/review.zip
             work/ci-review/${{ matrix.slug }}/summary.md
             work/ci-review/${{ matrix.slug }}/verdict.json
+            work/ci-review/${{ matrix.slug }}/effective-plan.json
           if-no-files-found: warn
