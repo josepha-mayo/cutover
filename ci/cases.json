@@ -3,7 +3,8 @@
     "case": "Warehouse",
     "slug": "warehouse",
     "contract": "examples/warehouse/contract.json",
-    "plan": "ci/candidate.json"
+    "plan": "ci/candidate.json",
+    "migration_file": "ci/warehouse-migration.sql"
   },
   {
     "case": "Parcel",
