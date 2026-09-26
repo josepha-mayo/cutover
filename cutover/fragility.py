@@ -22,7 +22,7 @@ def challenge_steps(case, plan, contract, expected_plan_hash, expected_contract_
         altered = {**plan, 'name': f'Omit migration step {index + 1}',
                    'migration': '\n'.join(sql for position, sql in enumerate(statements)
                                           if position != index)}
-        entry = {'step': index + 1, 'sql': statement}
+        entry = {'step': index + 1, 'sql': statement, 'plan': altered}
         try:
             result = run_rehearsal(case, altered, contract, timeout_seconds=10)
         except subprocess.TimeoutExpired:

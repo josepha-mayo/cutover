@@ -355,8 +355,28 @@ $('challenge-steps').addEventListener('click',async()=>{
           :item.outcome==='still_passes'
             ?`${item.passed}/${item.total} pass · no failure observed in this bounded suite`
             :escape(item.reason);
-        return `<article class="fragility-step ${item.outcome}"><div><span>OMIT SQL ${item.step}</span><strong>${state}</strong></div><details><summary>${escape(item.sql.replace(/\s+/g,' ').trim())}</summary><pre>${escape(item.sql)}</pre></details><p>${detail}</p>${values}</article>`;
+        const open=item.outcome==='unreplayable'?'':`<button type="button" class="fragility-open" data-step="${item.step}">Inspect full replay ↗</button>`;
+        return `<article class="fragility-step ${item.outcome}"><div><span>OMIT SQL ${item.step}</span><strong>${state}</strong></div><details><summary>${escape(item.sql.replace(/\s+/g,' ').trim())}</summary><pre>${escape(item.sql)}</pre></details><p>${detail}</p>${values}${open}</article>`;
       }).join('')+`<p class="fragility-scope">${escape(data.scope)}</p>`;
+    $('fragility-results').querySelectorAll('.fragility-open').forEach(open=>open.addEventListener('click',async()=>{
+      if(report!==snapshot||busy)return;
+      const omission=data.challenges.find(item=>item.step===Number(open.dataset.step));
+      if(!omission?.plan)return;
+      pinnedReport=snapshot;
+      reference=null;
+      setPlan(omission.plan,`Controlled omission of SQL ${omission.step} · fresh replay`,
+              'controlled step omission');
+      await run();
+      const expected=omission.outcome==='blocked'?'blocked':'pass';
+      if(!report||report.plan_hash!==omission.plan_hash||report.contract_hash!==snapshot.contract_hash||
+         report.status!==expected||report.passed!==omission.passed||report.total!==omission.total){
+        invalidate();
+        notify('Fresh replay differed from the step challenge. No verdict retained.');
+        return;
+      }
+      $('comparison-panel').scrollIntoView({behavior:'smooth',block:'center'});
+      notify('Full omission replay loaded. Inspect the trace or download its review packet.');
+    }));
   }catch(error){notify(error.message);$('fragility-results').textContent=error.message;}
   finally{fragilityBusy=false;button.disabled=!report||report.status!=='pass';button.textContent='Remove each step and rerun ↗';}
 });

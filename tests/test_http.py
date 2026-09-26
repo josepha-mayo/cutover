@@ -64,6 +64,11 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(len(result['challenges']), 5)
         self.assertTrue(all(item['outcome'] == 'blocked' and item['witness']['failure']
                             for item in result['challenges']))
+        opened = result['challenges'][1]
+        full_replay = run_rehearsal('parcel', opened['plan'])
+        self.assertEqual((full_replay['plan_hash'], full_replay['passed'], full_replay['total']),
+                         (opened['plan_hash'], opened['passed'], opened['total']))
+        self.assertEqual(full_replay['witness']['id'], opened['witness']['id'])
         self.assertEqual(self.request('/api/fragility', {
             **request, 'plan_hash': '0' * 64}, timeout=90)[0], 400)
         blocked = load_plan('parcel', 'late_bridge')
@@ -118,7 +123,7 @@ class HttpTests(unittest.TestCase):
         altered_control = {**request, 'baseline_plan_hash': '0' * 64}
         self.assertEqual(self.request('/api/ci-kit', altered_control, timeout=90)[0], 400)
         self.assertEqual(self.request('/api/ci-kit', {
-            **request, 'plan': blocked_plan, 'plan_hash': blocked['plan_hash']})[0], 400)
+            **request, 'plan': blocked_plan, 'plan_hash': blocked['plan_hash']}, timeout=90)[0], 400)
 
     def test_watch_chapter_script_is_served(self):
         code, body = self.request('/watch')
