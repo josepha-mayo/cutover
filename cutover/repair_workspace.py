@@ -77,13 +77,13 @@ def render_repair_workspace(report, contract, selected_probe=None):
         'these synthetic SQLite contracts and executed schedules.\n'
     ).encode()
     if selected_probe is not None:
-        files['TASK.md'] += (
+        files['TASK.md'] = (
             '\n## Developer-selected failure\n\n'
             f'Investigate probe {selected_probe["id"]} in selected-failure.json first. '
             'It matches the fresh full report; its canonical first witness is retained separately. '
             'Explain the observed actions, expected data and actual failure. '
             'Fixing this probe alone is insufficient: independently rerun the entire fixed suite.\n'
-        ).encode()
+        ).encode() + files['TASK.md']
     files['README.md'] = b'''# Local Bob repair workspace
 
 Extract this ZIP into a new folder. Use synthetic data in the hosted demo;

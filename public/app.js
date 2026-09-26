@@ -391,7 +391,7 @@ async function showBob() {
       $('bob-task').value=briefText; $('download-brief').disabled=true; $('bob-dialog').showModal(); return;
     }
     briefText=`Repair this imported SQLite contract in IBM Bob. First call inspect_imported_contract with the contract object below. Call rehearse_candidate with case="custom", this same complete contract object, and your five candidate SQL fields on every attempt. Preserve the fixed old adapter, seed data, and evaluator. Keep old reads and writes correct between completed migration statements. Save your own final plan to work/bob-candidate.json and retain Bob's actual tool calls, task summary, failed attempts and screenshots. Any browser verdict is deterministic evidence, not proof Bob did this work. Use a local Bob session for private schemas. Report measured coverage and untested boundaries.\n\n`+pretty({contract:importedContract,contract_hash:importedMeta?.contract_hash,candidate:currentPlan(),plan_hash:report?.plan_hash||null,shortest_observed_witness:report?.witness||null});
-    if(selectedFailure)briefText+='\n\nDeveloper-selected failure (investigate first, then rerun the entire fixed suite):\n'+pretty(selectedFailure);
+    if(selectedFailure)briefText=`Investigate my selected failure first: ${selectedFailure.id} — ${selectedFailure.title}. Then rerun the entire fixed suite.\n\n`+briefText+'\n\nDeveloper-selected failure:\n'+pretty(selectedFailure);
     $('bob-task').value=briefText; $('download-brief').disabled=false; $('bob-dialog').showModal(); return;
   }
   $('download-brief').disabled=false;
@@ -399,7 +399,7 @@ async function showBob() {
   if(report) {
     briefText=intro+pretty({case:report.case,plan_hash:report.plan_hash,candidate:report.plan,shortest_observed_witness:report.witness,constraints:['Preserve old/new updates and inserts.','Application rollback must preserve new-version writes.','Protect old writes and reads at every migration statement boundary.','Do not change the old adapter, oracle, seeds or suite to make a plan pass.',`Rerun all ${report.total} probes, then report coverage limits.`]});
   } else briefText=intro+'Begin with the late-bridge candidate. The task is to produce an evidence-backed repair, not to generate a risk score.';
-  if(selectedFailure)briefText+='\n\nDeveloper-selected failure (investigate first, then rerun the entire fixed suite):\n'+pretty(selectedFailure);
+  if(selectedFailure)briefText=`Investigate my selected failure first: ${selectedFailure.id} — ${selectedFailure.title}. Then rerun the entire fixed suite.\n\n`+briefText+'\n\nDeveloper-selected failure:\n'+pretty(selectedFailure);
   $('bob-task').value=briefText; $('bob-dialog').showModal();
 }
 
