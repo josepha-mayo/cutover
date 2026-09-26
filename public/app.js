@@ -631,8 +631,10 @@ $('import-sql').addEventListener('change',async event=>{
     const sql=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());
     if(!sql.trim()||sql.includes('\0')||sql.length>12000)throw Error('Expected nonempty UTF-8 SQL, without NUL characters, up to 12,000 characters.');
     $('migration').value=sql;
+    $('plan-name').value=`Imported SQL: ${file.name}`.slice(0,100);
     $('migration').dispatchEvent(new Event('input',{bubbles:true}));
     candidateSource=`Imported ${file.name} · not yet executed`;
+    candidateProvenance='imported migration candidate';
     $('source-label').textContent=candidateSource;
     notify('Migration imported. Contract and application queries retained. Run a fresh rehearsal.');
   } catch(error){notify(`Migration not imported. ${error.message}`);}
