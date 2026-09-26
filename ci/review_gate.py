@@ -20,6 +20,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Resolve presentation helpers from this gate's checkout, including in a consumer Action.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from ci.witness_source import describe as describe_source, window_source
+
 # Per-command wall-clock budget (seconds).  The engine's own worker has a
 # 90-second internal cap; we add headroom for process startup and I/O.
 CLI_TIMEOUT = 120
@@ -73,7 +77,7 @@ def _workspace_relative(path: Path) -> Path:
 
 def _emit_annotation(classification: str, plan: Path, report: dict,
                      cli_exit: int | None, audit_exit: int | None,
-                     reason: str = "") -> None:
+                     reason: str = "", location: dict | None = None) -> None:
     """Place a bounded verdict on the PR's candidate file in GitHub Checks."""
     if os.environ.get("GITHUB_ACTIONS") != "true" or classification == "verified_pass":
         return
@@ -81,6 +85,7 @@ def _emit_annotation(classification: str, plan: Path, report: dict,
     file = plan.as_posix()
     if plan.is_absolute() or ".." in plan.parts or not re.fullmatch(r"[A-Za-z0-9_./-]+", file):
         file = ".github/workflows/cutover-review.yml"
+        location = None
     if classification == "verified_block":
         witness = report.get("witness") or {}
         failure = witness.get("failure") or {}
@@ -88,6 +93,8 @@ def _emit_annotation(classification: str, plan: Path, report: dict,
         row = next((key for key in expected if expected.get(key) != actual.get(key)), None)
         message = (f"Verified block: {report.get('passed')}/{report.get('total')} probes passed; "
                    f"first witness {witness.get('id', 'unknown')}.")
+        if location:
+            message += ' ' + describe_source(location)
         if row is not None:
             value = lambda item: json.dumps(item, ensure_ascii=False)
             message += (f" Row {row}: expected {value(expected[row])}, "
@@ -103,7 +110,8 @@ def _emit_annotation(classification: str, plan: Path, report: dict,
     # imported payloads cannot create another command or annotation property.
     def escape(value: str) -> str:
         return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-    print(f"::error file={escape(file)},title={title}::{escape(message[:500])}")
+    position = f",line={location['line']},endLine={location['line']}" if location else ''
+    print(f"::error file={escape(file)}{position},title={title}::{escape(message[:500])}")
 
 
 def _read_report(report_path: Path) -> dict:
@@ -124,6 +132,7 @@ def _build_summary(
     report: dict,
     migration_source: dict | None = None,
     contract_lock: dict | None = None,
+    location: dict | None = None,
 ) -> str:
     """Build the Markdown job summary.
 
@@ -192,6 +201,15 @@ def _build_summary(
             lines += [f"**Coverage:** {coverage} probes passed.", ""]
         if witness_id:
             lines += [f"**Probe:** `{witness_id}`", ""]
+        if location:
+            context = location['sql_context']
+            if len(context) > 1600:
+                context = context[:1600] + '\n-- Excerpt truncated; inspect the SQL source.'
+            fence = '`' * max(3, 1 + max((len(run) for run in re.findall(r'`+', context)), default=0))
+            lines += [f"**Replay location:** {describe_source(location)}", "",
+                      "The annotation marks the observed old-worker operation's boundary,",
+                      "not a claim that this SQL line alone caused the defect.", "",
+                      f"{fence}sql", context, fence, ""]
 
         # Show the first key where expected ≠ actual (the most informative pair).
         differing_key = next(
@@ -399,6 +417,9 @@ def main(argv: list[str] | None = None) -> int:
         verdict["contract_lock"] = contract_lock
     if lock_reason:
         verdict["reason"] = lock_reason
+    location = window_source(report, migration_source) if classification == 'verified_block' else None
+    if location:
+        verdict['witness_source'] = location
     witness = report.get("witness") or {}
     if witness.get("id"):
         verdict["witness_id"] = witness["id"]
@@ -421,11 +442,12 @@ def main(argv: list[str] | None = None) -> int:
         report,
         migration_source,
         contract_lock,
+        location,
     )
     summary_path.write_text(summary + "\n", encoding="utf-8")
     _append_step_summary(summary)
     _emit_annotation(classification, args.contract if lock_reason else annotation_path,
-                     report, cli_exit, audit_exit, lock_reason)
+                     report, cli_exit, audit_exit, lock_reason, location)
 
     # ── Log to stdout for workflow visibility ──────────────────────────────
     print(f"classification: {classification}")
