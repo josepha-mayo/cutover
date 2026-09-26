@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: josepha-mayo/cutover@REPLACE_WITH_REVIEWED_COMMIT_SHA
+      - uses: josepha-mayo/cutover@a5bf69f6e8f94788eade58691d292941e009f8ac
         with:
           contract: ci/release-contract.json
           plan: ci/release-adapters.json
@@ -60,3 +60,5 @@ locking, crash, or PostgreSQL/MySQL simulation. Keep confidential schema and
 data out of public workflow artifacts. A pass is not a deployment approval.
 The reusable packaging is a Codex extension after Bob's original gate;
 [Bob's actual IDE work and limits](PROVENANCE.md) remain separately documented.
+
+The pinned version was exercised in [six GitHub control jobs](../evidence/ci_portable_action_control/README.md): pass, verified block, and unverified input error on both Ubuntu and Windows. All expected classifications and Action outputs were confirmed; the four executed packets also passed independent replay.

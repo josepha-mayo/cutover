@@ -1,0 +1,6 @@
+{
+  "classification": "unverified",
+  "cli_exit": null,
+  "audit_exit": null,
+  "reason": "migration file not found: D:\\a\\cutover\\cutover\\consumer\\migration.sql"
+}

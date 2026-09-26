@@ -1,0 +1,7 @@
+{
+  "name": "Warehouse: triggers before backfill, one-way sync, dual-write",
+  "read": "SELECT id, fulfillment_bin AS value FROM stock_items ORDER BY id",
+  "write": "UPDATE stock_items SET pick_bin = :value, fulfillment_bin = :value WHERE id = :id",
+  "insert": "INSERT INTO stock_items (id, pick_bin, fulfillment_bin) VALUES (:id, :value, :value)",
+  "migration": "ALTER TABLE stock_items ADD COLUMN fulfillment_bin TEXT;\nCREATE TRIGGER sync_insert_to_fulfillment AFTER INSERT ON stock_items\nWHEN NEW.fulfillment_bin IS NULL\nBEGIN\n  UPDATE stock_items SET fulfillment_bin = NEW.pick_bin WHERE id = NEW.id;\nEND;\nUPDATE stock_items SET fulfillment_bin = pick_bin WHERE fulfillment_bin IS NULL;"
+}

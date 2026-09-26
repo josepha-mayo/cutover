@@ -42,6 +42,17 @@ After a custom candidate passes, **Download PR gate kit** reruns it on the serve
 The PR gate can also load the actual checked-in `.sql` migration through a manifest `migration_file` path. It retains the effective plan and source-file hash, so a change to that SQL is reviewed even if the adapter JSON stays unchanged. See [SQL source-file review](docs/CI.md#review-the-actual-migration-file).
 This path was exercised in [controlled PR #7](https://github.com/josepha-mayo/cutover/pull/7): one browser-built case expanded the workflow from two to three green jobs without a YAML edit. The initial run caught a fixed-two-cases test assumption; after correcting that test, [the final run](https://github.com/josepha-mayo/cutover/actions/runs/36192747474) and [signed-out artifact mirror](evidence/ci_browser_control/README.md) show independently replayed 116/116 Warehouse, 116/116 Parcel and 124/124 custom results. The synthetic control PR was closed unmerged.
 
+## Use the gate in your own repository
+
+The [reusable GitHub Action](docs/ACTION.md) reviews your checked-in contract,
+new-worker adapters, and optional `.sql` migration without copying Cutover's
+engine into your repository. It retains review artifacts even when the gate
+blocks. The workflow example pins the exact Action commit independently checked
+in [six real GitHub jobs](evidence/ci_portable_action_control/README.md): safe,
+broken, and missing SQL on Ubuntu and Windows. Both safe runs passed 116/116;
+both broken runs blocked at 72/108; missing inputs remained unverified. This
+packaging is a Codex extension of Bob's original gate.
+
 ## Bring your own contract through the CLI
 
 A developer can supply a bounded single-table SQLite contract and candidate plan as JSON. The [warehouse contract](examples/warehouse/contract.json) is a complete example with its own bin-code payloads. Its [late synchronization plan](examples/warehouse/late_bridge.json) misses an acknowledged old-worker move; its [window-safe plan](examples/warehouse/bridge.json) passes the reported suite.

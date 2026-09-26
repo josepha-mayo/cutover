@@ -1,0 +1,12 @@
+{
+  "classification": "verified_pass",
+  "cli_exit": 0,
+  "audit_exit": 0,
+  "contract_hash": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+  "plan_hash": "930c2f30ccd10a81bc34cffc23dbcdceb45d60885d1609ac1a2aa698baa74da6",
+  "migration_source": {
+    "path": "consumer/migration.sql",
+    "sha256": "8aba476ea9510071ff704d266897c5c6fd6109fcb0177c2bff6a803267de4c3f"
+  },
+  "source_plan_sha256": "649c42a02d913fc1513f36d46202d6c8a661a9f1738ee4c13f1f16e32e146e5e"
+}

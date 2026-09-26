@@ -1,0 +1,90 @@
+{
+  "run_url": "https://github.com/josepha-mayo/cutover/actions/runs/36210753957",
+  "action_ref": "a5bf69f6e8f94788eade58691d292941e009f8ac",
+  "head_sha": "c5784e5dd60f3cf0079756d1a14344a351f3108a",
+  "consumer_checkout_sha": "93cb65e8f23f3bbe663bad541d0afd67d05fa3bd",
+  "cases": [
+    {
+      "artifact": "portable-safe-Linux",
+      "classification": "verified_pass",
+      "coverage": "116/116",
+      "job_url": "https://github.com/josepha-mayo/cutover/actions/runs/36210753957/job/108316568067",
+      "artifact_hashes": {
+        "action.json": "725580b8fdbca282b11b26c944f66a54587c138308952ecd6a5054b01acd965f",
+        "effective-plan.json": "48e734589d195e5dce446aaf55906c6707cb7ec7e55595aed3935140f12dff9f",
+        "report.json": "60df8d79c91f647cff9dd90adbd4e22f7b844a53a37ee0fa452cdcd411bd4ce7",
+        "review.md": "890cf7799dd011f1b6bac90ab949884c3533f2dfa4cae80264d07356fb9eaeaa",
+        "review.zip": "438653ccb63181ecdc18d11122ce6756af1ea94f5774d7900cb12f9a9dcca329",
+        "summary.md": "2e0f772f32fc8fa05f75864fab58cdca0d880f21dab41487714839e083786f81",
+        "verdict.json": "455a33efcc489efe53c204bb5d4de08a669403f716d092c21504793132c75945"
+      }
+    },
+    {
+      "artifact": "portable-blocked-Linux",
+      "classification": "verified_block",
+      "coverage": "72/108",
+      "job_url": "https://github.com/josepha-mayo/cutover/actions/runs/36210753957/job/108316567948",
+      "artifact_hashes": {
+        "action.json": "725580b8fdbca282b11b26c944f66a54587c138308952ecd6a5054b01acd965f",
+        "effective-plan.json": "2631756f7cf95287c42bf2240869aca093345811f7bc6cb2453394f36923aa58",
+        "report.json": "4c6ae6c902d42ac1dc19d1ada76870a4b95635e47f23ca0a23005e70539294b1",
+        "review.md": "1efb9f94ed690a0e497d50555d2ac978910dba27fcbdd813d9a431460e27fc3f",
+        "review.zip": "31157b81f8bc3e05eedfb30f9ff6bcb9454367a02af7d3a8f70b2bb233b3f702",
+        "summary.md": "1fcc1165739c54aa735d7e346316517f11d6582c83630b253a339923d2462066",
+        "verdict.json": "fb4d9c97220f5bcd43b218373da786eb21a9214838ee8d67c3288c982e0ee267"
+      }
+    },
+    {
+      "artifact": "portable-missing-Linux",
+      "classification": "unverified",
+      "coverage": null,
+      "job_url": "https://github.com/josepha-mayo/cutover/actions/runs/36210753957/job/108316567974",
+      "artifact_hashes": {
+        "action.json": "725580b8fdbca282b11b26c944f66a54587c138308952ecd6a5054b01acd965f",
+        "summary.md": "218e4cfe3242af91b75614d8f468163628d96cb5471beb2615e95aeb590371b8",
+        "verdict.json": "5eb8e543e389dfd74c3263b770aab602346221a0695d910215e55242e768a3d8"
+      }
+    },
+    {
+      "artifact": "portable-safe-Windows",
+      "classification": "verified_pass",
+      "coverage": "116/116",
+      "job_url": "https://github.com/josepha-mayo/cutover/actions/runs/36210753957/job/108316567962",
+      "artifact_hashes": {
+        "action.json": "bb6ac3cdbc8d9f0bc6021bb15b4ba1b07d430f6c302f4b2539c6e926684d6486",
+        "effective-plan.json": "68f42dc19f8677f80847bf4fb1b98ab3857d5b402750e3d171e9bb4043ce63f1",
+        "report.json": "be2f8de42360eccf4379e1de061b641e737dd62c1b85b62593b701933b714be9",
+        "review.md": "c2b158374a9cd0ca009b184ed9710566e3a9a30610b790e03f0dc0fae114573e",
+        "review.zip": "bda6b5974d9bbdb3b48cac206ee510e90ad87de9d1e3e27ab60abefe5969492c",
+        "summary.md": "dceca90a72b81d4dc178b9a57c8c72f9ffa2055a113fbeea01f33b2a6f11d7ca",
+        "verdict.json": "e48cf4fade0cee681838c4b78919b26d018e955996e2b1f1d6b9a5a5b3c5ba9d"
+      }
+    },
+    {
+      "artifact": "portable-blocked-Windows",
+      "classification": "verified_block",
+      "coverage": "72/108",
+      "job_url": "https://github.com/josepha-mayo/cutover/actions/runs/36210753957/job/108316567811",
+      "artifact_hashes": {
+        "action.json": "bb6ac3cdbc8d9f0bc6021bb15b4ba1b07d430f6c302f4b2539c6e926684d6486",
+        "effective-plan.json": "2636c91430f69966ab409eb59b6f381c61526ba8c2dca03ac1057321a63dfab0",
+        "report.json": "78f1e7e8fe2a9e161dc6d93ce868260ec98f4f14469b47bfe1fe46ce1bb6531f",
+        "review.md": "751141d3efcb778eba0e3ba540a7badf1b8a87e5833f42836153357b4fbefa5b",
+        "review.zip": "add3ccd05552bb1a49090ab9d7007a7f3f42ff8f56dbfe0c01e45d53a2c62a5c",
+        "summary.md": "e27a31c90586b492db26c09f2822739234a52189be30770c1ff74fb9bdf79176",
+        "verdict.json": "bc33ea3496818e1aecc1c34e0312e09841e4f472bb8ce5a36691f8687b6c9b3d"
+      }
+    },
+    {
+      "artifact": "portable-missing-Windows",
+      "classification": "unverified",
+      "coverage": null,
+      "job_url": "https://github.com/josepha-mayo/cutover/actions/runs/36210753957/job/108316567931",
+      "artifact_hashes": {
+        "action.json": "bb6ac3cdbc8d9f0bc6021bb15b4ba1b07d430f6c302f4b2539c6e926684d6486",
+        "summary.md": "d463246168a43f8ed095770998bd0e27b9322eee569d7a3f47965debbdeb521e",
+        "verdict.json": "e287d985eb4cd4458b1a8b475fa2fb8cad644d08b9391516cfbb12cfd46c94aa"
+      }
+    }
+  ]
+}

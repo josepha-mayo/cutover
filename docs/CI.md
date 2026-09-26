@@ -1,5 +1,9 @@
 # Cutover CI review gate
 
+To run this gate in another repository without copying the engine, use the
+[pinned reusable Action](ACTION.md). The manifest-based workflow below
+supports multiple registered cases within this checkout.
+
 This document explains how to set up and interpret the automated pull-request
 gate that verifies each checked-in migration candidate against its own SQLite
 contract. The workflow runs Bob's original gate independently for Warehouse
