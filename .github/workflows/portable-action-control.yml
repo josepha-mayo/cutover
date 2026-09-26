@@ -1,0 +1,76 @@
+name: Portable Action controls
+on:
+  pull_request:
+    paths:
+      - .github/workflows/portable-action-control.yml
+permissions:
+  contents: read
+jobs:
+  consumer:
+    name: Portable ${{ matrix.mode }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        mode: [safe, blocked, missing]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: fixture-source
+      - name: Prepare only the consumer inputs
+        shell: python
+        env:
+          CUTOVER_CONTROL_MODE: ${{ matrix.mode }}
+        run: |
+          import json, os
+          from pathlib import Path
+          fixture = Path('fixture-source')
+          target = Path('consumer')
+          target.mkdir()
+          plan = json.loads((fixture / 'ci/candidate.json').read_text(encoding='utf-8'))
+          (target / 'contract.json').write_bytes((fixture / 'examples/warehouse/contract.json').read_bytes())
+          (target / 'adapters.json').write_text(json.dumps({k: v for k, v in plan.items() if k != 'migration'}), encoding='utf-8')
+          mode = os.environ['CUTOVER_CONTROL_MODE']
+          sql = plan['migration']
+          if mode == 'blocked':
+              start = sql.index('CREATE TRIGGER sync_pick_to_fulfillment')
+              end = sql.index('CREATE TRIGGER sync_insert_to_fulfillment')
+              sql = sql[:start] + sql[end:]
+          if mode != 'missing':
+              (target / 'migration.sql').write_bytes(sql.encode('utf-8'))
+          Path('cutover.py').write_text('raise RuntimeError("Consumer package must not replace the evaluator")', encoding='utf-8')
+          print('Consumer has:', ', '.join(p.name for p in sorted(target.iterdir())))
+      - name: Review through the pinned public Action
+        id: cutover
+        uses: josepha-mayo/cutover@a5bf69f6e8f94788eade58691d292941e009f8ac
+        with:
+          contract: consumer/contract.json
+          plan: consumer/adapters.json
+          migration-file: consumer/migration.sql
+          artifact-name: portable-${{ matrix.mode }}-${{ runner.os }}
+      - name: Verify the observed Action result
+        if: always()
+        shell: python
+        env:
+          CUTOVER_CONTROL_MODE: ${{ matrix.mode }}
+          CUTOVER_OBSERVED_CLASSIFICATION: ${{ steps.cutover.outputs.classification }}
+          CUTOVER_OBSERVED_COVERAGE: ${{ steps.cutover.outputs.coverage }}
+        run: |
+          import json, os
+          from pathlib import Path
+          mode = os.environ['CUTOVER_CONTROL_MODE']
+          expected = {'safe': 'verified_pass', 'blocked': 'verified_block', 'missing': 'unverified'}[mode]
+          verdict = json.loads(Path('cutover-review/verdict.json').read_text(encoding='utf-8'))
+          assert verdict['classification'] == expected, verdict
+          assert os.environ['CUTOVER_OBSERVED_CLASSIFICATION'] == expected
+          if mode != 'missing':
+              report = json.loads(Path('cutover-review/report.json').read_text(encoding='utf-8'))
+              coverage = '116/116' if mode == 'safe' else '72/108'
+              assert f"{report['passed']}/{report['total']}" == coverage
+              assert os.environ['CUTOVER_OBSERVED_COVERAGE'] == coverage
+              assert verdict['migration_source']['path'] == 'consumer/migration.sql'
+          else:
+              assert not Path('cutover-review/report.json').exists()
+          print('Confirmed expected Action classification:', expected)
