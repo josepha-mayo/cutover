@@ -35,6 +35,26 @@ class CaseDiscoveryTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         discover(root)
 
+    def test_new_candidate_cannot_be_silently_omitted_from_review_matrix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = json.loads((ROOT / "ci/cases.json").read_text(encoding="utf-8"))
+            for case in source:
+                for field in ("contract", "plan"):
+                    path = root / case[field]
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes((ROOT / case[field]).read_bytes())
+            manifest = root / "ci/cases.json"
+            manifest.write_text(json.dumps(source), encoding="utf-8")
+            candidate = root / "ci/new-release-candidate.json"
+            candidate.write_bytes((ROOT / source[0]["plan"]).read_bytes())
+            with self.assertRaisesRegex(ValueError, "Unregistered candidate plan"):
+                discover(root)
+            source.append({**source[0], "case": "New release", "slug": "new-release",
+                           "plan": "ci/new-release-candidate.json"})
+            manifest.write_text(json.dumps(source), encoding="utf-8")
+            self.assertEqual(len(discover(root)["include"]), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

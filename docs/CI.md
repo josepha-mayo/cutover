@@ -62,7 +62,11 @@ It triggers on `pull_request` with read-only repository permissions and no
 secrets. A discovery job validates `ci/cases.json` and every checked-in input,
 then creates one independent review job per contract/plan pair. A malformed,
 empty, duplicate, missing-path, or unsafe-path manifest fails the discovery
-job instead of creating an empty green review. Each review job has four steps:
+job instead of creating an empty green review. It also rejects a candidate
+file named `ci/*-candidate.json` (or the original `ci/candidate.json`) unless
+that file is registered in the manifest, so an installed case cannot be
+silently omitted from the matrix. This convention does not scan arbitrary
+migration files elsewhere in a repository. Each review job has four steps:
 
 1. `actions/checkout@v4`
 2. `actions/setup-python@v5` (Python 3.12)

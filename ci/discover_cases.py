@@ -33,6 +33,7 @@ def discover(root: Path = ROOT, manifest: str = "ci/cases.json") -> dict:
     if not isinstance(cases, list) or not 1 <= len(cases) <= 8:
         raise ValueError("Case manifest must contain 1 to 8 contract/plan pairs")
     seen = set()
+    registered_plans = set()
     for entry in cases:
         if not isinstance(entry, dict) or set(entry) != FIELDS:
             raise ValueError("Each case requires exactly case, slug, contract and plan")
@@ -44,8 +45,23 @@ def discover(root: Path = ROOT, manifest: str = "ci/cases.json") -> dict:
         seen.add(slug)
         contract_path = _checked_file(root, entry["contract"])
         plan_path = _checked_file(root, entry["plan"])
+        if plan_path in registered_plans:
+            raise ValueError(f"Candidate plan is registered more than once: {entry['plan']}")
+        registered_plans.add(plan_path)
         validate_contract(json.loads(contract_path.read_text(encoding="utf-8")))
         validate_plan(json.loads(plan_path.read_text(encoding="utf-8")))
+    # The kit installer writes ci/<slug>-candidate.json. A PR must not be able
+    # to add one of those inputs without getting its own review job. Keep the
+    # original ci/candidate.json under the same rule.
+    candidate_dir = root / "ci"
+    candidates = {path.resolve() for path in candidate_dir.glob("*-candidate.json")}
+    legacy_candidate = candidate_dir / "candidate.json"
+    if legacy_candidate.exists():
+        candidates.add(legacy_candidate.resolve())
+    unregistered = sorted(path.relative_to(root).as_posix()
+                          for path in candidates - registered_plans)
+    if unregistered:
+        raise ValueError(f"Unregistered candidate plan(s): {', '.join(unregistered)}")
     return {"include": cases}
 
 
