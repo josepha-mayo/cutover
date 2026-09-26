@@ -25,7 +25,7 @@ def structured(value):
     return fenced(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True), 'json')
 
 
-def render_reproduction(report, contract):
+def render_reproduction(report, contract, *, ascii_output=False):
     """Export a standalone, in-memory Python replay of an observed data gap."""
     witness = report.get('witness')
     kind = witness.get('failure', {}).get('kind') if witness else None
@@ -118,6 +118,11 @@ def render_reproduction(report, contract):
 if __name__ == '__main__':
     reproduce()
 '''
+    # Preserve historical packet bytes by default. New standalone selections use
+    # ASCII JSON escapes so redirected Windows consoles can print every payload.
+    if ascii_output:
+        runner = runner.replace('ensure_ascii=False, sort_keys=True))',
+                                'ensure_ascii=True, sort_keys=True))')
     return constants + runner
 
 

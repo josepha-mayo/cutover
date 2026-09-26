@@ -52,6 +52,72 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertIn(b'export function buildScenario', body)
 
+    def test_selected_replay_executes_the_requested_failure_not_the_first(self):
+        cases = [({'case': 'parcel', 'plan': load_plan('parcel', 'late_bridge')},
+                  'window_insert_after_2-1'),
+                 ({'case': 'custom',
+                   'contract': json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8')),
+                   'plan': json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))},
+                  'window_write_after_2-3')]
+        for inputs, probe_id in cases:
+            with self.subTest(case=inputs['case'], probe=probe_id):
+                status, body = self.request('/api/rehearse', inputs)
+                self.assertEqual(status, 200)
+                report = json.loads(body)
+                probe = next(row for row in report['results'] if row['id'] == probe_id)
+                self.assertNotEqual(probe_id, report['witness']['id'])
+                failure = next(step for step in probe['trace'] if step['status'] == 'fail')
+                payload = {**inputs, 'probe_id': probe_id, 'observed_probe': probe,
+                           **{key: report[key] for key in
+                              ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}}
+                request = urllib.request.Request(self.base + '/api/replay',
+                    data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'})
+                with urllib.request.urlopen(request, timeout=15) as response:
+                    script = response.read()
+                    self.assertEqual(response.headers['Content-Type'], 'text/x-python; charset=utf-8')
+                    self.assertEqual(response.headers['X-Cutover-Probe-ID'], probe_id)
+                    for header, key in [('Plan', 'plan_hash'), ('Contract', 'contract_hash'),
+                                        ('Engine', 'engine_sha256'), ('Suite', 'suite_hash')]:
+                        self.assertEqual(response.headers[f'X-Cutover-{header}-SHA256'], report[key])
+                with tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / 'selected.py'
+                    path.write_bytes(script)
+                    replay = subprocess.run([sys.executable, '-I', str(path)], cwd=directory,
+                                            capture_output=True, text=True, encoding='utf-8', timeout=15)
+                    self.assertEqual(replay.returncode, 0, replay.stderr)
+                    result = json.loads(replay.stdout)
+                    self.assertEqual(result['status'], 'REPRODUCED')
+                    self.assertEqual(result['probe'], probe_id)
+                    self.assertEqual(result['plan_hash'], report['plan_hash'])
+                    self.assertEqual(result['expected'], failure['expected'])
+                    self.assertEqual(result['actual'], failure['actual'])
+
+    def test_selected_replay_rejects_stale_evidence_and_invalid_or_passing_probes(self):
+        inputs = {'case': 'parcel', 'plan': load_plan('parcel', 'late_bridge')}
+        status, body = self.request('/api/rehearse', inputs)
+        self.assertEqual(status, 200)
+        report = json.loads(body)
+        identities = ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')
+        payload = {**inputs, 'probe_id': 'window_insert_after_2-0',
+                   'observed_probe': next(row for row in report['results']
+                                          if row['id'] == 'window_insert_after_2-0'),
+                   **{key: report[key] for key in identities}}
+        passing = next(row['id'] for row in report['results'] if row['passed'])
+        invalid = [({**payload, key: '0' * 64}, 'displayed evidence') for key in identities]
+        invalid += [({**payload, 'probe_id': probe}, 'executed report')
+                    for probe in (None, '', 'missing-probe')]
+        invalid.append(({**payload, 'probe_id': passing}, 'data mismatch'))
+        changed_observation = json.loads(json.dumps(payload))
+        changed_observation['observed_probe']['trace'][-1]['actual']['103'] = 'different observation'
+        invalid.append((changed_observation, 'displayed evidence'))
+        for request, message in invalid:
+            with self.subTest(request=request['probe_id'], rejection=message):
+                code, body = self.request('/api/replay', request)
+                self.assertEqual(code, 400)
+                self.assertIn(message, json.loads(body)['error'])
+        code, _ = self.request('/api/replay', payload, Origin='https://unrelated.example')
+        self.assertEqual(code, 403)
+
     def test_fragility_challenge_replays_each_removed_statement(self):
         from cutover.service import run_rehearsal
         plan = load_plan('parcel', 'bridge')

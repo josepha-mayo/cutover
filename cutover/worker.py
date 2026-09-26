@@ -3,6 +3,7 @@ import json
 import sqlite3
 import sys
 from .engine import digest, rehearse, validate_contract, validate_old_contract_behavior
+from .selected_replay import rehearse_selected
 
 try:
     request = json.load(sys.stdin)
@@ -14,6 +15,9 @@ try:
             'contract_hash': digest(contract), 'seed_count': len(contract['seed']),
             'payload_count': len(contract['payloads']),
         }
+    elif request.get('operation') == 'selected_replay':
+        result = rehearse_selected(request['case'], request['plan'], request['probe_id'],
+                                   request['identities'], request['observed_probe'], request.get('contract'))
     else:
         result = rehearse(request['case'], request['plan'], request.get('contract'))
     print(json.dumps(result, ensure_ascii=True))

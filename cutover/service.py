@@ -8,6 +8,11 @@ WORKER_TIMEOUT_SECONDS = 90
 
 
 def run_rehearsal(case, plan, contract=None, timeout_seconds=WORKER_TIMEOUT_SECONDS):
+    validate_rehearsal_inputs(case, plan, contract)
+    return run_worker({'case': case, 'plan': plan, 'contract': contract}, timeout_seconds)
+
+
+def validate_rehearsal_inputs(case, plan, contract):
     if contract is None:
         load_case(case)
     else:
@@ -15,7 +20,13 @@ def run_rehearsal(case, plan, contract=None, timeout_seconds=WORKER_TIMEOUT_SECO
             raise ValueError('Imported contracts require case=custom')
         validate_contract(contract)
     validate_plan(plan)
-    return run_worker({'case': case, 'plan': plan, 'contract': contract}, timeout_seconds)
+
+
+def run_selected_replay(case, plan, probe_id, identities, observed_probe, contract=None):
+    validate_rehearsal_inputs(case, plan, contract)
+    return run_worker({'operation': 'selected_replay', 'case': case, 'plan': plan,
+                       'contract': contract, 'probe_id': probe_id, 'identities': identities,
+                       'observed_probe': observed_probe})
 
 
 def validate_imported_contract(contract):

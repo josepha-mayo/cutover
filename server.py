@@ -17,7 +17,7 @@ from cutover.ci_kit import render_ci_kit
 from cutover.engine import load_case, repair_brief
 from cutover.fragility import challenge_steps
 from cutover.reporting import render_markdown, render_reproduction
-from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, validate_imported_contract, verify_report_against_replay
+from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, run_selected_replay, validate_imported_contract, verify_report_against_replay
 
 STATIC = Path(__file__).parent / 'public'
 VIDEO = STATIC / 'demo.mp4'
@@ -167,7 +167,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        if self.path not in ('/api/rehearse', '/api/brief', '/api/bundle', '/api/ci-kit', '/api/fragility',
+        if self.path not in ('/api/rehearse', '/api/replay', '/api/brief', '/api/bundle', '/api/ci-kit', '/api/fragility',
                              '/api/comparison-bundle', '/api/contract/validate', '/api/audit-bundle'):
             return self.send(404, {'error': 'Not found'})
         origin = self.headers.get('Origin')
@@ -190,6 +190,19 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('Expected a JSON object')
                 if self.path == '/api/contract/validate':
                     self.send(200, validate_imported_contract(body['contract']))
+                elif self.path == '/api/replay':
+                    identities = {key: body[key] for key in
+                                  ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}
+                    result = run_selected_replay(body['case'], body['plan'], body['probe_id'],
+                                                 identities, body['observed_probe'], body.get('contract'))
+                    self.send(200, result['script'].encode('utf-8'), 'text/x-python; charset=utf-8', {
+                        'Content-Disposition': 'attachment; filename="cutover-selected-replay.py"',
+                        'X-Cutover-Probe-ID': result['probe_id'],
+                        'X-Cutover-Plan-SHA256': result['plan_hash'],
+                        'X-Cutover-Contract-SHA256': result['contract_hash'],
+                        'X-Cutover-Engine-SHA256': result['engine_sha256'],
+                        'X-Cutover-Suite-SHA256': result['suite_hash'],
+                    })
                 elif self.path == '/api/fragility':
                     self.send(200, challenge_steps(body['case'], body['plan'], body.get('contract'),
                                                     body['plan_hash'], body['contract_hash']))

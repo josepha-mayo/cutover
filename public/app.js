@@ -6,6 +6,7 @@ let pinnedReport = null, proofTourBusy = false;
 let catalogLoading = false;
 let bundleBusy = false;
 let ciKitBusy = false;
+let replayBusy = false;
 let comparisonBusy = false;
 let fragilityBusy = false;
 let importedContract = null, importedMeta = null, customPlan = null, customPlanSource = null;
@@ -60,6 +61,7 @@ function setBusy(value, label='Executing SQL rehearsals…') {
   $('proof-tour').disabled=value||proofTourBusy;
   $('run').innerHTML=value?`<span>${escape(label)}</span><span>◌</span>`:'<span>Run release rehearsal</span><span>↗</span>';
   if(!value){updateModeControls();renderComparison();}
+  updateReplayExport();
 }
 
 function invalidate() {
@@ -81,6 +83,7 @@ function invalidate() {
   $('window-map').hidden=true; $('window-stages').replaceChildren();
   $('finding').innerHTML='<span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div>';
   $('export').disabled=true; $('export-review').disabled=true; $('export-repro').disabled=true; $('export-bundle').disabled=true; $('brief').disabled=true;
+  updateReplayExport();
   renderComparison();
 }
 function renderComparison() {
@@ -260,7 +263,7 @@ function renderReport() {
   const value=value=>value===undefined?'(missing row)':JSON.stringify(value);
   const gap=rowId===undefined?'':`<p class="witness-gap">Row ${escape(rowId)} · ledger expected <strong>${escape(value(failedRead.expected[rowId]))}</strong>; ${escape(failedRead.action)} observed <strong>${escape(value(failedRead.actual[rowId]))}</strong>.</p>`;
   $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p>${gap}</div>`;
-  $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-repro').disabled=!report.reproduction_python; $('export-bundle').disabled=bundleBusy; $('brief').disabled=false;
+  $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-bundle').disabled=bundleBusy; $('brief').disabled=false;
   $('export-ci-kit').hidden=!(report.case==='custom'&&report.status==='pass');
   $('ci-kit-note').hidden=$('export-ci-kit').hidden;
   $('export-ci-kit').disabled=ciKitBusy;
@@ -322,6 +325,18 @@ function renderTrace(probe) {
     return `<div class="trace-step ${event.status}"><h4><span>${escape(event.action)}</span>${role}</h4><p>${escape(event.detail||'Executed.')}</p><details><summary>Executed SQL${event.params?' & inputs':''}</summary><pre>${escape(event.sql)}${event.params?'\n\n'+escape(pretty(event.params)):''}</pre></details>${event.status==='fail'&&event.actual?`<div class="comparison"><div class="expected">EXPECTED ${escape(pretty(event.expected))}</div><div class="actual">OBSERVED ${escape(pretty(event.actual))}</div></div>`:''}</div>`;
   }).join('');
   document.querySelectorAll('[data-probe]').forEach(b=>b.classList.toggle('chosen',b.dataset.probe===selected));
+  updateReplayExport();
+}
+function updateReplayExport() {
+  const probe=report?.results.find(item=>item.id===selected);
+  const eligible=probe&&!probe.passed&&['data_mismatch','target_mismatch'].includes(probe.failure?.kind);
+  $('export-repro').disabled=busy||replayBusy||!eligible;
+  $('export-repro').textContent=replayBusy?'Preparing selected replay…':'Export this failed replay ↓';
+  $('replay-export-note').textContent=eligible
+    ?'Downloads a standalone Python replay of this selected data mismatch after a fresh run matches the displayed evidence. It reproduces one failure, not the full suite.'
+    :probe?.passed?'This probe passed. Select a failed data-mismatch probe to export its replay.'
+    :probe?'This failure is not a data mismatch. Its SQL and error remain in the review packet.'
+    :'Select a failed data-mismatch probe to export its replay.';
 }
 async function showBob() {
   if(activeCase?.id==='custom') {
@@ -505,7 +520,33 @@ $('export-comparison').addEventListener('click',async()=>{
   finally{comparisonBusy=false;button.textContent='Download both review packets ↓';renderComparison();}
 });
 $('export').addEventListener('click',()=>{if(!report)return;const {review_markdown,reproduction_python,...evidence}=report;download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.json`,pretty(evidence));});
-$('export-repro').addEventListener('click',()=>report?.reproduction_python&&download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}-replay.py`,report.reproduction_python,'text/x-python'));
+$('export-repro').addEventListener('click',async()=>{
+  const snapshot=report, probeId=selected;
+  const probe=snapshot?.results.find(item=>item.id===probeId);
+  if(busy||replayBusy||!probe||probe.passed||!['data_mismatch','target_mismatch'].includes(probe.failure?.kind))return;
+  const request={case:snapshot.case,plan:snapshot.plan,probe_id:probeId,observed_probe:probe,
+    plan_hash:snapshot.plan_hash,contract_hash:snapshot.contract_hash,
+    engine_sha256:snapshot.engine_sha256,suite_hash:snapshot.suite_hash};
+  if(snapshot.case==='custom')request.contract=importedContract;
+  replayBusy=true;updateReplayExport();
+  try {
+    const body=JSON.stringify(request);
+    if(new Blob([body]).size>65536)throw Error('The selected replay exceeds the 64 KiB hosted request limit. Export evidence or a review packet to retain this probe.');
+    const response=await requestResource('/api/replay',{method:'POST',headers:{'Content-Type':'application/json'},body},{binary:true});
+    if(response.headers.get('Content-Type')!=='text/x-python; charset=utf-8'||
+       response.headers.get('X-Cutover-Probe-ID')!==probeId||
+       response.headers.get('X-Cutover-Plan-SHA256')!==snapshot.plan_hash||
+       response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
+       response.headers.get('X-Cutover-Engine-SHA256')!==snapshot.engine_sha256||
+       response.headers.get('X-Cutover-Suite-SHA256')!==snapshot.suite_hash)
+      throw Error('Fresh replay differs from the displayed evidence. Rerun the candidate first.');
+    if(report!==snapshot||selected!==probeId)
+      throw Error('The selected failure changed during export. Export the current selection again.');
+    download(`cutover-${snapshot.case}-${snapshot.plan_hash.slice(0,10)}-${probeId}-replay.py`,response.data,'text/x-python');
+    notify(`Selected replay downloaded: ${probeId}. Run it locally with Python to reproduce this failure.`);
+  } catch(error) {notify(error.message);}
+  finally {replayBusy=false;updateReplayExport();}
+});
 $('export-review').addEventListener('click',()=>report?.review_markdown&&download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.md`,report.review_markdown,'text/markdown'));
 $('save-plan').addEventListener('click',()=>download(`cutover-${activeCase.id}-candidate.json`,pretty(currentPlan())));
 $('save-contract').addEventListener('click',()=>importedContract&&download(`cutover-${fileSlug(importedContract.project)}-contract.json`,pretty(importedContract)));

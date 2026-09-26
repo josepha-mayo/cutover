@@ -39,6 +39,7 @@ def sources():
         Path('cutover/bundle.py'),
         Path('cutover/engine.py'),
         Path('cutover/reporting.py'),
+        Path('cutover/selected_replay.py'),
         Path('cutover/service.py'),
         Path('cutover/worker.py'),
     ]
