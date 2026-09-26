@@ -43,6 +43,8 @@ function updateModeControls() {
   $('case').disabled=busy||!activeCase;
   $('import-plan').disabled=busy||!activeCase;
   $('open-plan').disabled=busy||!activeCase;
+  $('open-sql').disabled=busy||!activeCase;
+  $('import-sql').disabled=busy||!activeCase;
   $('open-contract').disabled=busy;
   $('open-packet').disabled=busy;
   $('retry-catalog').disabled=busy||catalogLoading;
@@ -613,12 +615,29 @@ $('export-review').addEventListener('click',()=>report?.review_markdown&&downloa
 $('save-plan').addEventListener('click',()=>download(`cutover-${activeCase.id}-candidate.json`,pretty(currentPlan())));
 $('save-contract').addEventListener('click',()=>importedContract&&download(`cutover-${fileSlug(importedContract.project)}-contract.json`,pretty(importedContract)));
 $('download-brief').addEventListener('click',()=>download('CUTOVER-BOB-TASK.txt',briefText,'text/plain'));
-for(const name of ['contract','packet','plan']) {
+for(const name of ['contract','packet','plan','sql']) {
   $(`open-${name}`).addEventListener('click',()=>{
     const input=$(`import-${name}`);
     if(!input.disabled)input.click();
   });
 }
+$('import-sql').addEventListener('change',async event=>{
+  if(busy||!activeCase)return;
+  const file=event.target.files[0]; if(!file)return;
+  setBusy(true,'Reading migration SQL…');
+  try {
+    if(!/\.sql$/i.test(file.name))throw Error('Choose a .sql migration file.');
+    if(file.size>65536)throw Error('Migration exceeds 64 KiB. Use the local CLI.');
+    const sql=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());
+    if(!sql.trim()||sql.includes('\0')||sql.length>12000)throw Error('Expected nonempty UTF-8 SQL, without NUL characters, up to 12,000 characters.');
+    $('migration').value=sql;
+    $('migration').dispatchEvent(new Event('input',{bubbles:true}));
+    candidateSource=`Imported ${file.name} · not yet executed`;
+    $('source-label').textContent=candidateSource;
+    notify('Migration imported. Contract and application queries retained. Run a fresh rehearsal.');
+  } catch(error){notify(`Migration not imported. ${error.message}`);}
+  finally{event.target.value='';setBusy(false);}
+});
 $('import-plan').addEventListener('change',async event=>{
   if(busy||!activeCase)return;
   const file=event.target.files[0]; if(!file)return;
