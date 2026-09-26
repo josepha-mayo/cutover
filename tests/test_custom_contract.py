@@ -1,5 +1,6 @@
 import copy
 import json
+import os
 import re
 import subprocess
 import sys
@@ -205,6 +206,28 @@ class CustomContractTests(unittest.TestCase):
             invalid = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=20)
             self.assertEqual(invalid.returncode, 2)
             self.assertIn('Cannot read migration SQL', invalid.stderr)
+
+    def test_cli_retains_unicode_sql_error_with_ascii_console(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            plan = fixture('late_bridge.json')
+            plan['read'] = 'SELECT id, fulfillment_bin AS value FROM stock_items WHERE "東京-棚".missing = 1'
+            candidate = Path(temporary) / 'candidate.json'
+            candidate.write_bytes(json.dumps(plan, ensure_ascii=False).encode('utf-8'))
+            report_path = Path(temporary) / 'report.json'
+            result = subprocess.run([sys.executable, '-m', 'cutover', '--contract', str(WAREHOUSE / 'contract.json'),
+                                     '--plan', str(candidate), '--output', str(report_path)],
+                                    cwd=ROOT, capture_output=True, env=dict(os.environ, PYTHONIOENCODING='ascii'), timeout=20)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertEqual(result.stderr, b'')
+            self.assertIn(b'no such column:', result.stdout)
+            self.assertIn(b'\\u6771', result.stdout)
+            report = json.loads(report_path.read_bytes())
+            self.assertIn('東京-棚', report['witness']['failure']['message'])
+            audited = subprocess.run([sys.executable, '-m', 'cutover.audit_report', '--contract', str(WAREHOUSE / 'contract.json'),
+                                      '--plan', str(candidate), '--report', str(report_path)],
+                                     cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=20)
+            self.assertEqual(audited.returncode, 1, audited.stderr)
+            self.assertIn('VERIFIED BLOCKED', audited.stdout)
 
     def test_cli_refuses_to_replace_its_candidate_input(self):
         plan_path = WAREHOUSE / 'bridge.json'

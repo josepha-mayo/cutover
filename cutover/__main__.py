@@ -8,6 +8,10 @@ from .bundle import render_bundle
 from .reporting import render_markdown, render_reproduction
 from .service import WORKER_TIMEOUT_SECONDS, run_rehearsal
 
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, 'reconfigure'):
+        stream.reconfigure(errors='backslashreplace')
+
 parser = argparse.ArgumentParser(description="Rehearse old/new application contracts on disposable SQLite databases.")
 parser.add_argument("--case", choices=["parcel", "contacts"], default="parcel")
 parser.add_argument("--reference", choices=["rename", "backfill", "late_bridge", "bridge"], default="rename")
