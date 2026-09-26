@@ -17,14 +17,14 @@ MAX_MEMBER_BYTES = 128 * 1024 * 1024
 MAX_TOTAL_BYTES = 300 * 1024 * 1024
 
 
-def members(archive):
+def members(archive, member_limit=MAX_MEMBER_BYTES, total_limit=MAX_TOTAL_BYTES):
     infos = archive.infolist()
     names = [item.filename for item in infos]
     if len(names) > 20 or len(names) != len(set(names)):
         raise ValueError('Archive has too many or duplicate members')
-    if any(item.is_dir() or item.file_size > MAX_MEMBER_BYTES for item in infos):
+    if any(item.is_dir() or item.file_size > member_limit for item in infos):
         raise ValueError('Archive has an unsupported or oversized member')
-    if sum(item.file_size for item in infos) > MAX_TOTAL_BYTES:
+    if sum(item.file_size for item in infos) > total_limit:
         raise ValueError('Archive expands beyond the audit limit')
     return {name: archive.read(name) for name in names}
 
@@ -57,6 +57,25 @@ def audit(path):
         raise ValueError('Compressed archive exceeds the audit limit')
     with zipfile.ZipFile(path) as archive:
         supplied = members(archive)
+    return audit_files(supplied)
+
+
+def audit_bytes(payload, *, archive_limit, member_limit, total_limit):
+    """Audit an in-memory packet under explicit upload limits; never extract it."""
+    if not payload or len(payload) > archive_limit:
+        raise ValueError('Compressed archive exceeds the hosted audit limit')
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        if any(item.flag_bits & 1 or item.compress_type not in
+               (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED) for item in archive.infolist()):
+            raise ValueError('Hosted packets require unencrypted stored or deflated ZIP members')
+        supplied = members(archive, member_limit, total_limit)
+    reports = audit_files(supplied)
+    prefix = 'candidate/' if 'comparison.json' in supplied else ''
+    return reports, json_member(supplied, prefix + 'contract.json')
+
+
+def audit_files(supplied):
+    """Verify both replayable report fields and every packaged companion file."""
     paired = 'comparison.json' in supplied
     if paired:
         before, contract = checked_report(supplied, 'baseline/')

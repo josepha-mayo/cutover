@@ -6,10 +6,13 @@ import mimetypes
 import re
 import subprocess
 import threading
+import zipfile
+import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 from cutover.bundle import render_bundle, render_comparison_bundle
+from cutover.audit_bundle import audit_bytes
 from cutover.ci_kit import render_ci_kit
 from cutover.engine import load_case, repair_brief
 from cutover.fragility import challenge_steps
@@ -22,6 +25,9 @@ WAREHOUSE = Path(__file__).parent / 'examples' / 'warehouse'
 BOB_SESSION = Path(__file__).parent / 'bob_sessions'
 BOB_REPAIR_ID = '07a20bdb56f5'
 SLOTS = threading.BoundedSemaphore(2)
+PACKET_UPLOAD_LIMIT = 2 * 1024 * 1024
+PACKET_MEMBER_LIMIT = 4 * 1024 * 1024
+PACKET_TOTAL_LIMIT = 8 * 1024 * 1024
 
 
 def bob_repair_example():
@@ -162,11 +168,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path not in ('/api/rehearse', '/api/brief', '/api/bundle', '/api/ci-kit', '/api/fragility',
-                             '/api/comparison-bundle', '/api/contract/validate'):
+                             '/api/comparison-bundle', '/api/contract/validate', '/api/audit-bundle'):
             return self.send(404, {'error': 'Not found'})
         origin = self.headers.get('Origin')
         if origin and urlparse(origin).netloc != self.headers.get('Host'):
             return self.send(403, {'error': 'Cross-origin requests are not allowed'})
+        if self.path == '/api/audit-bundle':
+            return self.audit_packet_upload()
         if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
             return self.send(415, {'error': 'Expected application/json'})
         try:
@@ -268,6 +276,36 @@ class Handler(BaseHTTPRequestHandler):
             self.send(422, {'error': f'Rehearsal exceeded its {WORKER_TIMEOUT_SECONDS} second budget. No passing result was produced.'})
         except (ValueError, KeyError, TypeError) as exc:
             self.send(400, {'error': str(exc)})
+
+    def audit_packet_upload(self):
+        if self.headers.get('Content-Type', '').split(';')[0] != 'application/zip':
+            return self.send(415, {'error': 'Expected application/zip'})
+        try:
+            size = int(self.headers.get('Content-Length', '0'))
+            if not 0 < size <= PACKET_UPLOAD_LIMIT:
+                return self.send(413, {'error': 'Review packet must be between 1 byte and 2 MiB. Use the local ZIP audit for larger packets.'})
+            if not SLOTS.acquire(blocking=False):
+                return self.send(429, {'error': 'Two rehearsals are already running; retry shortly.'})
+            try:
+                payload = self.rfile.read(size)
+                reports, contract = audit_bytes(payload, archive_limit=PACKET_UPLOAD_LIMIT,
+                                               member_limit=PACKET_MEMBER_LIMIT,
+                                               total_limit=PACKET_TOTAL_LIMIT)
+                enriched = []
+                for saved in reports:
+                    report = {**saved, 'review_markdown': render_markdown(saved)}
+                    if saved.get('witness') and saved['witness']['failure']['kind'] in ('data_mismatch', 'target_mismatch'):
+                        report['reproduction_python'] = render_reproduction(saved, contract)
+                    enriched.append(report)
+                self.send(200, {'audit': 'verified', 'archive_sha256': hashlib.sha256(payload).hexdigest(),
+                                'contract': contract, 'reports': enriched})
+            finally:
+                SLOTS.release()
+        except subprocess.TimeoutExpired:
+            self.send(422, {'error': 'Packet replay timed out. No verified result was established.'})
+        except (ValueError, KeyError, TypeError, OSError, RuntimeError, EOFError,
+                zipfile.BadZipFile, zlib.error) as exc:
+            self.send(400, {'error': f'Packet could not be verified: {exc}'})
 
     def log_message(self, format, *args):
         pass

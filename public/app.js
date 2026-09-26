@@ -25,12 +25,14 @@ function updateModeControls() {
   const bobRepair=custom&&candidateProvenance==='event IBM Bob IDE candidate';
   const challenge=custom&&candidateProvenance==='controlled mutation of Bob repair';
   const generated=custom&&candidateProvenance==='generated starter';
+  const packet=custom&&candidateProvenance==='saved review packet';
   $('candidate-heading').textContent=bobRepair?"Bob's saved repair.":challenge?'Challenge the repair.':custom?'Inspect a candidate.':'Choose a rollout.';
-  $('candidate-intro-title').textContent=bobRepair?'Event-period IBM Bob IDE candidate':challenge?'Controlled negative mutation':generated?'Generated starter for your scenario':'Your candidate plan';
+  $('candidate-intro-title').textContent=bobRepair?'Event-period IBM Bob IDE candidate':challenge?'Controlled negative mutation':generated?'Generated starter for your scenario':packet?'Replayed review packet':'Your candidate plan';
   $('candidate-intro-copy').textContent=bobRepair
     ? report?`Fresh replay complete: ${report.passed}/${report.total} bounded probes. Inspect the verdict and task history, or edit the SQL and rerun.`:'This is Bob\'s saved Warehouse plan. Run it against a fresh SQLite contract to verify the result.'
     :challenge?'The old-insert synchronization write was replaced with SELECT 1. The fresh replay shows whether a new reader loses an acknowledged insert; the original Bob repair is pinned for comparison.'
     :generated?'A deterministic template supplied this SQL, then Cutover executed it against your validated contract. Edit the candidate and rerun before using any part of it outside this disposable SQLite rehearsal.'
+    :packet?'The contract and candidate came from a saved packet checked against independent execution. Inspect its replay, prepare a Bob repair task, or edit the SQL and run again. Packet origin and authorship are not authenticated.'
     :'Import a five-field plan JSON below, or enter its migration and new-version queries in the editor. No verdict appears until you run it.';
   $('plan-options').hidden=custom; $('custom-plan-intro').hidden=!custom; $('save-contract').hidden=!custom;
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||custom);
@@ -44,7 +46,7 @@ function updateModeControls() {
 }
 function setBusy(value, label='Executing SQL rehearsals…') {
   busy=value;
-  for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract')) node.disabled=value;
+  for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract,#import-packet')) node.disabled=value;
   $('try-warehouse').disabled=value;
   $('try-bob-repair').disabled=value;
   $('build-scenario').disabled=value;
@@ -55,6 +57,7 @@ function setBusy(value, label='Executing SQL rehearsals…') {
 
 function invalidate() {
   report=null; selected=null;
+  $('packet-status').hidden=true;
   $('fragility-panel').hidden=true; $('fragility-results').replaceChildren();
   $('export-ci-kit').hidden=true;
   $('ci-kit-note').hidden=true;
@@ -526,6 +529,41 @@ async function activateContract(contract, source) {
   $('case').value='custom'; chooseCase();
   $('contract-status').textContent=`${source==='example'?'Prewritten example · ':source==='builder'?'Generated starter · ':''}Validated ${result.seed_count} seed records · ${result.payload_count} inputs · contract ${result.contract_hash.slice(0,12)}`;
 }
+$('import-packet').addEventListener('change',async event=>{
+  if(busy)return;
+  const file=event.target.files[0]; if(!file)return;
+  setBusy(true,'Replaying review packet…'); pinnedReport=null; invalidate();
+  $('status-badge').textContent='VERIFYING PACKET';
+  try {
+    if(file.size>2*1024*1024)throw Error('Packet is larger than 2 MiB. Use python -m cutover.audit_bundle locally.');
+    const response=await fetch('/api/audit-bundle',{method:'POST',headers:{'Content-Type':'application/zip'},body:file});
+    const result=await response.json();
+    if(!response.ok)throw Error(result.error||'Packet replay failed.');
+    if(result.audit!=='verified'||!Array.isArray(result.reports)||![1,2].includes(result.reports.length))
+      throw Error('No verified review packet was returned.');
+    const current=result.reports.at(-1);
+    if(current.case==='custom')await activateContract(result.contract,'packet');
+    else {$('case').value=current.case;chooseCase();}
+    reference=null;
+    setPlan(current.plan,'Saved review packet · independently replayed','saved review packet');
+    pinnedReport=result.reports.length===2?result.reports[0]:null;
+    report=current;
+    renderReport();
+    $('source-label').textContent=`Replayed ${file.name} · ${current.plan_hash.slice(0,10)}`;
+    $('runtime').textContent=`Stored run: ${current.duration_ms} ms`;
+    $('packet-status').textContent=`Packet replay verified · ${file.name} · ${result.reports.map(item=>`${item.status.toUpperCase()} ${item.passed}/${item.total}`).join(' → ')}. Every packaged report, review and witness matches independent replay. Archive ${result.archive_sha256.slice(0,12)}. Origin, authorship, saved timestamps and timings are not authenticated.`;
+    $('packet-status').hidden=false;
+    if(pinnedReport)$('comparison-timeline').open=true;
+    $('verdict-title').scrollIntoView({behavior:'smooth',block:'center'});
+    notify('Review packet independently replayed. Inspect its original failure or compare both candidates.');
+  } catch(error) {
+    pinnedReport=null; invalidate();
+    $('status-badge').textContent='UNVERIFIED PACKET';
+    $('verdict-title').textContent='Packet not verified.';
+    $('verdict-description').textContent=error.message;
+    notify(error.message);
+  } finally {event.target.value='';setBusy(false);}
+});
 $('build-scenario').addEventListener('click',()=>{
   if(busy)return;
   $('scenario-error').hidden=true;

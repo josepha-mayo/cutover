@@ -82,6 +82,17 @@ The first command exits 1 with a blocked 108/124 verdict; its shortest observed 
 
 The JSON audit command reruns the checked-in contract and plan in a fresh bounded worker and compares every replayable report field. The ZIP audit command independently reruns every contained report and verifies the review text, any standalone witness source, and a before/after comparison manifest against those reports without extracting or executing the downloaded script. Creation time, runtime and host SQLite version are self-reported. Both commands exit 0 for a verified pass, 1 for a verified block, and 2 if evidence differs or cannot be replayed. Changing the shown passing replay or Bob attribution invalidates the report.
 
+**Open a CI failure in the browser:** choose **Open review packet** and select
+the `review.zip` inside the downloaded GitHub artifact, or a single/comparison
+review packet exported by Cutover. The server independently replays and checks
+every packaged report and companion file before restoring the contract, SQL,
+failure timeline, and optional baseline comparison. Editing SQL clears the
+packet's verified state. This verifies reproducible contents, not archive
+authorship or timestamps. Hosted uploads are limited to 2 MiB compressed and
+8 MiB expanded (at most 4 MiB per member). Packets contain SQL and seed data;
+use the local instance for private packets. The app reads archives in memory without extracting files or
+executing an uploaded witness script.
+
 The JSON keeps the complete shortest failure and one complete passing migration-window example. Other passing reads retain their executed SQL and probe details without repeating every seed value in every trace. The independent audit still reruns every probe and compares the complete resulting report. This keeps even the 16-seed, eight-payload, 32-statement test export small enough to review and audit.
 
 The imported contract must define `project`, `summary`, `table`, distinct `old_column`/`new_column`, initial `schema`, `seed_sql`, 1–16 `[id, value]` seed rows, an `old` read/write/insert adapter, and 2–8 domain-specific `payloads`. SQL identifiers and input sizes are bounded. The initial schema must contain exactly the named table, with no views or triggers. The old adapter must pass reads, updates of every seed ID, and an insert before migration evidence is produced. Run private schemas locally. This is a contract importer, not automatic extraction from a repository or a production-database connector.
