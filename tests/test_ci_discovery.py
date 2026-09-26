@@ -21,7 +21,7 @@ class CaseDiscoveryTests(unittest.TestCase):
             (root / "ci").mkdir()
             source = json.loads((ROOT / "ci/cases.json").read_text(encoding="utf-8"))
             for case in source:
-                for field in ("contract", "plan"):
+                for field in (key for key in ("contract", "plan", "migration_file") if key in case):
                     path = root / case[field]
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes((ROOT / case[field]).read_bytes())
@@ -40,7 +40,7 @@ class CaseDiscoveryTests(unittest.TestCase):
             root = Path(directory)
             source = json.loads((ROOT / "ci/cases.json").read_text(encoding="utf-8"))
             for case in source:
-                for field in ("contract", "plan"):
+                for field in (key for key in ("contract", "plan", "migration_file") if key in case):
                     path = root / case[field]
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes((ROOT / case[field]).read_bytes())
@@ -53,7 +53,7 @@ class CaseDiscoveryTests(unittest.TestCase):
             source.append({**source[0], "case": "New release", "slug": "new-release",
                            "plan": "ci/new-release-candidate.json"})
             manifest.write_text(json.dumps(source), encoding="utf-8")
-            self.assertEqual(len(discover(root)["include"]), 3)
+            self.assertEqual(len(discover(root)["include"]), len(source))
 
     def test_manifest_can_bind_adapters_to_a_checked_in_sql_file(self):
         with tempfile.TemporaryDirectory() as directory:

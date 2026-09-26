@@ -21,7 +21,7 @@ class InstallKitTests(unittest.TestCase):
             baseline = [item for item in json.loads((ROOT / 'ci/cases.json').read_text(encoding='utf-8'))
                         if item['slug'] != 'release-my-release']
             for source in ['ci/cases.json', *(item[key] for item in baseline
-                                               for key in ('contract', 'plan'))]:
+                                               for key in ('contract', 'plan', 'migration_file') if key in item)]:
                 destination = target / source
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(ROOT / source, destination)
@@ -54,7 +54,7 @@ class InstallKitTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='cutover-kit-bad-') as directory:
             target = Path(directory)
             baseline = json.loads((ROOT / 'ci/cases.json').read_text(encoding='utf-8'))[:1]
-            for source in (baseline[0]['contract'], baseline[0]['plan']):
+            for source in (baseline[0][key] for key in ('contract', 'plan', 'migration_file') if key in baseline[0]):
                 destination = target / source
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(ROOT / source, destination)
