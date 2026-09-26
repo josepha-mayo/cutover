@@ -12,12 +12,15 @@ parser = argparse.ArgumentParser(description="Rehearse old/new application contr
 parser.add_argument("--case", choices=["parcel", "contacts"], default="parcel")
 parser.add_argument("--reference", choices=["rename", "backfill", "late_bridge", "bridge"], default="rename")
 parser.add_argument("--plan", type=Path, help="Candidate plan JSON. Overrides --reference.")
+parser.add_argument("--migration-file", type=Path, help="UTF-8 .sql file overriding only the candidate migration; requires --plan.")
 parser.add_argument("--contract", type=Path, help="A bounded SQL contract JSON; requires --plan.")
 parser.add_argument("--output", type=Path)
 parser.add_argument("--markdown", type=Path, help="Review-ready Markdown from the same executed report.")
 parser.add_argument("--repro", type=Path, help="Standalone Python replay of a failing data mismatch witness.")
 parser.add_argument("--bundle", type=Path, help="ZIP with inputs, executed evidence, review and any replayable witness.")
 args = parser.parse_args()
+if args.migration_file and not args.plan:
+    parser.error("--migration-file requires a candidate --plan for its application queries")
 if args.contract and not args.plan:
     parser.error("--contract requires a candidate --plan")
 if args.contract and args.case != 'parcel':
@@ -25,10 +28,10 @@ if args.contract and args.case != 'parcel':
 destinations = [path.resolve() for path in (args.output, args.markdown, args.repro, args.bundle) if path]
 if len(destinations) != len(set(destinations)):
     parser.error("Evidence outputs must be different files")
-inputs = {path.resolve() for path in (args.contract, args.plan) if path}
+inputs = {path.resolve() for path in (args.contract, args.plan, args.migration_file) if path}
 for destination in (args.output, args.markdown, args.repro, args.bundle):
     if destination and destination.resolve() in inputs:
-        parser.error("Evidence outputs cannot overwrite a contract or candidate plan")
+        parser.error("Evidence outputs cannot overwrite a contract, candidate plan or migration source")
 
 
 def read_json(path, label):
@@ -42,6 +45,18 @@ def read_json(path, label):
 
 contract = read_json(args.contract, 'Contract') if args.contract else None
 plan = read_json(args.plan, 'Plan') if args.plan else load_plan(args.case, args.reference)
+if args.migration_file:
+    try:
+        if args.migration_file.stat().st_size > 65536:
+            parser.error("Migration SQL must be at most 64 KiB")
+        sql = args.migration_file.read_bytes().decode('utf-8-sig')
+        if not sql.strip() or '\0' in sql or len(sql) > 12000:
+            parser.error("Expected nonempty UTF-8 migration SQL without NUL characters, up to 12,000 characters")
+        if not isinstance(plan, dict):
+            parser.error("Candidate plan must be a JSON object")
+        plan = dict(plan, migration=sql, name=f'Imported SQL: {args.migration_file.name}'[:100])
+    except (OSError, UnicodeError) as exc:
+        parser.error(f"Cannot read migration SQL: {exc}")
 try:
     report = run_rehearsal('custom' if contract is not None else args.case, plan, contract)
 except subprocess.TimeoutExpired:

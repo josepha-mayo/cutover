@@ -96,6 +96,14 @@ python -m cutover.audit_bundle --bundle work/warehouse-review.zip
 
 Contract import checks that the fixed old reader, updater, and inserter work with every declared payload on fresh databases before attributing failures to a migration.
 
+To check the migration file you intend to commit while keeping your schema local,
+add `--migration-file path/to/migration.sql` to the rehearsal command. Cutover
+uses that UTF-8 file as the migration and retains the plan's read/write/insert
+queries. The supplied plan stays unchanged; the report and review ZIP bind the
+effective SQL and identify the candidate by the imported filename. Audit the
+ZIP with `python -m cutover.audit_bundle --bundle work/warehouse-review.zip`.
+The file must be nonempty, at most 64 KiB and 12,000 characters, with no NULs.
+
 The first command exits 1 with a blocked 108/124 verdict; its shortest observed witness has `R-07` expected and `A-01` observed. The second exits 0 with 124/124 on this particular contract. The Markdown file is generated from the same executed report object as JSON, with a trace, bound inputs, expected/observed values, hashes and limitations. The ZIP keeps that report, review, candidate, contract, audit instructions and replayable witness together for a release review. It contains the supplied seed data and SQL, so keep private contracts local. Run `python work/warehouse-late-replay.py` to reproduce its recorded data gap without Cutover installed.
 
 The JSON audit command reruns the checked-in contract and plan in a fresh bounded worker and compares every replayable report field. The ZIP audit command independently reruns every contained report and verifies the review text, any standalone witness source, and a before/after comparison manifest against those reports without extracting or executing the downloaded script. Creation time, runtime and host SQLite version are self-reported. Both commands exit 0 for a verified pass, 1 for a verified block, and 2 if evidence differs or cannot be replayed. Changing the shown passing replay or Bob attribution invalidates the report.

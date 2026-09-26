@@ -175,6 +175,37 @@ class CustomContractTests(unittest.TestCase):
                 self.assertEqual(json.loads(archive.read('contract.json')), fixture('contract.json'))
                 self.assertIn('--contract contract.json', archive.read('README.md').decode('utf-8'))
 
+    def test_cli_reviews_sql_file_and_audits_effective_bundle(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            sql = Path(temporary) / 'migration.sql'
+            sql.write_bytes(fixture('late_bridge.json')['migration'].encode('utf-8-sig'))
+            bundle = Path(temporary) / 'review.zip'
+            command = [sys.executable, '-m', 'cutover', '--contract', str(WAREHOUSE / 'contract.json'),
+                       '--plan', str(WAREHOUSE / 'bridge.json'), '--migration-file', str(sql)]
+            result = subprocess.run(command + ['--bundle', str(bundle)], cwd=ROOT,
+                                    capture_output=True, text=True, encoding='utf-8', timeout=20)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn('BLOCKED: 108/124', result.stdout)
+            with zipfile.ZipFile(bundle) as archive:
+                candidate = json.loads(archive.read('plan.json'))
+                self.assertEqual(candidate['migration'], fixture('late_bridge.json')['migration'])
+                for field in ('read', 'write', 'insert'):
+                    self.assertEqual(candidate[field], fixture('bridge.json')[field])
+                self.assertEqual(candidate['name'], 'Imported SQL: migration.sql')
+            audited = subprocess.run([sys.executable, '-m', 'cutover.audit_bundle', '--bundle', str(bundle)],
+                                     cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=20)
+            self.assertEqual(audited.returncode, 1, audited.stderr)
+            self.assertIn('VERIFIED PACKET: BLOCKED 108/124', audited.stdout)
+            before = sql.read_bytes()
+            refused = subprocess.run(command + ['--output', str(sql)], cwd=ROOT,
+                                     capture_output=True, text=True, encoding='utf-8', timeout=20)
+            self.assertEqual(refused.returncode, 2)
+            self.assertEqual(sql.read_bytes(), before)
+            sql.write_bytes(b'\xff')
+            invalid = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=20)
+            self.assertEqual(invalid.returncode, 2)
+            self.assertIn('Cannot read migration SQL', invalid.stderr)
+
     def test_cli_refuses_to_replace_its_candidate_input(self):
         plan_path = WAREHOUSE / 'bridge.json'
         before = plan_path.read_bytes()
