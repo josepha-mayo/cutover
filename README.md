@@ -31,6 +31,10 @@ or explicitly choose **Incoming write clears the value to empty text**. The
 builder executes a one-time backfill and a generated compatibility bridge on
 fresh local databases. Inspect the failure, edit the candidate's actual SQL and
 queries, then rerun. Use **Import migration .sql** for a file from your checkout.
+Expand **Application queries** to import separate read, update and insert `.sql`
+files. Each successful import clears the verdict and retains the other SQL and
+the fixed old-worker contract; run a fresh rehearsal before exporting evidence.
+Use UTF-8 SQL and the named inputs/reader aliases described beside each query.
 
 Download **both review packets** and the **comparison PR note** for review, or
 export the contract and plan for `python -m cutover`. Downloads include the seed

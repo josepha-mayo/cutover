@@ -47,7 +47,7 @@ function updateModeControls() {
     :challenge?'The old-insert synchronization write was replaced with SELECT 1. The fresh replay shows whether a new reader loses an acknowledged insert; the original Bob repair is pinned for comparison.'
     :generated?'A deterministic template supplied this SQL, then Cutover executed it against your validated contract. Edit the candidate and rerun before using any part of it outside this disposable SQLite rehearsal.'
     :packet?'The contract and candidate came from a saved packet checked against independent execution. Inspect its replay, prepare a Bob repair task, or edit the SQL and run again. Packet origin and authorship are not authenticated.'
-    :'Import a migration .sql file and review the Application queries, or import a complete plan JSON. No verdict appears until you run it.';
+    :'Import your migration .sql file. Under Application queries, import separate read, update and insert .sql files, or edit their SQL. The fixed old-worker contract stays unchanged. Run a fresh rehearsal after any import.';
   $('plan-options').hidden=custom; $('custom-plan-intro').hidden=!custom; $('save-contract').hidden=!custom;
   document.querySelectorAll('[data-plan]').forEach(button=>button.disabled=busy||!activeCase||custom);
   $('try-cross-record').disabled=busy||!activeCase||custom;
