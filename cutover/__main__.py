@@ -104,6 +104,10 @@ print(f"{report['status'].upper()}: {report['passed']}/{report['total']} rollout
       f"same-version baseline {report['baseline']['passed']}/{report['baseline']['total']}; "
       f"plan {report['plan_hash'][:12]}")
 if report['witness']:
-    print("Witness:", " -> ".join(e['action'] for e in report['witness']['trace']))
+    if selected_export:
+        print(f"Selected Markdown/replay export: {selected_export['probe_id']}")
+        print(f"Canonical suite witness (report/bundle): {report['witness']['id']}")
+    print("Suite witness:" if selected_export else "Witness:",
+          " -> ".join(e['action'] for e in report['witness']['trace']))
     print(report['witness']['failure']['message'])
 sys.exit(0 if report["status"] == "pass" else 1)

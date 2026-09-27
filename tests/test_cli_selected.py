@@ -21,6 +21,8 @@ class SelectedCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr)
             suite = json.loads(report.read_text(encoding='utf-8'))
             self.assertNotEqual(suite['witness']['id'], 'window_write_after_2-3')
+            self.assertIn('Selected Markdown/replay export: window_write_after_2-3', result.stdout)
+            self.assertIn('Canonical suite witness (report/bundle): ' + suite['witness']['id'], result.stdout)
             self.assertIn('**`window_write_after_2-3`**', note.read_text(encoding='utf-8'))
             replay = subprocess.run([sys.executable, '-I', str(script)], cwd=directory,
                 capture_output=True, text=True, encoding='utf-8', timeout=10)
