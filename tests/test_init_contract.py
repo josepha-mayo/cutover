@@ -10,6 +10,44 @@ from cutover.local_starter import render_local_starter
 
 
 class LocalContractSetupTests(unittest.TestCase):
+    def test_supplied_new_queries_are_retained_in_both_plans_and_executed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with zipfile.ZipFile(io.BytesIO(render_local_starter())) as archive:
+                archive.extractall(root)
+            queries = {
+                'read': b'\xef\xbb\xbfSELECT id,COALESCE(dispatch_bay,loading_bay) AS value FROM shipments ORDER BY id;\r\n',
+                'write': b'UPDATE shipments SET dispatch_bay=:value,loading_bay=:value WHERE id=:id;\r\n',
+                'insert': b'INSERT INTO shipments(id,loading_bay,dispatch_bay) VALUES(:id,:value,:value);\r\n-- supplied new inserter\r\n'}
+            command = [sys.executable, '-S', '-m', 'cutover.init_contract', '--project', 'Supplied new worker',
+                '--table', 'shipments', '--old-column', 'loading_bay', '--new-column', 'dispatch_bay',
+                '--first-value', 'A-01', '--second-value', 'B-02', '--incoming-value', 'GATE-09']
+            for operation, raw in queries.items():
+                (root/(operation+'.sql')).write_bytes(raw)
+                command += ['--new-'+operation+'-file', operation+'.sql']
+            def run(args):
+                return subprocess.run(args, cwd=root, capture_output=True, timeout=120)
+            created = run(command+['--out', 'release'])
+            self.assertEqual(created.returncode, 0, created.stderr)
+            for name in ('baseline.json', 'candidate.json'):
+                plan = json.loads((root/'release'/name).read_text(encoding='utf-8'))
+                for operation, raw in queries.items():
+                    self.assertEqual(plan[operation], raw.decode('utf-8-sig'))
+                    self.assertEqual((root/('release/new-'+operation+'.sql')).read_bytes(), raw)
+                    self.assertEqual((root/(operation+'.sql')).read_bytes(), raw)
+            reviewed = run([sys.executable, '-S', '-m', 'cutover.review_project', '--project', 'release', '--out', 'review'])
+            self.assertEqual(reviewed.returncode, 1, reviewed.stderr)
+            with zipfile.ZipFile(root/'review/comparison.zip') as archive:
+                for prefix in ('baseline', 'candidate'):
+                    report = json.loads(archive.read(prefix+'/report.json'))
+                    for operation, raw in queries.items():
+                        self.assertEqual(report['plan'][operation], raw.decode('utf-8-sig'))
+                    self.assertTrue(any(e['action']=='new.write' and e.get('sql')==queries['write'].decode()
+                        for p in report['results'] for e in p['trace']))
+            (root/'read.sql').write_bytes(b'\xff')
+            self.assertEqual(run(command+['--out', 'bad']).returncode, 2)
+            self.assertFalse((root/'bad').exists())
+
     def test_supplied_old_queries_execute_and_invalid_query_has_no_template_fallback(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

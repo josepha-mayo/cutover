@@ -54,6 +54,8 @@ def main():
     for operation in ('read', 'write', 'insert'):
         parser.add_argument('--old-'+operation+'-file', type=Path,
                             help='Snapshot the old-worker SQL; validated with synthetic seeds and payloads before saving')
+        parser.add_argument('--new-'+operation+'-file', type=Path,
+                            help='Snapshot new-worker SQL into both initial plans; importing does not establish a verdict')
     args = parser.parse_args()
     try:
         contract, plan = build_contract(args.project, args.table, args.old_column, args.new_column,
@@ -69,6 +71,13 @@ def main():
                 raw, sql = read_sql_file(source, 'Old-worker '+operation+' SQL')
                 old_files[operation] = raw
                 contract['old'][operation] = sql
+        new_files = {}
+        for operation in ('read', 'write', 'insert'):
+            source = getattr(args, 'new_'+operation+'_file')
+            if source is not None:
+                raw, sql = read_sql_file(source, 'New-worker '+operation+' SQL')
+                new_files[operation] = raw
+                plan[operation] = sql
         migration_bytes = (plan['migration']+'\n').encode('utf-8')
         if args.migration_file is not None:
             migration_bytes, sql = read_sql_file(args.migration_file, 'Migration SQL')
@@ -76,6 +85,8 @@ def main():
             plan['name'] = ('Imported original SQL: '+args.migration_file.name)[:100]
         # Validate fixed old queries on disposable SQLite before saving any inputs.
         from .service import validate_imported_contract
+        from .engine import validate_plan
+        validate_plan(plan)
         validate_imported_contract(contract)
         args.out.mkdir(parents=True, exist_ok=False)
         for name, data in [('contract.json', contract), ('baseline.json', plan), ('candidate.json', plan)]:
@@ -85,6 +96,8 @@ def main():
             (args.out/'schema.sql').write_bytes(schema_bytes)
         for operation, raw in old_files.items():
             (args.out/('old-'+operation+'.sql')).write_bytes(raw)
+        for operation, raw in new_files.items():
+            (args.out/('new-'+operation+'.sql')).write_bytes(raw)
         schema_scope = ('Your supplied schema DDL is retained byte-for-byte in schema.sql and decoded into contract.json. '
                         'The source was not edited. Exactly one named table is supported, without initial views or triggers; '
                         'id and the old column must exist, and the new column must be absent. Indexes and extra columns may remain '
@@ -100,9 +113,13 @@ def main():
         starting_sql = ('Your supplied SQL was copied byte-for-byte to migration.sql and decoded into both original plans. '
                         'The source file was not edited. No verdict is inferred from importing it.' if args.migration_file else
                         'The generated one-time backfill should block: a successful new-version smoke test does not protect old-worker writes after the copy.')
+        new_scope = ('Supplied new-worker SQL is retained byte-for-byte in new-read.sql, new-write.sql and/or new-insert.sql '
+                     'and decoded into both initial plans. Unsupplied new queries remain generated templates. '
+                     'New queries are not executed by setup: rehearse them with the migration before relying on a verdict.'
+                     if new_files else 'New-worker queries remain generated templates: inspect them before use.')
         (args.out/'README.md').write_text(f'''# Your local migration rehearsal
 
-{schema_scope} Seed values and incoming writes are supplied synthetic examples, not database rows. No passing repair is supplied. {adapter_scope} New-worker queries remain generated templates: inspect them before use. Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
+{schema_scope} Seed values and incoming writes are supplied synthetic examples, not database rows. No passing repair is supplied. {adapter_scope} {new_scope} Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
 
 After editing, run one review from the extracted runtime folder:
 

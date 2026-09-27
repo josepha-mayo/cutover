@@ -82,8 +82,15 @@ Each supplied UTF-8 file replaces only that old query, retains its exact bytes
 in the project, and puts decoded SQL into the fixed contract. All old queries
 must work with the synthetic seeds/payloads before the folder is saved; invalid
 queries are refused rather than replaced by defaults. Unsupplied old queries
-and all new-worker queries remain generated templates. Inspect them before use.
+remain generated templates. Inspect every adapter before use.
 No queries are inferred from application source and no production rows are copied.
+
+Supply the new-worker queries with `--new-read-file new-read.sql`,
+`--new-write-file new-write.sql`, `--new-insert-file new-insert.sql` as needed.
+These replace corresponding generated new queries in both initial plans and
+retain their exact source bytes in the project. Setup validates input shape,
+not new-query execution: the later rehearsal executes them with the migration.
+Missing flags leave that query generated; no passing claim or repair is inferred.
 
 ```text
 python -m cutover.review_project --project my-release --out review-1
