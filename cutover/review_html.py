@@ -17,6 +17,7 @@ button{padding:8px 15px;margin-right:8px;background:#f4f5ef;border:1px solid #ba
 .step-link{display:inline-block;min-height:44px;padding:8px 0;margin-right:12px}button:disabled{opacity:.45;cursor:default}:focus-visible{outline:3px solid #ea653a;outline-offset:3px}
 pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f5ef;padding:14px;font:12px/1.6 monospace;max-height:360px;overflow:auto}
 code,.identity{overflow-wrap:anywhere}.identity{font:11px/1.6 monospace;color:#58665b}summary{cursor:pointer;min-height:44px}
+.row-differences{display:grid;gap:12px}.row-difference{border-left:4px solid #ad403a;padding:12px;background:#f4f5ef}.row-difference h3{margin:0}.row-difference pre{margin:4px 0;padding:8px;max-height:180px}.row-difference .scope{margin:4px 0}
 .observations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.observations>div{min-width:0}
 @media(max-width:650px){main{padding:16px}.cards,.columns,.observations{grid-template-columns:minmax(0,1fr)}h1{font-size:28px}}
 '''
@@ -140,6 +141,16 @@ function acknowledgedWriteStep(probe){
     ['old.write','new.write','old.insert','new.insert'].includes(e.action)&&e.status==='pass');
   return writes.length===1?{writeStep:writes[0].i,readStep}:null;
 }
+function recordedRowChanges(event){
+  const expected=event.expected,actual=event.actual;
+  if(event.status!=='fail'||!expected||!actual||typeof expected!=='object'||typeof actual!=='object'||Array.isArray(expected)||Array.isArray(actual))return null;
+  const keys=[...new Set([...Object.keys(expected),...Object.keys(actual)])];
+  const changes=keys.filter(key=>Object.hasOwn(expected,key)!==Object.hasOwn(actual,key)||JSON.stringify(expected[key])!==JSON.stringify(actual[key]));
+  return {changes:changes.map(key=>({key,expectedPresent:Object.hasOwn(expected,key),actualPresent:Object.hasOwn(actual,key),expected:expected[key],actual:actual[key]})),unchanged:keys.length-changes.length};
+}
+function recordedValue(value,present){
+  return !present?'Row not returned':value===null?'SQL null':value===''?'"" (empty string)':JSON.stringify(value);
+}
 function renderStep(){
   const accepted=acknowledgedWriteStep(selected);
   $('accepted-write').hidden=!accepted;
@@ -157,6 +168,20 @@ function renderStep(){
   text('pre',e.sql||'No SQL recorded for this event.',$('event'));
   if(e.params){text('h3','Executed inputs',$('event'));text('pre',JSON.stringify(e.params,null,2),$('event'));}
   if(Object.hasOwn(e,'expected')&&Object.hasOwn(e,'actual')){
+    const differences=recordedRowChanges(e);
+    if(differences?.changes.length){
+      text('h3',`${differences.changes.length} recorded row mismatch${differences.changes.length===1?'':'es'}`,$('event'));
+      text('p',`${differences.unchanged} other recorded row${differences.unchanged===1?'':'s'} unchanged. Values below come from this retained reader observation. No SQL was executed.`, $('event')).className='scope';
+      const rows=document.createElement('div');rows.className='row-differences';$('event').append(rows);
+      differences.changes.forEach(row=>{
+        const card=document.createElement('div');card.className='row-difference';rows.append(card);text('h3','Row '+row.key,card);
+        const cells=document.createElement('div');cells.className='observations';card.append(cells);
+        [['Expected by contract',row.expected,row.expectedPresent],['Reader observed',row.actual,row.actualPresent]].forEach(([label,value,present])=>{
+          const col=document.createElement('div');cells.append(col);text('p',label,col).className='scope';text('pre',recordedValue(value,present),col);
+        });
+      });
+      text('h3','Full recorded observation',$('event'));
+    }
     const pair=document.createElement('div');pair.className='observations';$('event').append(pair);
     [['Expected by contract',e.expected],['Reader observed',e.actual]].forEach(([label,values])=>{const col=document.createElement('div');pair.append(col);text('h3',label,col);text('pre',JSON.stringify(values,null,2),col);});
   }else text('p','No row values recorded at this step. Inputs are not a database snapshot.',$('event'));
