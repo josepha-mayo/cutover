@@ -445,12 +445,20 @@ function renderTrace(probe) {
   renderWalkStep();
   updateReplayExport();
 }
+function acknowledgedWriteIndex(probe) {
+  if(!probe||probe.passed)return -1;
+  const failed=probe.trace.findIndex(event=>event.status==='fail');
+  if(failed<0)return -1;
+  const writes=probe.trace.slice(0,failed).flatMap((event,index)=>
+    event.status==='pass'&&/^(old|new)\.(write|insert)$/.test(event.action)?[index]:[]);
+  return writes.length===1?writes[0]:-1;
+}
 function renderWalkStep() {
   const probe=report?.results.find(item=>item.id===selected);
   let panel=$('replay-walk');
   if(!panel){
     panel=document.createElement('details'); panel.id='replay-walk';
-    panel.innerHTML='<summary>Walk this recorded replay</summary><p>Step through recorded SQL without rerunning it. No database state is inferred between reads.</p><button type="button" class="secondary">Previous step</button><label>Replay step <input type="range" min="0" value="0"></label><button type="button" class="secondary">Next step</button><button type="button" class="secondary">Show failed step</button><div aria-live="polite"></div>';
+    panel.innerHTML='<summary>Walk this recorded replay</summary><p>Step through recorded SQL without rerunning it. No database state is inferred between reads.</p><button type="button" class="secondary">Previous step</button><label>Replay step <input type="range" min="0" value="0"></label><button type="button" class="secondary">Next step</button><button type="button" class="secondary">Show failed step</button><button type="button" class="secondary">Show acknowledged write</button><div aria-live="polite"></div>';
     $('trace').before(panel);
     const buttons=panel.querySelectorAll('button'),slider=panel.querySelector('input');
     buttons[0].onclick=()=>{walkIndex--;renderWalkStep();};
@@ -459,6 +467,10 @@ function renderWalkStep() {
       const current=report?.results.find(item=>item.id===selected);
       const failed=current?.trace.findIndex(event=>event.status==='fail')??-1;
       if(failed<0)return;walkIndex=failed;renderWalkStep();
+    };
+    buttons[3].onclick=()=>{
+      const write=acknowledgedWriteIndex(report?.results.find(item=>item.id===selected));
+      if(write<0)return;walkIndex=write;renderWalkStep();
     };
     slider.oninput=()=>{walkIndex=Number(slider.value);renderWalkStep();};
   }
@@ -471,6 +483,9 @@ function renderWalkStep() {
   buttons[0].disabled=walkIndex===0;buttons[1].disabled=walkIndex===probe.trace.length-1;
   const failedStep=probe.trace.findIndex(event=>event.status==='fail');
   buttons[2].disabled=failedStep<0||walkIndex===failedStep;
+  const acknowledgedWrite=acknowledgedWriteIndex(probe);
+  buttons[3].disabled=acknowledgedWrite<0||walkIndex===acknowledgedWrite;
+  buttons[3].title=acknowledgedWrite<0?'Available when exactly one successful worker write or insert precedes this failure.':'Show the recorded successful worker operation and its SQL inputs.';
   panel.querySelector('div').innerHTML=`<div class="trace-step ${escape(event.status)}"><p>STEP ${walkIndex+1} / ${probe.trace.length} · ${escape(event.status)}</p><h4>${escape(event.action)}</h4><p>${escape(event.detail||'Executed.')}${event.connection?' · '+escape(event.connection)+' connection':''}</p><pre>${escape(event.sql||'No SQL recorded.')}${event.params?'\n\nInputs: '+escape(pretty(event.params)):''}</pre>${Object.hasOwn(event,'expected')&&Object.hasOwn(event,'actual')?`<div class="comparison"><div class="expected">EXPECTED BY CONTRACT<pre>${escape(pretty(event.expected))}</pre></div><div class="actual">READER OBSERVED<pre>${escape(pretty(event.actual))}</pre></div></div>`:'<p>No row values recorded at this step. Inputs are not a database snapshot.</p>'}</div>`;
 }
 function hasRecordedDataGap(probe) {
