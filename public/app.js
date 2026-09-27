@@ -8,6 +8,7 @@ let bundleBusy = false;
 let ciKitBusy = false;
 let replayBusy = false;
 let comparisonBusy = false;
+let comparisonNote = '';
 let fragilityBusy = false;
 let importedContract = null, importedMeta = null, customPlan = null, customPlanSource = null;
 let candidateSource = '', candidateProvenance = 'custom candidate', customPlanProvenance = null;
@@ -62,6 +63,7 @@ function updateModeControls() {
 }
 function setBusy(value, label='Executing SQL rehearsals…') {
   busy=value;
+  $('export-comparison-note').disabled=value||comparisonBusy||!comparisonNote;
   for (const node of document.querySelectorAll('.candidate-panel button,.candidate-panel textarea,.candidate-panel input,#case,#import-contract,#import-packet,#open-contract,#open-packet')) node.disabled=value;
   $('try-warehouse').disabled=value;
   $('try-bob-repair').disabled=value;
@@ -114,6 +116,8 @@ function renderComparison() {
   $('comparison-witness').hidden=true;
   $('comparison-baseline-replay').hidden=true;
   $('export-comparison').hidden=true;
+  $('export-comparison-note').hidden=true;
+  comparisonNote='';
   tools.hidden=!report&&!pinnedReport;
   $('pin-baseline').disabled=!report||busy;
   $('clear-baseline').hidden=!pinnedReport;
@@ -195,6 +199,20 @@ function renderComparison() {
   timeline.hidden=false;
   $('export-comparison').hidden=false;
   $('export-comparison').disabled=busy||comparisonBusy;
+  const fence=(value,language='sql')=>{const text=String(value);const longest=Math.max(0,...[...text.matchAll(/~+/g)].map(match=>match[0].length));const marker='~'.repeat(Math.max(3,longest+1));return `${marker}${language}\n${text}\n${marker}`;};
+  comparisonNote=['# Cutover candidate comparison','',coverage.trim(),'',
+    `Paired ${sameMigration?'rollout and window':'completed-rollout'} probes: ${paired}. Resolved: ${resolved}. Regressed: ${regressed}.`,
+    `Baseline window failures: ${oldWindows.total-oldWindows.passed}/${oldWindows.total}. Candidate window failures: ${newWindows.total-newWindows.passed}/${newWindows.total}.`,
+    sameMigration?'Statement boundaries use the same migration SQL.':'Different SQL sequences: window probes are evaluated separately, not paired by step number.',
+    '', '## Executed SQL changes','', 'Textual differences do not establish causality. These are the inputs to the measured reports.', '',
+    ...sqlChanges.flatMap(key=>[`### ${key}`,'','Pinned baseline:',fence(pinnedReport.plan[key]),'','Current candidate:',fence(report.plan[key]),'']),
+    ...(sqlChanges.length?[]:['Migration and all three application queries are identical.','']),
+    '## Evidence identity','',fence(pretty({baseline_plan_sha256:pinnedReport.plan_hash,candidate_plan_sha256:report.plan_hash,contract_sha256:report.contract_hash,engine_sha256:report.engine_sha256,suite_sha256:report.suite_hash}),'json'),'',
+    '## Review and verify','', 'This note summarizes the displayed executed reports; downloading it does not rerun SQL. Attach the separately exported paired ZIP and verify it with:', '',
+    fence('python -m cutover.audit_bundle --bundle PATH_TO_ZIP','text'),'',
+    'A passing bounded SQLite rehearsal is not production deployment approval. This note does not authenticate origin or establish IBM Bob authorship.',''].join('\n');
+  $('export-comparison-note').hidden=false;
+  $('export-comparison-note').disabled=busy||comparisonBusy;
 }
 function boundaryTimeline(measured, label) {
   const windows=measured.results.filter(item=>item.category==='migration_window');
@@ -589,7 +607,7 @@ $('export-comparison').addEventListener('click',async()=>{
     baseline_plan_hash:baseline.plan_hash,candidate_plan_hash:candidate.plan_hash,
     contract_hash:candidate.contract_hash};
   if(candidate.case==='custom')request.contract=importedContract;
-  comparisonBusy=true;button.disabled=true;button.textContent='Replaying both plans…';
+  comparisonBusy=true;button.disabled=true;$('export-comparison-note').disabled=true;button.textContent='Replaying both plans…';
   try {
     const body=JSON.stringify(request);
     if(new Blob([body]).size>131072)throw Error('The paired contract and plans exceed the 128 KiB hosted request limit. Use the local CLI.');
@@ -611,6 +629,11 @@ $('export-comparison').addEventListener('click',async()=>{
     notify('Both review packets downloaded from fresh, independently auditable rehearsals.');
   }catch(error){notify(error.message);}
   finally{comparisonBusy=false;button.textContent='Download both review packets ↓';renderComparison();}
+});
+$('export-comparison-note').addEventListener('click',()=>{
+  if(!comparisonNote||busy||comparisonBusy||!report||!pinnedReport)return;
+  download(`cutover-${pinnedReport.plan_hash.slice(0,8)}-to-${report.plan_hash.slice(0,8)}-comparison.md`,comparisonNote,'text/markdown');
+  notify('Comparison note downloaded from displayed evidence. Attach the paired review ZIP for independent verification.');
 });
 $('export').addEventListener('click',()=>{if(!report)return;const {review_markdown,reproduction_python,...evidence}=report;download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.json`,pretty(evidence));});
 async function exportSelected(format='python') {
