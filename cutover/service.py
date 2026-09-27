@@ -22,11 +22,11 @@ def validate_rehearsal_inputs(case, plan, contract):
     validate_plan(plan)
 
 
-def run_selected_replay(case, plan, probe_id, identities, observed_probe, contract=None):
+def run_selected_replay(case, plan, probe_id, identities, observed_probe, contract=None, *, review_only=False):
     validate_rehearsal_inputs(case, plan, contract)
     return run_worker({'operation': 'selected_replay', 'case': case, 'plan': plan,
                        'contract': contract, 'probe_id': probe_id, 'identities': identities,
-                       'observed_probe': observed_probe})
+                       'observed_probe': observed_probe, 'review_only': review_only})
 
 
 def validate_imported_contract(contract):

@@ -198,7 +198,8 @@ class Handler(BaseHTTPRequestHandler):
                     identities = {key: body[key] for key in
                                   ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}
                     result = run_selected_replay(body['case'], body['plan'], body['probe_id'],
-                                                 identities, body['observed_probe'], body.get('contract'))
+                                                 identities, body['observed_probe'], body.get('contract'),
+                                                 review_only=review_note)
                     self.send(200, result['review_markdown' if review_note else 'script'].encode('utf-8'),
                               'text/markdown; charset=utf-8' if review_note else 'text/x-python; charset=utf-8', {
                         'Content-Disposition': 'attachment; filename="cutover-selected-review.md"' if review_note else 'attachment; filename="cutover-selected-replay.py"',

@@ -10,6 +10,26 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SelectedCliTests(unittest.TestCase):
+    def test_sql_error_exports_verified_note_but_not_data_loss_script(self):
+        from cutover.engine import load_plan
+        from cutover.service import run_rehearsal
+        report = run_rehearsal('parcel', load_plan('parcel', 'rename'))
+        probe = next(p for p in report['results'] if p.get('failure', {}).get('kind') == 'sql_error')
+        with tempfile.TemporaryDirectory() as directory:
+            note = Path(directory)/'query-error.md'
+            command = [sys.executable, '-m', 'cutover', '--reference', 'rename',
+                       '--selected-probe', probe['id'], '--markdown', str(note)]
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, timeout=60)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            from cutover.reporting import inline
+            self.assertIn(inline(probe['failure']['message']), note.read_text(encoding='utf-8'))
+            self.assertIn(report['plan_hash'], note.read_text(encoding='utf-8'))
+            script = Path(directory)/'error.py'
+            result = subprocess.run(command[:-2] + ['--repro', str(script)], cwd=ROOT,
+                                    capture_output=True, timeout=60)
+            self.assertEqual(result.returncode, 2)
+            self.assertFalse(script.exists())
+
     def test_selected_unicode_exports_and_canonical_report(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

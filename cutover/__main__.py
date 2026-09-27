@@ -107,7 +107,7 @@ try:
             raise ValueError('Selected probe is not present in the executed report')
         selected_export = run_selected_replay('custom' if contract is not None else args.case, plan,
                                              args.selected_probe, {key: report[key] for key in IDENTITIES},
-                                             probe, contract)
+                                             probe, contract, review_only=not args.repro)
     reproduction = (selected_export['script'] if selected_export else
                     render_reproduction(report, contract if contract is not None else load_case(args.case))) if args.repro else None
 except subprocess.TimeoutExpired:

@@ -17,7 +17,8 @@ try:
         }
     elif request.get('operation') == 'selected_replay':
         result = rehearse_selected(request['case'], request['plan'], request['probe_id'],
-                                   request['identities'], request['observed_probe'], request.get('contract'))
+                                   request['identities'], request['observed_probe'], request.get('contract'),
+                                   review_only=request.get('review_only', False))
     else:
         result = rehearse(request['case'], request['plan'], request.get('contract'))
     print(json.dumps(result, ensure_ascii=True))

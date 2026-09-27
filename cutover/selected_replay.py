@@ -9,7 +9,7 @@ from .reporting import render_reproduction, replay_section
 IDENTITIES = ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')
 
 
-def rehearse_selected(case, plan, probe_id, identities, observed_probe, contract=None):
+def rehearse_selected(case, plan, probe_id, identities, observed_probe, contract=None, *, review_only=False):
     if not isinstance(probe_id, str) or not probe_id:
         raise ValueError('Select a probe from the executed report')
     if contract is not None and case != 'custom':
@@ -20,7 +20,8 @@ def rehearse_selected(case, plan, probe_id, identities, observed_probe, contract
     probe = next((row for row in report['results'] if row['id'] == probe_id), None)
     if probe is None:
         raise ValueError('Select a probe from the executed report')
-    if probe['passed'] or (probe.get('failure') or {}).get('kind') not in ('data_mismatch', 'target_mismatch'):
+    eligible = (probe.get('failure') or {}).get('kind') in ('data_mismatch', 'target_mismatch')
+    if probe['passed'] or (not eligible and not review_only):
         raise ValueError('A failing data mismatch witness is required for a runnable reproduction')
     if json.loads(json.dumps(probe)) != observed_probe:
         raise ValueError('Fresh selected failure differs from the displayed evidence. Rerun the candidate.')
@@ -42,7 +43,7 @@ def rehearse_selected(case, plan, probe_id, identities, observed_probe, contract
 
     # Keep the suite's canonical shortest witness and all packet formats intact.
     selected = {**probe, **repeated}
-    script = render_reproduction({**report, 'witness': selected}, source, ascii_output=True)
+    script = render_reproduction({**report, 'witness': selected}, source, ascii_output=True) if eligible else None
     note = '\n'.join(['# Cutover selected failure review', '',
                       f'Suite result: {report["passed"]}/{report["total"]} probes passed.', '',
                       'This selected failure was freshly rerun and matched the displayed observation. '

@@ -99,6 +99,13 @@ its old-write synchronization SQL. Both retained review packets passed
 independent replay against their GitHub run checkouts. That historical kit
 retains its earlier Action pin; new downloads include the contract lock.
 
+Selected PR notes also support failed SQL queries and adapter-contract errors.
+The chosen trace is freshly rerun and must match the displayed evidence. Its
+query, error and input identities are retained; passing probes remain ineligible.
+Runnable selected Python exports still require an actual data mismatch. Locally,
+use `--selected-probe PROBE_ID --markdown work/query-error.md` without `--repro`
+for a SQL-error note.
+
 ## Export a PR gate entirely locally
 
 After a private custom candidate passes, produce the same pinned four-file gate

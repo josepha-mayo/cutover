@@ -443,11 +443,11 @@ function updateReplayExport() {
   const eligible=probe&&!probe.passed&&['data_mismatch','target_mismatch'].includes(probe.failure?.kind);
   $('export-repro').disabled=busy||replayBusy||!eligible;
   $('export-repro').textContent=replayBusy?'Preparing selected replay…':'Export this failed replay ↓';
-  $('export-selected-review').disabled=busy||replayBusy||!eligible;
+  $('export-selected-review').disabled=busy||replayBusy||!probe||probe.passed;
   $('replay-export-note').textContent=eligible
     ?'Downloads a standalone Python replay of this selected data mismatch after a fresh run matches the displayed evidence. It reproduces one failure, not the full suite.'
     :probe?.passed?'This probe passed. Select a failed data-mismatch probe to export its replay.'
-    :probe?'This failure is not a data mismatch. Its SQL and error remain in the review packet.'
+    :probe?'This failure is not a data mismatch. Download its selected PR note for the rerun SQL and error; a data-loss script is unavailable.'
     :'Select a failed data-mismatch probe to export its replay.';
 }
 async function showBob() {
@@ -652,7 +652,7 @@ $('export').addEventListener('click',()=>{if(!report)return;const {review_markdo
 async function exportSelected(format='python') {
   const snapshot=report, probeId=selected;
   const probe=snapshot?.results.find(item=>item.id===probeId);
-  if(busy||replayBusy||!probe||probe.passed||!['data_mismatch','target_mismatch'].includes(probe.failure?.kind))return;
+  if(busy||replayBusy||!probe||probe.passed||(format==='python'&&!['data_mismatch','target_mismatch'].includes(probe.failure?.kind)))return;
   const request={case:snapshot.case,plan:snapshot.plan,probe_id:probeId,observed_probe:probe,format,
     plan_hash:snapshot.plan_hash,contract_hash:snapshot.contract_hash,
     engine_sha256:snapshot.engine_sha256,suite_hash:snapshot.suite_hash};

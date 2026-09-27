@@ -76,6 +76,25 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertIn(b'export function buildScenario', body)
 
+    def test_sql_error_selected_note_reruns_and_refuses_script_or_changed_observation(self):
+        inputs = {'case': 'parcel', 'plan': load_plan('parcel', 'rename')}
+        code, body = self.request('/api/rehearse', inputs)
+        self.assertEqual(code, 200)
+        report = json.loads(body)
+        probe = next(p for p in report['results'] if p.get('failure', {}).get('kind') == 'sql_error')
+        payload = {**inputs, 'probe_id': probe['id'], 'observed_probe': probe,
+                   **{k: report[k] for k in ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}}
+        code, body = self.request('/api/replay', {**payload, 'format': 'markdown'})
+        self.assertEqual(code, 200)
+        self.assertIn(b'no such column', body)
+        self.assertIn(probe['id'].encode(), body)
+        self.assertIn(report['plan_hash'].encode(), body)
+        code, _ = self.request('/api/replay', {**payload, 'format': 'python'})
+        self.assertEqual(code, 400)
+        changed = dict(probe, payload='not the executed value')
+        code, _ = self.request('/api/replay', {**payload, 'format': 'markdown', 'observed_probe': changed})
+        self.assertEqual(code, 400)
+
     def test_selected_replay_executes_the_requested_failure_not_the_first(self):
         cases = [({'case': 'parcel', 'plan': load_plan('parcel', 'late_bridge')},
                   'window_insert_after_2-1'),
