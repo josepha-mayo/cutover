@@ -58,6 +58,12 @@ python -m cutover --contract my-release/contract.json --plan my-release/baseline
 The second command should block. Edit my-release/migration.sql and the candidate
 queries, then run one local review command:
 
+If you already have migration SQL, add `--migration-file path/to/original.sql`
+to the setup command. It copies the exact UTF-8 file (up to 64 KiB) into the
+new project and both original plans, leaving the source untouched. Importing
+does not establish a verdict. The generated schema and old/new queries are
+still a two-column starter: inspect and adapt them to your actual contract.
+
 ```text
 python -m cutover.review_project --project my-release --out review-1
 ```

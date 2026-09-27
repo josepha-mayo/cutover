@@ -138,7 +138,9 @@ python -m cutover --contract my-release/contract.json --plan my-release/baseline
 
 This validates the generated old-worker queries locally and creates the contract, original backfill, editable candidate/migration SQL and repair instructions in a new folder. The backfill should block; no passing repair is supplied. Adapt the synthetic schema and fixed queries to your actual contract, edit the candidate and compare before/after. Existing folders are refused. Use `--incoming-value ""` for a legitimate clear-to-empty write. This is Codex setup assistance, not a new Bob task.
 
-After editing the generated migration SQL and candidate adapters, run the complete local review with one command:
+Already have migration SQL? Add `--migration-file path/to/original.sql` to the setup command. Cutover copies the exact UTF-8 file (up to 64 KiB) into the new project and uses its SQL in both original plans, leaving the source untouched. Importing makes no passing or failing claim. The schema and worker queries remain an editable two-column starter; adapt them to the actual contract before relying on a review.
+
+After editing the migration SQL and candidate adapters, run the complete local review with one command:
 
 ```text
 python -m cutover.review_project --project my-release --out review-1

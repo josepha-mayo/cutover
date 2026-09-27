@@ -38,17 +38,32 @@ def main():
     for name in ('project', 'table', 'old-column', 'new-column', 'first-value', 'second-value', 'incoming-value'):
         parser.add_argument('--'+name, required=True)
     parser.add_argument('--out', type=Path, required=True, help='New folder; existing folders are refused')
+    parser.add_argument('--migration-file', type=Path,
+                        help='Snapshot your UTF-8 migration SQL instead of generating a backfill (at most 64 KiB)')
     args = parser.parse_args()
     try:
         contract, plan = build_contract(args.project, args.table, args.old_column, args.new_column,
                                        args.first_value, args.second_value, args.incoming_value)
+        migration_bytes = (plan['migration']+'\n').encode('utf-8')
+        if args.migration_file is not None:
+            if args.migration_file.stat().st_size > 65536:
+                raise ValueError('Migration SQL must be at most 64 KiB')
+            migration_bytes = args.migration_file.read_bytes()
+            sql = migration_bytes.decode('utf-8-sig')
+            if not sql.strip():
+                raise ValueError('Migration SQL must not be empty')
+            plan['migration'] = sql
+            plan['name'] = ('Imported original SQL: '+args.migration_file.name)[:100]
         # Validate fixed old queries on disposable SQLite before saving any inputs.
         from .service import validate_imported_contract
         validate_imported_contract(contract)
         args.out.mkdir(parents=True, exist_ok=False)
         for name, data in [('contract.json', contract), ('baseline.json', plan), ('candidate.json', plan)]:
             (args.out/name).write_text(json.dumps(data, ensure_ascii=True, indent=2)+'\n', encoding='utf-8')
-        (args.out/'migration.sql').write_text(plan['migration']+'\n', encoding='utf-8')
+        (args.out/'migration.sql').write_bytes(migration_bytes)
+        starting_sql = ('Your supplied SQL was copied byte-for-byte to migration.sql and decoded into both original plans. '
+                        'The source file was not edited. No verdict is inferred from importing it.' if args.migration_file else
+                        'The generated one-time backfill should block: a successful new-version smoke test does not protect old-worker writes after the copy.')
         (args.out/'README.md').write_text(f'''# Your local migration rehearsal
 
 This is a generated synthetic two-column SQLite starter, not your production schema or a passing repair. Inspect and adapt contract.json to your fixed old-worker schema and queries. Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
@@ -59,7 +74,7 @@ After editing, run one review from the extracted runtime folder:
 python -m cutover.review_project --project "{args.out.as_posix()}" --out review-1
 ```
 
-This snapshots the four input files, compares both plans, independently audits the packet and writes review.md. A passing candidate also exports pr-kit.zip; inspect its four files before copying them into your repository. Blocked/unverified candidates do not produce a ready PR kit. Existing output folders are refused; use review-2 for the next attempt. The exit follows the candidate: 0 passing, 1 blocked, 2 unverified. The original blocked baseline remains in the comparison.
+This snapshots the four input files, compares both plans, independently audits the packet and writes review.md and review.html. Open review.html locally to follow the recorded steps without executing SQL or using the network. A passing candidate also exports pr-kit.zip; inspect its four files before copying them into your repository. Blocked/unverified candidates do not produce a ready PR kit. Existing output folders are refused; use review-2 for the next attempt. The exit follows the candidate: 0 passing, 1 blocked, 2 unverified. The original baseline remains in the comparison.
 
 To hand a verified blocked candidate to Bob without uploading your SQL, add `--bob-workspace` to a review command with a new output folder. Its bob-repair-workspace.zip retains the failed inputs and fixed evaluator. Extract it into a new folder and follow its README for optional local MCP/IDE setup. Export does not invoke Bob or establish Bob usage; no passing repair is supplied.
 
@@ -73,11 +88,11 @@ python -m cutover --contract "{args.out.as_posix()}/contract.json" --plan "{args
 python -m cutover.audit_bundle --bundle "{args.out.as_posix()}/comparison.zip" --markdown "{args.out.as_posix()}/review.md"
 ```
 
-The generated one-time backfill should block: a successful new-version smoke test does not protect old-worker writes after the copy. No passing repair is supplied. Keep your reviewed contract fixed during comparison. A passing rehearsal remains bounded sequential SQLite evidence, not production approval. Exported evidence contains your SQL and values; choose what to share.
+{starting_sql} No passing repair is supplied. Keep your reviewed contract fixed during comparison. A passing rehearsal remains bounded sequential SQLite evidence, not production approval. Exported evidence contains your SQL and values; choose what to share.
 ''', encoding='utf-8')
-    except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
+    except (ValueError, OSError, UnicodeError, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
-    print(f'Created editable local contract and original backfill in {args.out}; no verdict produced. Rehearse before use.')
+    print(f'Created editable local contract and original SQL in {args.out}; no verdict produced. Rehearse before use.')
 
 
 if __name__ == '__main__':
