@@ -119,6 +119,20 @@ authorship or timestamps. Hosted uploads are limited to 2 MiB compressed and
 use the local instance for private packets. The app reads archives in memory without extracting files or
 executing an uploaded witness script.
 
+**Review a selected failure locally:** read a probe ID from the report, then
+add `--selected-probe ID` with `--markdown` and/or `--repro`. For example:
+
+```powershell
+python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/late_bridge.json --selected-probe window_write_after_2-3 --output work/selected-report.json --markdown work/selected-review.md --repro work/selected-replay.py
+python -I work/selected-replay.py
+```
+
+The first command exits 1 for this blocked candidate. The selected failure is
+freshly rerun before its Markdown note or standalone script is written. This
+works entirely locally for private contracts. Passing or missing probes are
+rejected. JSON reports and ZIP bundles retain the canonical suite witness;
+the selected note explicitly names the chosen probe and its evidence identities.
+
 The JSON keeps the complete shortest failure and one complete passing migration-window example. Other passing reads retain their executed SQL and probe details without repeating every seed value in every trace. The independent audit still reruns every probe and compares the complete resulting report. This keeps even the 16-seed, eight-payload, 32-statement test export small enough to review and audit.
 
 The imported contract must define `project`, `summary`, `table`, distinct `old_column`/`new_column`, initial `schema`, `seed_sql`, 1–16 `[id, value]` seed rows, an `old` read/write/insert adapter, and 2–8 domain-specific `payloads`. SQL identifiers and input sizes are bounded. The initial schema must contain exactly the named table, with no views or triggers. The old adapter must pass reads, updates of every seed ID, and an insert before migration evidence is produced. Run private schemas locally. This is a contract importer, not automatic extraction from a repository or a production-database connector.
