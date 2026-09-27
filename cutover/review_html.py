@@ -103,11 +103,22 @@ function choosePlan(preferred=null){
   $('identity').textContent=`Contract SHA-256: ${r.contract_hash} · Suite SHA-256: ${r.suite_hash} · Engine SHA-256: ${r.engine_sha256}`;
   $('sql').replaceChildren();['migration','read','write','insert'].forEach(key=>{text('h3',key,$('sql'));text('pre',r.plan[key],$('sql'));});
   $('probe-comparison').textContent='';
-  if(!probes.length){$('matching-probe').hidden=true;$('timing-probe').hidden=true;$('timing-note').textContent='';timingPair=null;}
+  if(!probes.length){selected=null;$('accepted-write').hidden=true;$('matching-probe').hidden=true;$('timing-probe').hidden=true;$('timing-note').textContent='';timingPair=null;}
   if(probes.length){const regression=current===1?probes.find(p=>newFailures.has(p.id)):null;
     $('probe').value=probes.some(p=>p.id===preferred)?preferred:regression?regression.id:probes.some(p=>p.id===r.witness?.id)?r.witness.id:probes[0].id;chooseProbe();}
 }
+function acknowledgedWriteStep(probe){
+  if(probe.passed||probe.failure?.kind!=='data_mismatch')return null;
+  const readStep=probe.trace.findIndex(e=>e.status==='fail'&&['old.read','new.read'].includes(e.action));
+  if(readStep<0)return null;
+  const writes=probe.trace.map((e,i)=>({e,i})).filter(({e,i})=>i<readStep&&
+    ['old.write','new.write','old.insert','new.insert'].includes(e.action)&&e.status==='pass');
+  return writes.length===1?{writeStep:writes[0].i,readStep}:null;
+}
 function renderStep(){
+  const accepted=acknowledgedWriteStep(selected);
+  $('accepted-write').hidden=!accepted;
+  $('accepted-write').textContent=accepted&&step===accepted.writeStep?'Return to the failed read':'Inspect the acknowledged write';
   if(!selected.trace.length){$('position').disabled=true;$('previous').disabled=true;$('next').disabled=true;$('event').replaceChildren();text('p','No executed steps were retained for this probe.',$('event'));return;}
   $('position').disabled=false;
   step=Math.max(0,Math.min(selected.trace.length-1,step));const e=selected.trace[step];
@@ -124,6 +135,12 @@ function renderStep(){
     [['Expected by contract',e.expected],['Reader observed',e.actual]].forEach(([label,values])=>{const col=document.createElement('div');pair.append(col);text('h3',label,col);text('pre',JSON.stringify(values,null,2),col);});
   }else text('p','No row values recorded at this step. Inputs are not a database snapshot.',$('event'));
 }
+$('accepted-write').onclick=()=>{
+  const accepted=selected&&acknowledgedWriteStep(selected);
+  if(!accepted)return;
+  step=step===accepted.writeStep?accepted.readStep:accepted.writeStep;renderStep();
+  $('accepted-write').focus();
+};
 $('plan').onchange=()=>{current=Number($('plan').value);choosePlan();};
 $('failures').onchange=choosePlan;$('probe').onchange=chooseProbe;
 $('position').oninput=()=>{step=Number($('position').value);renderStep();};
@@ -210,7 +227,7 @@ def render_review(reports, baseline_git=None, candidate_sql_source=None):
 <p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
 <label for="probe">Recorded probe</label><select id="probe"></select><p id="probe-comparison" aria-live="polite"></p><button id="matching-probe" type="button" hidden>Inspect matching baseline probe</button><p id="timing-note" class="scope" aria-live="polite"></p><button id="timing-probe" type="button" hidden>Inspect this write after completed rollout</button><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">
-<button id="previous" type="button">Previous step</button><button id="next" type="button">Next step</button><div id="event" aria-live="polite"></div></div>
+<button id="previous" type="button">Previous step</button><button id="next" type="button">Next step</button><button id="accepted-write" type="button" hidden>Inspect the acknowledged write</button><div id="event" aria-live="polite"></div></div>
 <details><summary>Full executed SQL for selected plan</summary><div id="sql"></div></details></section>
 <noscript><p>JavaScript is disabled. Read the companion Markdown and JSON for the complete evidence.</p></noscript></main>
 <script id="recorded-data" type="application/json">{payload}</script><script>{SCRIPT}</script></body></html>
