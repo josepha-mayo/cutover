@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QsR4csQWeUgdzz1aa74AW6INADQ+Y7AcsbJVlj78tLg='; style-src 'sha256-OOUhCgu6rBUgqPCWRQnaaJOmiq1JMDM5YmnpzUVrilw='; base-uri 'none'; form-action 'none'"><title>Cutover recorded review</title><style>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4qJr2nwJsDnF5l/Ekyd7xe1UXcNLX/UpPGHEH6bbx1Y='; style-src 'sha256-OOUhCgu6rBUgqPCWRQnaaJOmiq1JMDM5YmnpzUVrilw='; base-uri 'none'; form-action 'none'"><title>Cutover recorded review</title><style>
 *{box-sizing:border-box}body{margin:0;background:#f4f5ef;color:#17211f;font:15px/1.6 system-ui,sans-serif}
 main{max-width:1100px;margin:auto;padding:28px}h1{font-size:34px;line-height:1.2}h2{font-size:20px}
 .scope{color:#58665b;font-size:13px}.cards,.columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
@@ -40,7 +40,7 @@ code,.identity{overflow-wrap:anywhere}.identity{font:11px/1.6 monospace;color:#5
 +END;
 +UPDATE shipments SET dispatch_bay = loading_bay;</pre></details></section><section><p id="review-focus" aria-live="polite"></p><label for="plan">Executed plan</label><select id="plan"></select>
 <p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
-<label for="probe">Recorded probe</label><select id="probe"></select><p id="probe-comparison" aria-live="polite"></p><button id="matching-probe" type="button" hidden>Inspect matching baseline probe</button><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
+<label for="probe">Recorded probe</label><select id="probe"></select><p id="probe-comparison" aria-live="polite"></p><button id="matching-probe" type="button" hidden>Inspect matching baseline probe</button><p id="timing-note" class="scope" aria-live="polite"></p><button id="timing-probe" type="button" hidden>Inspect this write after completed rollout</button><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">
 <button id="previous" type="button">Previous step</button><button id="next" type="button">Next step</button><div id="event" aria-live="polite"></div></div>
 <details><summary>Full executed SQL for selected plan</summary><div id="sql"></div></details></section>
@@ -72,8 +72,36 @@ reports.forEach((r,i)=>{
   $('summary').append(card);
   const option=document.createElement('option');option.value=i;option.textContent=label+' · '+r.plan.name+' · '+r.status;$('plan').append(option);
 });
+let timingPair=null;
+function completedCounterpart(probe,report){
+  if(probe.passed||probe.category!=='migration_window'||probe.failure?.kind!=='data_mismatch')return null;
+  const failure=probe.trace.find(e=>e.status==='fail');
+  if(!failure||!['old.read','new.read'].includes(failure.action))return null;
+  const writes=probe.trace.filter(e=>['old.write','old.insert'].includes(e.action)&&e.status==='pass');
+  if(writes.length!==1)return null;
+  const write=writes[0],matches=[];
+  report.results.forEach(p=>{
+    if(!p.passed||p.category==='migration_window'||JSON.stringify(p.payload)!==JSON.stringify(probe.payload)||
+       JSON.stringify(p.actions)!==JSON.stringify(['migrate',write.action,failure.action]))return;
+    const migration=p.trace[0];
+    if(migration?.action!=='migrate'||migration.status!=='pass'||migration.sql!==report.plan.migration)return;
+    const sameWrite=p.trace.filter(e=>e.action===write.action&&e.status==='pass'&&e.sql===write.sql&&
+                                  JSON.stringify(e.params)===JSON.stringify(write.params));
+    const reads=p.trace.map((e,i)=>({e,i})).filter(({e})=>e.action===failure.action&&e.status==='pass'&&e.sql===failure.sql);
+    if(sameWrite.length===1&&reads.length===1)matches.push({other:p.id,readStep:reads[0].i});
+  });
+  return matches.length===1?{report:current,origin:probe.id,...matches[0],originFailures:$('failures').checked}:null;
+}
 function chooseProbe(){
   const r=reports[current];selected=r.results.find(p=>p.id===$('probe').value);
+  if(!timingPair||timingPair.report!==current||![timingPair.origin,timingPair.other].includes(selected.id))
+    timingPair=completedCounterpart(selected,r);
+  $('timing-probe').hidden=!timingPair;
+  const afterRollout=timingPair&&selected.id===timingPair.other;
+  $('timing-probe').textContent=afterRollout?'Return to the failing migration window':'Inspect this write after completed rollout';
+  $('timing-note').textContent=timingPair?(afterRollout?
+    'AFTER ROLLOUT: this recorded probe passes with the same accepted write SQL, row/input and reader SQL, after the full migration. Return to inspect the differing window schedule. Passing traces may omit row-value snapshots.':
+    'TIMING CONTRAST: a recorded completed-rollout probe passes with this same accepted write SQL, row/input and reader SQL in the same plan. Inspect it to see what a completed-rollout test misses. These are different schedules, not equivalent tests.') :'';
   const paired=newFailures.has(selected.id);
   $('probe-comparison').textContent=paired?(current===1?
     'NEW FAILURE: this same probe passed in the baseline and failed in the candidate. Input and action sequence match; this does not identify a causal SQL line.':
@@ -82,7 +110,7 @@ function chooseProbe(){
   $('matching-probe').textContent=current===1?'Inspect matching baseline probe':'Return to matching candidate failure';
   step=Math.max(0,selected.trace.findIndex(e=>e.status==='fail'));renderStep();
 }
-function choosePlan(){
+function choosePlan(preferred=null){
   const r=reports[current];$('probe').replaceChildren();
   $('review-focus').textContent=reports.length===1?
     'Inspect the recorded '+r.status+' result for this executed plan.':
@@ -99,9 +127,9 @@ function choosePlan(){
   $('identity').textContent=`Contract SHA-256: ${r.contract_hash} · Suite SHA-256: ${r.suite_hash} · Engine SHA-256: ${r.engine_sha256}`;
   $('sql').replaceChildren();['migration','read','write','insert'].forEach(key=>{text('h3',key,$('sql'));text('pre',r.plan[key],$('sql'));});
   $('probe-comparison').textContent='';
-  if(!probes.length)$('matching-probe').hidden=true;
+  if(!probes.length){$('matching-probe').hidden=true;$('timing-probe').hidden=true;$('timing-note').textContent='';timingPair=null;}
   if(probes.length){const regression=current===1?probes.find(p=>newFailures.has(p.id)):null;
-    $('probe').value=regression?regression.id:probes.some(p=>p.id===r.witness?.id)?r.witness.id:probes[0].id;chooseProbe();}
+    $('probe').value=probes.some(p=>p.id===preferred)?preferred:regression?regression.id:probes.some(p=>p.id===r.witness?.id)?r.witness.id:probes[0].id;chooseProbe();}
 }
 function renderStep(){
   if(!selected.trace.length){$('position').disabled=true;$('previous').disabled=true;$('next').disabled=true;$('event').replaceChildren();text('p','No executed steps were retained for this probe.',$('event'));return;}
@@ -136,6 +164,14 @@ $('matching-probe').onclick=()=>{
     step=matches.length===1?matches[0].i:Math.max(0,selected.trace.length-1);renderStep();
   }
   $('matching-probe').focus();
+};
+$('timing-probe').onclick=()=>{
+  if(!timingPair||!selected)return;
+  const pair=timingPair,returning=selected.id===pair.other;
+  $('failures').checked=returning?pair.originFailures:false;
+  choosePlan(returning?pair.origin:pair.other);
+  if(!returning){step=pair.readStep;renderStep();}
+  $('timing-probe').focus();
 };
 $('plan').value=String(current);$('failures').checked=reports[current].status==='blocked';choosePlan();
 </script></body></html>
