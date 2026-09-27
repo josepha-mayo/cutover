@@ -1,6 +1,7 @@
 """Replay a downloaded review ZIP and verify every included review artifact."""
 
 import argparse
+import difflib
 import io
 import json
 import subprocess
@@ -158,7 +159,16 @@ def main():
                            'Textual differences do not establish which SQL line caused the measured change.', '']
                 for key in ('migration', 'read', 'write', 'insert'):
                     if before['plan'][key] != after['plan'][key]:
-                        review += [f'### {key}', '', 'Pinned baseline:', '', fenced(before['plan'][key], 'sql'), '',
+                        old_sql, new_sql = before['plan'][key], after['plan'][key]
+                        delta = '\n'.join(difflib.unified_diff(
+                            old_sql.splitlines(), new_sql.splitlines(),
+                            fromfile=f'baseline/{key}.sql', tofile=f'candidate/{key}.sql', lineterm=''))
+                        review += [f'### {key}', '',
+                                   'Changed lines (- baseline, + candidate). Line endings are normalized for this display; '
+                                   'the full SQL below and the packet retain the executed strings.', '',
+                                   fenced(delta, 'diff') if delta else
+                                   'Only line endings or the final newline differ; no SQL line text changed.', '',
+                                   'Pinned baseline:', '', fenced(old_sql, 'sql'), '',
                                    'Current candidate:', '', fenced(after['plan'][key], 'sql'), '']
             for index, report in enumerate(reports):
                 review += [('## Pinned baseline report' if index == 0 else '## Current candidate report')

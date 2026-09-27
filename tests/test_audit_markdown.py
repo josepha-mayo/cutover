@@ -59,8 +59,29 @@ class VerifiedMarkdownTests(unittest.TestCase):
             self.assertIn('new_to_old-0', text)
             self.assertIn('"regressed": 32', text)
             self.assertIn('WHERE id = -1', text)
+            self.assertIn('--- baseline/write.sql', text)
+            self.assertIn('+++ candidate/write.sql', text)
+            self.assertIn('-' + self.before['plan']['write'], text)
+            self.assertIn('+' + regressed['plan']['write'], text)
+            self.assertIn('Line endings are normalized', text)
             self.assertLess(text.index('## First new regression'), text.index('## Executed SQL changes'))
             self.assertIn('freshly rerun and matched', text)
+
+    def test_newline_only_change_is_not_presented_as_sql_repair(self):
+        plan = dict(load_plan('parcel', 'late_bridge'))
+        plan['migration'] = plan['migration'].rstrip('\r\n').replace('\n', '\r\n') + '\r\n'
+        after = rehearse('parcel', plan)
+        pair = render_comparison_bundle(self.before, after, load_case('parcel'))
+        with tempfile.TemporaryDirectory() as folder:
+            packet, output = Path(folder)/'newlines.zip', Path(folder)/'review.md'
+            packet.write_bytes(pair)
+            result = self.run_cli(packet, output)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            text = output.read_text(encoding='utf-8')
+            self.assertIn('Only line endings or the final newline differ', text)
+            self.assertIn(self.before['plan_hash'], text)
+            self.assertIn(after['plan_hash'], text)
+            self.assertIn('| Candidate | BLOCKED | 108/124', text)
 
     def test_changed_comparison_refuses_output(self):
         with tempfile.TemporaryDirectory() as folder:
