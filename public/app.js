@@ -200,10 +200,16 @@ function renderComparison() {
   $('export-comparison').hidden=false;
   $('export-comparison').disabled=busy||comparisonBusy;
   const fence=(value,language='sql')=>{const text=String(value);const longest=Math.max(0,...[...text.matchAll(/~+/g)].map(match=>match[0].length));const marker='~'.repeat(Math.max(3,longest+1));return `${marker}${language}\n${text}\n${marker}`;};
+  const witnessLines=(label,measured)=>[label,'',measured.witness
+    ?fence(pretty({probe:measured.witness.id,payload:measured.witness.payload,failure:measured.witness.failure,trace:measured.witness.trace.map(event=>Object.fromEntries(['action','status','sql','params','expected','actual','detail'].filter(key=>key in event).map(key=>[key,event[key]])))}),'json')
+    :'No failing witness in this bounded report.',''];
   comparisonNote=['# Cutover candidate comparison','',coverage.trim(),'',
     `Paired ${sameMigration?'rollout and window':'completed-rollout'} probes: ${paired}. Resolved: ${resolved}. Regressed: ${regressed}.`,
     `Baseline window failures: ${oldWindows.total-oldWindows.passed}/${oldWindows.total}. Candidate window failures: ${newWindows.total-newWindows.passed}/${newWindows.total}.`,
     sameMigration?'Statement boundaries use the same migration SQL.':'Different SQL sequences: window probes are evaluated separately, not paired by step number.',
+    '', '## Retained executed witnesses','', 'These are the primary witnesses retained in each report, not causal claims about a changed SQL line. Values may be compacted in the report; use its exported replay for an independently reproducible data mismatch.', '',
+    ...witnessLines('### Pinned baseline',pinnedReport),...witnessLines('### Current candidate',report),
+    ...(firstRegression.length?['First newly failing paired probes (up to three):',fence(pretty(firstRegression.map(item=>({probe:item.id,payload:item.payload,failure:item.failure}))),'json'),'']:[]),
     '', '## Executed SQL changes','', 'Textual differences do not establish causality. These are the inputs to the measured reports.', '',
     ...sqlChanges.flatMap(key=>[`### ${key}`,'','Pinned baseline:',fence(pinnedReport.plan[key]),'','Current candidate:',fence(report.plan[key]),'']),
     ...(sqlChanges.length?[]:['Migration and all three application queries are identical.','']),
