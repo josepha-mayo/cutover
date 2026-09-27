@@ -268,6 +268,16 @@ class LocalProjectReviewTests(unittest.TestCase):
             self.assertEqual((root/'review-2/inputs/migration.sql').read_bytes(), unchanged_sql)
             self.assertEqual((root/'my-release/migration.sql').read_bytes(), unchanged_sql)
             self.assertEqual((root/'review-2/inputs/supplied-candidate.json').read_bytes(), supplied)
+            from cutover.audit_bundle import audit_upload_bytes
+            restored, restored_contract, container = audit_upload_bytes(
+                (root/'review-2/pr-review.zip').read_bytes(), archive_limit=2*1024**2,
+                member_limit=4*1024**2, total_limit=8*1024**2)
+            self.assertEqual(container, 'pr-handoff')
+            self.assertEqual([item['status'] for item in restored], ['blocked', 'pass'])
+            self.assertEqual(restored[1]['plan'], report['plan'])
+            self.assertEqual(restored[1]['plan']['migration'], sql)
+            self.assertEqual(restored_contract,
+                             json.loads((root/'my-release/contract.json').read_text(encoding='utf-8')))
             # Actual original SQL must override a stale passing baseline JSON,
             # and the kit control must bind that executed baseline.
             (root/'my-release/baseline.json').write_bytes(supplied)
