@@ -1,0 +1,31 @@
+{
+  "main_commit": "3ff071fb9a1ac7a72df65cdc421d3fd06bd3ab0d",
+  "starter_sha256": "194c38899caa6e68bbdc577d56fb06146003f995d1c7a73ca0736331dc6c4e8d",
+  "synthetic_baseline_git": {
+    "commit": "49d88b3c357bd3ce6857db8fe5ca9aad88443021",
+    "path": "db/relocation.sql",
+    "blob": "687de3b7ae3dd0798bb10cf86057ce98af8b2c8c"
+  },
+  "baseline": [
+    108,
+    124
+  ],
+  "candidate": [
+    124,
+    124
+  ],
+  "source_and_both_snapshots_byte_exact": true,
+  "git_working_tree_unchanged_by_review": true,
+  "kit_and_control_identities_match_executed_pair": true,
+  "passing_candidate": "Prewritten bundled reference, not new Bob output or customer evidence",
+  "files": {
+    "comparison.zip": "2f74cf3672a519a191b4625db38f9a4c9e8c35e0190684f4524c7829f2ca2240",
+    "inputs/baseline.json": "d9ed19eece5d73031328f5db286b83f63cbfdf9994fd9c6990c3f0c3d841d05f",
+    "inputs/candidate.json": "87e63953162037027f1001ed2200b7ce6d9addf2a8dac9830a2168c8f7856545",
+    "inputs/contract.json": "b73e40534e692361db79c96c1909e52bf9124b8d5a1a652d3871704f09a7f201",
+    "inputs/migration.sql": "d3cd5042f97738960d802ad6b3a548dfa18152215118ba18f04493bc6944b0e4",
+    "inputs/supplied-baseline.sql": "653addede7fe516bd50616b669aad16ae18ac2f220e5ae19edba96a3c78111d7",
+    "inputs/supplied-candidate.sql": "371aab8a669c64a52964b6402ebf17324ad9bb1f5da6ebaec61ff330abd4e0f0",
+    "pr-kit.zip": "3503b247c144d73a914da15fa669d6372cfba903cdc14560a392f218b47e3200"
+  }
+}
