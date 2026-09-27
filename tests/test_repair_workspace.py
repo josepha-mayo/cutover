@@ -41,6 +41,10 @@ class RepairWorkspaceTests(unittest.TestCase):
             self.assertEqual(blocked.returncode, 1, blocked.stderr)
             self.assertIn(b'Independent replay matched', blocked.stdout)
             self.assertEqual(len(list((root/'work').glob('verification-*/audit.log'))), 1)
+            from cutover.review_html import render_review
+            html_path = next((root/'work').glob('verification-*/review.html'))
+            html_report = json.loads((html_path.parent/'report.json').read_text(encoding='utf-8'))
+            self.assertEqual(html_path.read_text(encoding='utf-8'), render_review([html_report]))
             self.assertEqual(next((root/'work').glob('verification-*/candidate.json')).read_bytes(),
                              (root/'baseline-plan.json').read_bytes())
             report = json.loads(next((root/'work').glob('verification-*/report.json')).read_text(encoding='utf-8'))
@@ -51,6 +55,7 @@ class RepairWorkspaceTests(unittest.TestCase):
                                       'work/bob-candidate.json'], cwd=root, capture_output=True, timeout=120)
             self.assertEqual(passing.returncode, 0, passing.stderr)
             self.assertIn(b'Independent replay matched', passing.stdout)
+            self.assertEqual(len(list((root/'work').glob('verification-*/review.html'))), 2)
             reports = [json.loads(p.read_text(encoding='utf-8')) for p in (root/'work').glob('verification-*/report.json')]
             self.assertEqual(len(reports), 2)
             report = next(r for r in reports if r['status'] == 'pass')
@@ -117,6 +122,7 @@ runpy.run_path('verify_workspace.py', run_name='__main__')
             log = next((root/'work').glob('verification-*/audit.log')).read_bytes()
             self.assertIn(b'UNVERIFIED', log)
             self.assertNotIn(b'Independent replay matched', result.stdout)
+            self.assertFalse(list((root/'work').glob('verification-*/review.html')))
 
     def test_archive_has_no_machine_configuration_or_passing_references(self):
         names = set(zipfile.ZipFile(io.BytesIO(self.packet)).namelist())

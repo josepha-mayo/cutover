@@ -105,7 +105,9 @@ Inspect the source before running it. No API keys or account information are inc
    Exit 0 means this suite passed, 1 means blocked, and other errors remain unverified.
    Each attempt snapshots the candidate, executes it, then independently replays
    the report before accepting the result. Its report, Markdown, candidate and
-   audit.log remain in a new folder under work/.
+   audit.log remain in a new folder under work/. After independent replay succeeds,
+   open that attempt's review.html for an offline walkthrough of the recorded steps.
+   The HTML displays evidence; it does not execute SQL or reverify itself.
 7. Export the before/after review entirely locally:
    `python -m cutover --contract contract.json --plan work/bob-candidate.json --baseline-plan baseline-plan.json --bundle work/before-after.zip`.
    For separate SQL sources, add `--migration-file work/repaired.sql --baseline-migration-file work/original.sql`; adapters still come from the respective plan files.
@@ -158,7 +160,11 @@ try:
         (output/'audit.log').write_bytes(audited.stdout+b'\\n'+audited.stderr)
         if audited.returncode != result.returncode:
             raise ValueError('Independent replay refused the candidate report; inspect audit.log')
+        from cutover.review_html import render_review
+        report = json.loads((output/'report.json').read_text(encoding='utf-8'))
+        (output/'review.html').write_text(render_review([report]), encoding='utf-8')
         print('Independent replay matched the candidate report. Audit log retained.')
+        print('Offline recorded walkthrough: ' + str(output/'review.html'))
         sys.exit(result.returncode)
 except (OSError, ValueError, KeyError, subprocess.TimeoutExpired) as exc:
     print('UNVERIFIED: ' + str(exc), file=sys.stderr)
