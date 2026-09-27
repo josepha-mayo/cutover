@@ -50,8 +50,12 @@ reports.forEach((r,i)=>{
 });
 function chooseProbe(){
   const r=reports[current];selected=r.results.find(p=>p.id===$('probe').value);
-  $('probe-comparison').textContent=current===1&&newFailures.has(selected.id)?
-    'NEW FAILURE: this same probe passed in the baseline and failed in the candidate. Input and action sequence match; this does not identify a causal SQL line.':'';
+  const paired=newFailures.has(selected.id);
+  $('probe-comparison').textContent=paired?(current===1?
+    'NEW FAILURE: this same probe passed in the baseline and failed in the candidate. Input and action sequence match; this does not identify a causal SQL line.':
+    'MATCHING BASELINE: this probe passed here and failed in the candidate. Inspect the recorded baseline execution, then return to the candidate.') :'';
+  $('matching-probe').hidden=!paired;
+  $('matching-probe').textContent=current===1?'Inspect matching baseline probe':'Return to matching candidate failure';
   step=Math.max(0,selected.trace.findIndex(e=>e.status==='fail'));renderStep();
 }
 function choosePlan(){
@@ -71,6 +75,7 @@ function choosePlan(){
   $('identity').textContent=`Contract SHA-256: ${r.contract_hash} · Suite SHA-256: ${r.suite_hash} · Engine SHA-256: ${r.engine_sha256}`;
   $('sql').replaceChildren();['migration','read','write','insert'].forEach(key=>{text('h3',key,$('sql'));text('pre',r.plan[key],$('sql'));});
   $('probe-comparison').textContent='';
+  if(!probes.length)$('matching-probe').hidden=true;
   if(probes.length){const regression=current===1?probes.find(p=>newFailures.has(p.id)):null;
     $('probe').value=regression?regression.id:probes.some(p=>p.id===r.witness?.id)?r.witness.id:probes[0].id;chooseProbe();}
 }
@@ -95,6 +100,19 @@ $('plan').onchange=()=>{current=Number($('plan').value);choosePlan();};
 $('failures').onchange=choosePlan;$('probe').onchange=chooseProbe;
 $('position').oninput=()=>{step=Number($('position').value);renderStep();};
 $('previous').onclick=()=>{step--;renderStep();};$('next').onclick=()=>{step++;renderStep();};
+$('matching-probe').onclick=()=>{
+  if(!selected||!newFailures.has(selected.id))return;
+  const id=selected.id;current=1-current;$('plan').value=String(current);
+  $('failures').checked=current===1;choosePlan();$('probe').value=id;chooseProbe();
+  if(current===0){
+    const failure=reports[1].results.find(p=>p.id===id).trace.find(e=>e.status==='fail');
+    const workerActions=['old.write','new.write','old.insert','new.insert','old.read','new.read'];
+    const matches=failure&&workerActions.includes(failure.action)?selected.trace.map((e,i)=>({e,i})).filter(
+      ({e})=>e.action===failure.action&&JSON.stringify(e.params)===JSON.stringify(failure.params)):[];
+    step=matches.length===1?matches[0].i:Math.max(0,selected.trace.length-1);renderStep();
+  }
+  $('matching-probe').focus();
+};
 $('plan').value=String(current);$('failures').checked=reports[current].status==='blocked';choosePlan();
 '''
 
@@ -154,7 +172,7 @@ def render_review(reports, baseline_git=None, candidate_sql_source=None):
 <p class="scope">Sequential SQLite schedules only. Passing does not establish production safety, simultaneous transaction behavior or another database engine. Different migration sequences have their own statement boundaries; window probes are not paired by step number.</p>
 {provenance}<div id="summary" class="cards"></div>{changes}<section><p id="review-focus" aria-live="polite"></p><label for="plan">Executed plan</label><select id="plan"></select>
 <p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
-<label for="probe">Recorded probe</label><select id="probe"></select><p id="probe-comparison" aria-live="polite"></p><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
+<label for="probe">Recorded probe</label><select id="probe"></select><p id="probe-comparison" aria-live="polite"></p><button id="matching-probe" type="button" hidden>Inspect matching baseline probe</button><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">
 <button id="previous" type="button">Previous step</button><button id="next" type="button">Next step</button><div id="event" aria-live="polite"></div></div>
 <details><summary>Full executed SQL for selected plan</summary><div id="sql"></div></details></section>
