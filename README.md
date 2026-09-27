@@ -230,7 +230,11 @@ The note is written only after both the SQL reports and packaged companion files
 
 **Open a CI failure in the browser:** choose **Open review packet** and select
 the `review.zip` inside the downloaded GitHub artifact, or a single/comparison
-review packet exported by Cutover. The server independently replays and checks
+review packet exported by Cutover. You can also select a local `pr-review.zip`
+handoff directly: its inner comparison is independently replayed and restored,
+while its outer notes, HTML, optional kits and Git labels remain unverified.
+The unsigned outer inventory checks byte consistency only. Both ZIP layers share
+the same expansion limit. For ordinary review packets, the server independently replays and checks
 every packaged report and companion file before restoring the contract, SQL,
 failure timeline, and optional baseline comparison. Editing SQL clears the
 packet's verified state. This verifies reproducible contents, not archive

@@ -98,6 +98,11 @@ inspect its own README before use. Export does not invoke Bob or install a gate.
 
 This handoff contains the SQL/contract inputs you chose to export. Review what
 you share. Local execution logs stay in the original review folder.
+To investigate interactively, choose Open review packet in Cutover and select
+this pr-review.zip directly. It restores only the independently replayed inner
+comparison; the outer notes, HTML, optional kits and Git labels remain unverified.
+Hosted limits apply to both archive layers together. Use your local instance
+for private source inputs.
 """
     files['SHA256SUMS.json'] = (json.dumps({name:hashlib.sha256(raw).hexdigest()
                                          for name,raw in files.items()},indent=2)+'\n').encode('utf-8')

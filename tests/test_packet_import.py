@@ -87,6 +87,53 @@ class PacketImportTests(unittest.TestCase):
         self.assertEqual([item['plan_hash'] for item in result['reports']],
                          [before['plan_hash'], after['plan_hash']])
 
+    def test_pr_handoff_restores_replayed_evidence_without_trusting_outer_notes(self):
+        from cutover.review_project import render_review_archive, render_pr_summary
+        before = json.loads((EVIDENCE / 'blocked/report.json').read_text(encoding='utf-8'))
+        after = json.loads((EVIDENCE / 'safe/report.json').read_text(encoding='utf-8'))
+        with zipfile.ZipFile(EVIDENCE / 'safe/review.zip') as archive:
+            contract = json.loads(archive.read('contract.json'))
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            (output / 'inputs').mkdir()
+            inputs = {'contract.json': contract, 'baseline.json': before['plan'],
+                      'candidate.json': after['plan']}
+            for name, content in inputs.items():
+                (output / 'inputs' / name).write_text(json.dumps(content), encoding='utf-8')
+            (output / 'inputs/migration.sql').write_text(after['plan']['migration'], encoding='utf-8')
+            (output / 'comparison.zip').write_bytes(render_comparison_bundle(before, after, contract))
+            (output / 'candidate-report.json').write_text(json.dumps(after), encoding='utf-8')
+            # Outer presentation is deliberately unrelated. It must not be rendered
+            # or mistaken for replay-verified content by the upload endpoint.
+            for name in ('review.md', 'review.html'):
+                (output / name).write_text('UNTRUSTED OUTER PRESENTATION', encoding='utf-8')
+            status = {'status': after['status'], 'candidate': {'passed': after['passed'], 'total': after['total']},
+                      'input_sha256': {name: hashlib.sha256((output / 'inputs' / name).read_bytes()).hexdigest()
+                                       for name in (*inputs, 'migration.sql')}}
+            payload = render_review_archive(output, render_pr_summary(before, after), status)
+        code, result = self.upload(payload)
+        self.assertEqual(code, 200, result)
+        self.assertEqual(result['container'], 'pr-handoff')
+        self.assertEqual([item['status'] for item in result['reports']], ['blocked', 'pass'])
+        self.assertNotIn('UNTRUSTED', result['reports'][1]['review_markdown'])
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            files = {name: archive.read(name) for name in archive.namelist()}
+        changed = {**files, 'review.html': b'changed'}
+        with patch('cutover.audit_bundle.audit_files') as replay:
+            self.assertEqual(self.upload(repack(changed))[0], 400)
+            replay.assert_not_called()
+        contradictory = json.loads(files['review-status.json'])
+        contradictory['candidate']['passed'] = 0
+        changed = {**files, 'review-status.json': json.dumps(contradictory).encode()}
+        changed['SHA256SUMS.json'] = json.dumps({name: hashlib.sha256(content).hexdigest()
+            for name, content in changed.items() if name != 'SHA256SUMS.json'}).encode()
+        with patch('cutover.audit_bundle.audit_files') as replay:
+            self.assertEqual(self.upload(repack(changed))[0], 400)
+            replay.assert_not_called()
+        outer_size = sum(map(len, files.values()))
+        with patch.object(server, 'PACKET_TOTAL_LIMIT', outer_size + 1):
+            self.assertEqual(self.upload(payload)[0], 400)
+
     def test_bundled_case_remains_a_bundled_case(self):
         report = rehearse('parcel', load_plan('parcel', 'late_bridge'))
         code, result = self.upload(render_bundle(report, load_case('parcel')))

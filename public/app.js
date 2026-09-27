@@ -786,7 +786,8 @@ $('import-packet').addEventListener('change',async event=>{
     renderReport();
     $('source-label').textContent=`Replayed ${file.name} · ${current.plan_hash.slice(0,10)}`;
     $('runtime').textContent=`Stored run: ${current.duration_ms} ms`;
-    $('packet-status').textContent=`Packet replay verified · ${file.name} · ${result.reports.map(item=>`${item.status.toUpperCase()} ${item.passed}/${item.total}`).join(' → ')}. Every packaged report, review and witness matches independent replay. Archive ${result.archive_sha256.slice(0,12)}. Origin, authorship, saved timestamps and timings are not authenticated.`;
+    const scope=result.container==='pr-handoff'?'The inner comparison reports, reviews and witnesses match independent replay. The outer inventory matches its bytes; outer notes, HTML, optional kits and Git labels are not authenticated or independently verified. Only the replayed comparison is restored.':'Every packaged report, review and witness matches independent replay.';
+    $('packet-status').textContent=`Packet replay verified · ${file.name} · ${result.reports.map(item=>`${item.status.toUpperCase()} ${item.passed}/${item.total}`).join(' → ')}. ${scope} Archive ${result.archive_sha256.slice(0,12)}. Origin, authorship, saved timestamps and timings are not authenticated.`;
     $('packet-status').hidden=false;
     if(pinnedReport)$('comparison-timeline').open=true;
     $('verdict-title').scrollIntoView({behavior:'smooth',block:'center'});

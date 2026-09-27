@@ -2,6 +2,7 @@
 
 import argparse
 import difflib
+import hashlib
 import io
 import json
 import subprocess
@@ -65,6 +66,14 @@ def audit(path):
 
 def audit_bytes(payload, *, archive_limit, member_limit, total_limit):
     """Audit an in-memory packet under explicit upload limits; never extract it."""
+    supplied = upload_members(payload, archive_limit=archive_limit,
+                              member_limit=member_limit, total_limit=total_limit)
+    reports = audit_files(supplied)
+    prefix = 'candidate/' if 'comparison.json' in supplied else ''
+    return reports, json_member(supplied, prefix + 'contract.json')
+
+
+def upload_members(payload, *, archive_limit, member_limit, total_limit):
     if not payload or len(payload) > archive_limit:
         raise ValueError('Compressed archive exceeds the hosted audit limit')
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
@@ -72,9 +81,44 @@ def audit_bytes(payload, *, archive_limit, member_limit, total_limit):
                (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED) for item in archive.infolist()):
             raise ValueError('Hosted packets require unencrypted stored or deflated ZIP members')
         supplied = members(archive, member_limit, total_limit)
-    reports = audit_files(supplied)
-    prefix = 'candidate/' if 'comparison.json' in supplied else ''
-    return reports, json_member(supplied, prefix + 'contract.json')
+    return supplied
+
+
+def audit_upload_bytes(payload, *, archive_limit, member_limit, total_limit):
+    """Restore a packet or PR handoff; outer notes remain unsigned, untrusted data."""
+    limits = dict(archive_limit=archive_limit, member_limit=member_limit, total_limit=total_limit)
+    files = upload_members(payload, **limits)
+    if 'review-status.json' not in files:
+        reports = audit_files(files)
+        prefix = 'candidate/' if 'comparison.json' in files else ''
+        return reports, json_member(files, prefix + 'contract.json'), 'review-packet'
+    required = {'README.md', 'SHA256SUMS.json', 'review-status.json', 'comparison.zip',
+                'candidate-report.json', 'pr-summary.md', 'review.md', 'review.html',
+                'inputs/contract.json', 'inputs/baseline.json', 'inputs/candidate.json',
+                'inputs/migration.sql'}
+    optional = {'inputs/supplied-baseline.sql', 'inputs/supplied-candidate.sql',
+                'pr-kit.zip', 'bob-repair-workspace.zip'}
+    if not required <= files.keys() or not files.keys() <= required | optional:
+        raise ValueError('PR handoff members differ from the supported format')
+    inventory = json_member(files, 'SHA256SUMS.json')
+    expected = {name: hashlib.sha256(content).hexdigest() for name, content in files.items()
+                if name != 'SHA256SUMS.json'}
+    if inventory != expected:
+        raise ValueError('PR handoff inventory does not match its packaged bytes')
+    # Count both layers against one expansion budget. Only one fixed inner packet
+    # is inspected; optional kits and HTML are never extracted, opened or executed.
+    inner = upload_members(files['comparison.zip'], **{**limits,
+        'total_limit': total_limit - sum(len(content) for content in files.values())})
+    if 'comparison.json' not in inner:
+        raise ValueError('PR handoff requires a comparison packet')
+    candidate = json_member(inner, 'candidate/report.json')
+    status = json_member(files, 'review-status.json')
+    if (not isinstance(candidate, dict) or json_member(files, 'candidate-report.json') != candidate or
+            not isinstance(status, dict) or status.get('status') != candidate.get('status') or
+            status.get('candidate') != {'passed': candidate.get('passed'), 'total': candidate.get('total')}):
+        raise ValueError('PR handoff candidate verdict differs from its comparison packet')
+    reports = audit_files(inner)
+    return reports, json_member(inner, 'candidate/contract.json'), 'pr-handoff'
 
 
 def audit_files(supplied):

@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 from cutover.bundle import render_bundle, render_comparison_bundle
-from cutover.audit_bundle import audit_bytes
+from cutover.audit_bundle import audit_upload_bytes
 from cutover.ci_kit import render_ci_kit
 from cutover.repair_workspace import render_repair_workspace
 from cutover.local_starter import render_local_starter
@@ -340,7 +340,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(429, {'error': 'Two rehearsals are already running; retry shortly.'})
             try:
                 payload = self.rfile.read(size)
-                reports, contract = audit_bytes(payload, archive_limit=PACKET_UPLOAD_LIMIT,
+                reports, contract, container = audit_upload_bytes(payload, archive_limit=PACKET_UPLOAD_LIMIT,
                                                member_limit=PACKET_MEMBER_LIMIT,
                                                total_limit=PACKET_TOTAL_LIMIT)
                 enriched = []
@@ -350,7 +350,7 @@ class Handler(BaseHTTPRequestHandler):
                         report['reproduction_python'] = render_reproduction(saved, contract)
                     enriched.append(report)
                 self.send(200, {'audit': 'verified', 'archive_sha256': hashlib.sha256(payload).hexdigest(),
-                                'contract': contract, 'reports': enriched})
+                                'contract': contract, 'reports': enriched, 'container': container})
             finally:
                 SLOTS.release()
         except subprocess.TimeoutExpired:
