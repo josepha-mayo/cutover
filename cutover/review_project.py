@@ -81,9 +81,10 @@ review.html for the offline trace and SQL. Relative evidence links work within
 this extracted folder. The HTML displays recorded evidence; it does not reverify
 itself or execute SQL. Full inputs and original reports remain in comparison.zip.
 
-With the current Cutover local starter/check-out available, independently replay:
+With the current Cutover local starter/check-out available, replay this whole ZIP
+without extracting or uploading it (adjust the path to your downloaded handoff):
 
-    python -m cutover.audit_bundle --bundle comparison.zip --markdown freshly-audited.md --html freshly-audited.html
+    python -m cutover.audit_bundle --bundle pr-review.zip --markdown freshly-audited.md --html freshly-audited.html
 
 Exit0 means every retained plan passes; exit1 means verified evidence includes a
 blocked plan (including a blocked original before a passing repair); exit2 means
@@ -91,8 +92,9 @@ unverified. Do not overwrite the original notes or relabel original runs.
 
 SHA256SUMS.json identifies these packaged bytes; it is unsigned and is not proof
 of publisher identity. The source Git metadata is local recorded provenance, not
-proof of whole-application execution at those commits. Only comparison.zip is
-independently replayed by the command; it does not authenticate these outer notes.
+proof of whole-application execution at those commits. The command checks the
+outer inventory and independently replays only its inner comparison.zip. Its
+fresh outputs do not authenticate these outer notes, HTML or optional kits.
 A passing PR kit, or requested blocked Bob workspace, is included when generated;
 inspect its own README before use. Export does not invoke Bob or install a gate.
 

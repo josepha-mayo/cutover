@@ -11,6 +11,40 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LocalComparisonTests(unittest.TestCase):
+    def test_pr_handoff_audit_writes_fresh_regression_review_and_refuses_altered_inventory(self):
+        from cutover.review_project import review
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); project = root/'project'; project.mkdir()
+            contract = json.loads((ROOT/'examples/warehouse/contract.json').read_text(encoding='utf-8'))
+            safe = json.loads((ROOT/'examples/warehouse/bridge.json').read_text(encoding='utf-8'))
+            broken = {**safe, 'write': 'UPDATE stock_items SET fulfillment_bin = :value'}
+            for name, value in (('contract', contract), ('baseline', safe), ('candidate', broken)):
+                (project/f'{name}.json').write_text(json.dumps(value), encoding='utf-8')
+            (project/'migration.sql').write_text(safe['migration'], encoding='utf-8')
+            self.assertEqual(review(project, root/'review'), 1)
+            bundle = root/'review/pr-review.zip'
+            def audit_handoff(packet, label):
+                return subprocess.run([sys.executable, '-S', '-m', 'cutover.audit_bundle',
+                    '--bundle', str(packet), '--markdown', str(root/(label+'.md')),
+                    '--html', str(root/(label+'.html'))], cwd=ROOT, capture_output=True, timeout=120)
+            result = audit_handoff(bundle, 'fresh')
+            self.assertEqual(result.returncode, 1, result.stderr)
+            note = (root/'fresh.md').read_text(encoding='utf-8')
+            self.assertIn('## First new regression', note)
+            self.assertIn('outer notes, HTML, optional kits and Git labels', note)
+            self.assertTrue((root/'fresh.html').exists())
+            altered = root/'altered.zip'
+            with zipfile.ZipFile(bundle) as source, zipfile.ZipFile(altered, 'w', zipfile.ZIP_DEFLATED) as destination:
+                for name in source.namelist():
+                    raw = source.read(name)
+                    destination.writestr(name, raw+b'changed' if name=='pr-summary.md' else raw)
+            refused = audit_handoff(altered, 'refused')
+            self.assertEqual(refused.returncode, 2, refused.stderr)
+            self.assertIn(b'inventory', refused.stderr)
+            self.assertFalse((root/'refused.md').exists())
+            self.assertFalse((root/'refused.html').exists())
+            self.assertFalse((root/'SHA256SUMS.json').exists())
+
     def run_cli(self, candidate, baseline, output):
         return subprocess.run([sys.executable, '-m', 'cutover', '--contract',
             str(ROOT / 'examples/warehouse/contract.json'), '--plan', str(candidate),

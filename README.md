@@ -186,6 +186,19 @@ The Git option requires Git installed and the project inside that repository. It
 
 Each verified local review also writes `pr-summary.md`: a compact verdict, current or retained-original counterexample, candidate identities and source provenance when supplied. Paste it with the accompanying evidence folder or replace its relative links with your own artifact links. The full SQL comparison remains in `review.md`, `review.html` and `comparison.zip`. Unverified attempts do not receive a passing PR summary. `pr-review.zip` packages the compact note, offline viewer, full review, exact input snapshots, comparison packet, source/status metadata and any generated kit or requested Bob workspace. Extract it into a new folder so relative links work. The included byte-hash inventory is unsigned; independently audit its `comparison.zip` before relying on the recorded verdict. Logs remain in the original local review folder.
 
+Verify a downloaded PR handoff locally without unpacking it or uploading SQL:
+
+```console
+python -m cutover.audit_bundle --bundle pr-review.zip --markdown freshly-audited.md --html freshly-audited.html
+```
+
+This checks the outer byte inventory, independently replays the inner comparison,
+and writes fresh notes and an offline viewer. Outer notes, HTML, optional kits and
+Git labels remain unverified. It never extracts or runs packaged scripts. Exit 0
+means all retained plans pass; exit 1 preserves any verified block, including the
+original failure before a passing repair; exit 2 means unverified. Existing outputs
+are refused. Only the local SQLite replay runs; no network or account is required.
+
 A developer can supply a bounded single-table SQLite contract and candidate plan as JSON. The [warehouse contract](examples/warehouse/contract.json) is a complete example with its own bin-code payloads. Its [late synchronization plan](examples/warehouse/late_bridge.json) misses an acknowledged old-worker move; its [window-safe plan](examples/warehouse/bridge.json) passes the reported suite.
 
 ```powershell

@@ -176,6 +176,16 @@ any generated kit/workspace. Its README gives the independent comparison replay
 command. Its SHA256SUMS.json is an unsigned byte inventory, not authentication of
 outer notes or Git provenance. Execution logs stay in the original folder.
 
+To verify the whole handoff without unpacking or uploading it:
+
+    python -m cutover.audit_bundle --bundle pr-review.zip --markdown freshly-audited.md --html freshly-audited.html
+
+This checks its unsigned byte inventory, independently replays the inner
+comparison, and writes fresh evidence-only notes and a viewer. Packaged outer
+notes, HTML, optional kits and Git labels remain unverified; no scripts are
+extracted or executed. Exit1 preserves any verified block, including an original
+failure before a passing repair. Exit2 means unverified. Use new output filenames.
+
 
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.

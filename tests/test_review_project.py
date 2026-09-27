@@ -278,6 +278,17 @@ class LocalProjectReviewTests(unittest.TestCase):
             self.assertEqual(restored[1]['plan']['migration'], sql)
             self.assertEqual(restored_contract,
                              json.loads((root/'my-release/contract.json').read_text(encoding='utf-8')))
+            audited_handoff = run('cutover.audit_bundle', ['--bundle', 'review-2/pr-review.zip',
+                '--markdown', 'fresh-handoff.md', '--html', 'fresh-handoff.html'])
+            self.assertEqual(audited_handoff.returncode, 1, audited_handoff.stderr)
+            self.assertIn(b'VERIFIED COMPARISON IN PR HANDOFF', audited_handoff.stdout)
+            self.assertIn(b'outer', audited_handoff.stdout.lower())
+            self.assertTrue((root/'fresh-handoff.html').exists())
+            fresh_note = (root/'fresh-handoff.md').read_text(encoding='utf-8')
+            self.assertIn('outer notes, HTML, optional kits and Git labels', fresh_note)
+            self.assertIn('| Candidate | PASS | 155/155', fresh_note)
+            self.assertFalse((root/'SHA256SUMS.json').exists())
+            self.assertEqual((root/'review-1/comparison.zip').read_bytes(), before)
             # Actual original SQL must override a stale passing baseline JSON,
             # and the kit control must bind that executed baseline.
             (root/'my-release/baseline.json').write_bytes(supplied)

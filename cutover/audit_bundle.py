@@ -57,11 +57,15 @@ def checked_report(files, prefix):
 
 
 def audit(path):
+    return audit_with_context(path)[0]
+
+
+def audit_with_context(path):
+    """Replay a local packet or handoff and retain its contract and verification scope."""
     if path.stat().st_size > MAX_ARCHIVE_BYTES:
         raise ValueError('Compressed archive exceeds the audit limit')
-    with zipfile.ZipFile(path) as archive:
-        supplied = members(archive)
-    return audit_files(supplied)
+    return audit_upload_bytes(path.read_bytes(), archive_limit=MAX_ARCHIVE_BYTES,
+                              member_limit=MAX_MEMBER_BYTES, total_limit=MAX_TOTAL_BYTES)
 
 
 def audit_bytes(payload, *, archive_limit, member_limit, total_limit):
@@ -75,11 +79,11 @@ def audit_bytes(payload, *, archive_limit, member_limit, total_limit):
 
 def upload_members(payload, *, archive_limit, member_limit, total_limit):
     if not payload or len(payload) > archive_limit:
-        raise ValueError('Compressed archive exceeds the hosted audit limit')
+        raise ValueError('Compressed archive exceeds the audit limit')
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
         if any(item.flag_bits & 1 or item.compress_type not in
                (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED) for item in archive.infolist()):
-            raise ValueError('Hosted packets require unencrypted stored or deflated ZIP members')
+            raise ValueError('Packets require unencrypted stored or deflated ZIP members')
         supplied = members(archive, member_limit, total_limit)
     return supplied
 
@@ -148,8 +152,8 @@ def audit_files(supplied):
 
 def main():
     parser = argparse.ArgumentParser(description=(
-        'Independently replay every report in a Cutover ZIP and verify its '
-        'comparison, Markdown review and witness without extracting or executing it.'))
+        'Independently replay a Cutover review packet or pr-review.zip handoff '
+        'without extracting or executing its files. Outer handoff notes and Git labels remain unverified.'))
     parser.add_argument('--bundle', required=True, type=Path)
     parser.add_argument('--markdown', type=Path,
                         help='Write a verified PR review after replay; refuses existing output files')
@@ -162,7 +166,7 @@ def main():
         if args.html and (args.html.exists() or args.html.resolve() == args.bundle.resolve() or
                           (args.markdown and args.html.resolve() == args.markdown.resolve())):
             raise ValueError('HTML output must be a new file distinct from the packet and Markdown')
-        reports = audit(args.bundle)
+        reports, contract, container = audit_with_context(args.bundle)
         if args.html:
             from .review_html import render_review
             content = render_review(reports)
@@ -170,8 +174,13 @@ def main():
             with args.html.open('x', encoding='utf-8', newline='\n') as output:
                 output.write(content)
         if args.markdown:
-            review = ['# Independently verified Cutover packet', '',
-                      'Every retained report and packaged companion file passed independent replay and format verification. '
+            scope = ('The inner comparison reports and companion files passed independent replay and format verification. '
+                     'The outer handoff inventory matches its bytes, but outer notes, HTML, optional kits and Git labels '
+                     'are not authenticated or independently verified. This fresh note contains only replayed comparison evidence.'
+                     if container == 'pr-handoff' else
+                     'Every retained report and packaged companion file passed independent replay and format verification.')
+            review = ['# Independently verified Cutover comparison' if container == 'pr-handoff' else
+                      '# Independently verified Cutover packet', '', scope + ' '
                       'This is bounded SQLite evidence, not production approval or authenticated authorship.', '']
             if len(reports) == 2:
                 before, after = reports
@@ -202,11 +211,10 @@ def main():
                            'a smaller denominator does not imply equivalent coverage. The packet retains both full reports.', '',
                            '## Measured comparison', '', fenced(json.dumps(summary, indent=2), 'json'), '']
                 if regressions:
-                    with zipfile.ZipFile(args.bundle) as archive:
-                        contract = json.loads(archive.read('candidate/contract.json')) if after['case'] == 'custom' else None
                     first = regressions[0]
                     selected = run_selected_replay(after['case'], after['plan'], first['id'],
-                        {key: after[key] for key in IDENTITIES}, first, contract, review_only=True)
+                        {key: after[key] for key in IDENTITIES}, first,
+                        contract if after['case'] == 'custom' else None, review_only=True)
                     review += ['## First new regression', '',
                                'This exact paired probe passed in the baseline and failed in the candidate. '
                                'Its candidate observations were freshly rerun and matched before this note was written.', '',
@@ -236,9 +244,11 @@ def main():
             zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         print(f'UNVERIFIED: {exc}', file=sys.stderr)
         return 2
-    print('VERIFIED PACKET: ' + ' -> '.join(
+    print(('VERIFIED COMPARISON IN PR HANDOFF: ' if container == 'pr-handoff' else 'VERIFIED PACKET: ') + ' -> '.join(
         f"{item['status'].upper()} {item['passed']}/{item['total']} "
         f"plan {item['plan_hash'][:12]}" for item in reports))
+    if container == 'pr-handoff':
+        print('Outer notes, HTML, optional kits and Git labels remain unverified. No archive files were extracted or executed.')
     return 0 if all(item['status'] == 'pass' for item in reports) else 1
 
 
