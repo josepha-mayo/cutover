@@ -70,8 +70,11 @@ python -m cutover.review_project --project my-release --out review-1
 ```
 
 It snapshots the four actual inputs, freshly compares the original and candidate,
-independently audits the packet, writes review.md and review.html, and retains logs. Open review.html
-locally to inspect verdicts, exact SQL and each recorded replay step. It needs no
+independently audits the packet, writes review.md and review.html, and retains logs.
+The terminal also shows a bounded recorded counterexample for a blocked candidate:
+operation sequence, expected data and observed data. Long values are shortened only
+for display; the packet and walkthrough retain the full evidence.
+Open review.html locally to inspect verdicts, exact SQL and each recorded replay step. It needs no
 network access or server and does not execute SQL or reverify itself. The page is
 unsigned; share only when its included SQL/values are appropriate for the reviewer.
 For an existing packet: `python -m cutover.audit_bundle --bundle comparison.zip --html review.html`.

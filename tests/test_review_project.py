@@ -11,6 +11,23 @@ from cutover.review_project import git_baseline
 
 
 class LocalProjectReviewTests(unittest.TestCase):
+    def test_terminal_counterexample_preserves_missing_null_and_escapes_untrusted_values(self):
+        from cutover.review_project import terminal_witness
+        report = {'witness': {'id':'window-1', 'trace':[
+            {'action':'old.write','status':'ok'},
+            {'action':'new.read','status':'fail','expected':{'1':"O\'Connell",'2':None},'actual':{},
+             'error':'line\n\x1b[31m'}], 'failure':{'kind':'data_mismatch','message':'read differs'}}}
+        output='\n'.join(terminal_witness(report))
+        self.assertIn('"old.write","status":"ok"', output)
+        self.assertIn('Expected: {"1":"O\'Connell","2":null}', output)
+        self.assertIn('Actual: {}', output)
+        self.assertIn('Error: "line\\n\\u001b[31m"', output)
+        self.assertNotIn('\x1b', output)
+        report['witness']['trace'][1]['expected']={'1':'x'*10000}
+        self.assertLess(len('\n'.join(terminal_witness(report))),2500)
+        self.assertIn('see review.html for full evidence','\n'.join(terminal_witness(report)))
+        self.assertEqual(terminal_witness({'witness':None}),[])
+
     def test_reviewed_contract_lock_ignores_formatting_but_stops_changed_seed_before_sql(self):
         from unittest.mock import patch
         from cutover.engine import digest
@@ -91,6 +108,9 @@ class LocalProjectReviewTests(unittest.TestCase):
             self.assertEqual(setup.returncode, 0, setup.stderr)
             blocked = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-1', '--bob-workspace'])
             self.assertEqual(blocked.returncode, 1, blocked.stderr)
+            self.assertIn(b'Recorded counterexample:', blocked.stdout)
+            self.assertIn(b'Expected:', blocked.stdout)
+            self.assertIn(b'Actual:', blocked.stdout)
             self.assertFalse((root/'review-1/pr-kit.zip').exists())
             self.assertTrue((root/'review-1/review.html').exists())
             workspace = root/'bob-handoff'

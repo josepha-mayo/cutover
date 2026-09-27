@@ -9,6 +9,29 @@ import sys
 import zipfile
 
 
+def terminal_witness(report):
+    """Display bounded recorded evidence, without inferring a cause or a repair."""
+    witness = report.get('witness')
+    if not witness:
+        return []
+    def compact(value, limit=700):
+        rendered = json.dumps(value, ensure_ascii=True, separators=(',', ':'))
+        return rendered if len(rendered) <= limit else rendered[:limit]+'... [see review.html for full evidence]'
+    lines = ['Recorded counterexample: '+compact(witness.get('id'))]
+    trace = witness.get('trace', [])
+    lines.append('Sequence: '+compact([{'action':event.get('action'), 'status':event.get('status')}
+                                       for event in trace], 1600))
+    failed = next((event for event in trace if event.get('status') == 'fail'), None)
+    if failed is not None:
+        for key in ('expected', 'actual', 'error'):
+            if key in failed:
+                lines.append(key.capitalize()+': '+compact(failed[key]))
+    failure = witness.get('failure', {})
+    lines.append('Failure: '+compact(failure))
+    lines.append('This is a recorded bounded rehearsal, not a production incident or single-line cause.')
+    return lines
+
+
 def git_baseline(project, ref, path=None):
     """Read a bounded committed SQL blob without fetching or changing a checkout."""
     git_directory = project
@@ -211,6 +234,9 @@ def main():
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')
+    report = json.loads((args.out/'candidate-report.json').read_text(encoding='utf-8'))
+    for line in terminal_witness(report):
+        print(line)
     print('Offline walkthrough: review.html. Open locally; it displays evidence without running SQL or using the network.')
     if args.expected_contract_hash:
         print('Reviewed contract hash matched: '+args.expected_contract_hash.lower())
