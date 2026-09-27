@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 from .engine import load_case, load_plan
-from .bundle import render_bundle
+from .bundle import render_bundle, render_comparison_bundle
 from .reporting import render_markdown, render_reproduction
 from .service import WORKER_TIMEOUT_SECONDS, run_rehearsal, run_selected_replay, verify_report_against_replay
 from .selected_replay import IDENTITIES
@@ -26,7 +26,10 @@ parser.add_argument("--selected-probe", help="Exact failed probe ID for --markdo
 parser.add_argument("--bundle", type=Path, help="ZIP with inputs, executed evidence, review and any replayable witness.")
 parser.add_argument("--ci-kit", type=Path, help="Independently audited passing custom-contract PR gate kit, generated entirely locally.")
 parser.add_argument("--ci-control", type=Path, help="Optional unsafe plan JSON for the local CI kit; must independently reproduce a data mismatch under the same contract.")
+parser.add_argument("--baseline-plan", type=Path, help="Rerun this plan locally against the same contract and export both independently audited reports in --bundle.")
 args = parser.parse_args()
+if args.baseline_plan and not args.bundle:
+    parser.error("--baseline-plan requires --bundle")
 if args.ci_kit and not args.contract:
     parser.error("--ci-kit requires --contract and --plan")
 if args.ci_control and not args.ci_kit:
@@ -42,10 +45,12 @@ if args.contract and args.case != 'parcel':
 destinations = [path.resolve() for path in (args.output, args.markdown, args.repro, args.bundle, args.ci_kit) if path]
 if len(destinations) != len(set(destinations)):
     parser.error("Evidence outputs must be different files")
-inputs = {path.resolve() for path in (args.contract, args.plan, args.migration_file, args.ci_control) if path}
+inputs = {path.resolve() for path in (args.contract, args.plan, args.migration_file, args.ci_control, args.baseline_plan) if path}
 for destination in (args.output, args.markdown, args.repro, args.bundle, args.ci_kit):
     if destination and destination.resolve() in inputs:
         parser.error("Evidence outputs cannot overwrite a contract, candidate plan or migration source")
+if args.baseline_plan and args.bundle.exists():
+    parser.error("Comparison output already exists; choose a new file")
 if args.ci_kit and args.ci_kit.exists():
     parser.error("CI kit output already exists; choose a new file")
 
@@ -114,7 +119,19 @@ except subprocess.TimeoutExpired:
     parser.error('Selected replay exceeded its worker budget; no selected evidence was exported')
 except ValueError as exc:
     parser.error(str(exc))
-bundle = render_bundle(report, contract if contract is not None else load_case(args.case)) if args.bundle else None
+try:
+    if args.baseline_plan:
+        baseline_plan = read_json(args.baseline_plan, 'Baseline plan')
+        baseline = run_rehearsal('custom' if contract is not None else args.case, baseline_plan, contract)
+        for executed in (baseline, report):
+            verify_report_against_replay('custom' if contract is not None else args.case,
+                                         executed['plan'], executed, contract)
+        bundle = render_comparison_bundle(baseline, report, contract if contract is not None else load_case(args.case))
+        print(f"Independently replayed comparison: baseline {baseline['status']} {baseline['passed']}/{baseline['total']} -> candidate {report['status']} {report['passed']}/{report['total']}")
+    else:
+        bundle = render_bundle(report, contract if contract is not None else load_case(args.case)) if args.bundle else None
+except (ValueError, subprocess.TimeoutExpired) as exc:
+    parser.error(f'Local comparison not verified: {exc}')
 output = json.dumps(report, ensure_ascii=False, indent=2)
 if args.output:
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -127,7 +144,11 @@ if args.repro:
     args.repro.write_bytes(reproduction.encode("utf-8"))
 if args.bundle:
     args.bundle.parent.mkdir(parents=True, exist_ok=True)
-    args.bundle.write_bytes(bundle)
+    if args.baseline_plan:
+        with args.bundle.open('xb') as target:
+            target.write(bundle)
+    else:
+        args.bundle.write_bytes(bundle)
 if kit is not None:
     args.ci_kit.parent.mkdir(parents=True, exist_ok=True)
     try:

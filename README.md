@@ -150,6 +150,15 @@ The first command exits 1 with a blocked 108/124 verdict; its shortest observed 
 
 The JSON audit command reruns the checked-in contract and plan in a fresh bounded worker and compares every replayable report field. The ZIP audit command independently reruns every contained report and verifies the review text, any standalone witness source, and a before/after comparison manifest against those reports without extracting or executing the downloaded script. Creation time, runtime and host SQLite version are self-reported. Both commands exit 0 for a verified pass, 1 for a verified block, and 2 if evidence differs or cannot be replayed. Changing the shown passing replay or Bob attribution invalidates the report.
 
+To compare a private repair with its original failure entirely locally:
+
+```powershell
+python -m cutover --contract contract.json --plan repaired-plan.json --baseline-plan original-plan.json --bundle before-after.zip
+python -m cutover.audit_bundle --bundle before-after.zip --markdown before-after-review.md
+```
+
+The first command freshly executes both plans against the same contract and independently replays both reports before writing a new comparison ZIP. It keeps changed SQL boundaries separate and includes both complete packets, exact SQL and measured resolved/regressed probes. Existing comparison files are refused. Its exit code follows the candidate (0 pass, 1 blocked); the archive auditor exits 1 when either retained plan is blocked, even when the repair passes. That preserves the original failure as review evidence. Neither command sends SQL to the hosted demo.
+
 To turn a saved single or comparison ZIP into a PR note locally, run:
 
 ```powershell
