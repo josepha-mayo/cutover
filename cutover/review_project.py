@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -39,7 +40,11 @@ def git_baseline(project, ref, path=None):
 
 
 def review(project, output, bob_workspace=False, candidate_plan=None, baseline_migration=None,
-           baseline_git_ref=None, baseline_git_path=None):
+           baseline_git_ref=None, baseline_git_path=None, expected_contract_hash=None):
+    if expected_contract_hash is not None:
+        expected_contract_hash = expected_contract_hash.lower()
+        if not re.fullmatch(r'[0-9a-f]{64}', expected_contract_hash):
+            raise ValueError('Expected contract hash must be 64 hexadecimal characters')
     names = ('contract.json', 'baseline.json', 'candidate.json', 'migration.sql')
     inputs = {}
     for name in names:
@@ -93,6 +98,14 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
 
     save()
     try:
+        if expected_contract_hash is not None:
+            from .engine import digest
+            actual = digest(json.loads(inputs['contract.json'].decode('utf-8-sig')))
+            status['contract_lock'] = {'expected': expected_contract_hash, 'actual': actual,
+                                     'status': 'matched' if actual == expected_contract_hash else 'changed'}
+            save()
+            if actual != expected_contract_hash:
+                raise ValueError('Contract changed from the reviewed hash; review the contract separately before executing SQL')
         candidate_args = ['--contract', snapshot/'contract.json', '--plan',
                           snapshot/('supplied-candidate.json' if candidate_plan else 'candidate.json')]
         if candidate_plan is None:
@@ -105,6 +118,12 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         run('cutover.audit_bundle', ['--bundle', output/'comparison.zip', '--markdown', output/'review.md',
                                     '--html', output/'review.html'], 'audit')
         status['offline_review'] = 'review.html'
+        if expected_contract_hash is not None:
+            with (output/'review.md').open('a', encoding='utf-8') as note:
+                note.write('\n## Reviewed contract lock\n\nMatched canonical SHA-256: `'+expected_contract_hash+
+                           '`. Checked before SQL execution and retained in review-status.json. '
+                           'Formatting and key order do not change this identity; schema, adapters, seeds and payloads do. '
+                           'This is not a signature. Changes to the expected hash require separate review.\n')
         if git_source is not None:
             from .review_html import render_review
             with zipfile.ZipFile(output/'comparison.zip') as archive:
@@ -117,6 +136,8 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
                            'Exact bytes are retained in `inputs/supplied-baseline.sql`. '
                            'Only migration SQL comes from Git; adapters and contract are the supplied project inputs.\n')
         report = json.loads((output/'candidate-report.json').read_text(encoding='utf-8'))
+        if expected_contract_hash is not None and report['contract_hash'] != expected_contract_hash:
+            raise ValueError('Executed report differs from the reviewed contract hash')
         if code != (0 if report['status'] == 'pass' else 1):
             raise ValueError('Candidate report does not match the comparison outcome')
         if code == 1 and bob_workspace:
@@ -172,6 +193,8 @@ def main():
                         help='Export a local Bob repair workspace only when the audited candidate is blocked')
     parser.add_argument('--candidate-plan', type=Path,
                         help='Review all fields of a saved candidate JSON instead of project candidate.json/migration.sql')
+    parser.add_argument('--expected-contract-hash',
+                        help='Reviewed canonical contract SHA-256; mismatch stops before SQL and retains unverified evidence')
     baseline = parser.add_mutually_exclusive_group()
     baseline.add_argument('--baseline-migration-file', type=Path,
                         help='Snapshot actual original SQL, overriding only the baseline.json migration')
@@ -184,11 +207,13 @@ def main():
         code = review(args.project.resolve(), args.out.resolve(), args.bob_workspace,
                       args.candidate_plan.resolve() if args.candidate_plan else None,
                       args.baseline_migration_file.resolve() if args.baseline_migration_file else None,
-                      args.baseline_git_ref, args.baseline_git_path)
+                      args.baseline_git_ref, args.baseline_git_path, args.expected_contract_hash)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')
     print('Offline walkthrough: review.html. Open locally; it displays evidence without running SQL or using the network.')
+    if args.expected_contract_hash:
+        print('Reviewed contract hash matched: '+args.expected_contract_hash.lower())
     if code == 0:
         print('Passing PR kit: pr-kit.zip. Inspect its four files before copying into your repository.')
     else:

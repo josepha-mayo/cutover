@@ -74,6 +74,13 @@ locally to inspect verdicts, exact SQL and each recorded replay step. It needs n
 network access or server and does not execute SQL or reverify itself. The page is
 unsigned; share only when its included SQL/values are appropriate for the reviewer.
 For an existing packet: `python -m cutover.audit_bundle --bundle comparison.zip --html review.html`.
+For later attempts on a reviewed contract, add
+`--expected-contract-hash REVIEWED_SHA256` to review_project. Take that hash from
+the original reviewed report's contract_hash, rather than recomputing it from
+changed inputs. A mismatch retains unverified input/hash evidence and stops
+before SQL, comparison or kit export. Formatting and key order are ignored;
+schema, queries, seed values and payloads are covered. Intentional lock changes
+need separate review; this is not a signature.
 A passing
 candidate also exports pr-kit.zip with the reviewed contract lock; a blocked or
 unverified candidate does not produce a ready PR kit. Existing review folders

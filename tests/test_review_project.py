@@ -11,6 +11,41 @@ from cutover.review_project import git_baseline
 
 
 class LocalProjectReviewTests(unittest.TestCase):
+    def test_reviewed_contract_lock_ignores_formatting_but_stops_changed_seed_before_sql(self):
+        from unittest.mock import patch
+        from cutover.engine import digest
+        from cutover.init_contract import build_contract
+        from cutover.review_project import review
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); project=root/'release'; project.mkdir()
+            contract, plan = build_contract('Locked local review','shipments','loading_bay','dispatch_bay','A-01','B-02','GATE-09')
+            expected = digest(contract)
+            (project/'contract.json').write_text(json.dumps(dict(reversed(list(contract.items()))),indent=4),encoding='utf-8')
+            for name in ('baseline.json','candidate.json'):
+                (project/name).write_text(json.dumps(plan),encoding='utf-8')
+            (project/'migration.sql').write_text(plan['migration'],encoding='utf-8')
+            self.assertEqual(review(project,root/'matched',expected_contract_hash=expected.upper()),1)
+            status=json.loads((root/'matched/review-status.json').read_text(encoding='utf-8'))
+            self.assertEqual(status['contract_lock'],{'expected':expected,'actual':expected,'status':'matched'})
+            self.assertEqual(status['status'],'blocked')
+            contract['seed'][0][1]='Changed seed'
+            (project/'contract.json').write_text(json.dumps(contract),encoding='utf-8')
+            with patch('cutover.review_project.subprocess.run') as execute:
+                with self.assertRaisesRegex(ValueError,'Contract changed'):
+                    review(project,root/'changed',expected_contract_hash=expected)
+                execute.assert_not_called()
+            status=json.loads((root/'changed/review-status.json').read_text(encoding='utf-8'))
+            self.assertEqual(status['status'],'unverified')
+            self.assertEqual(status['steps'],[])
+            self.assertEqual(status['contract_lock']['actual'],digest(contract))
+            self.assertNotEqual(status['contract_lock']['actual'],expected)
+            self.assertTrue((root/'changed/inputs/contract.json').exists())
+            self.assertFalse((root/'changed/comparison.zip').exists())
+            self.assertFalse((root/'changed/pr-kit.zip').exists())
+            with self.assertRaisesRegex(ValueError,'64 hexadecimal'):
+                review(project,root/'invalid',expected_contract_hash='not-a-hash')
+            self.assertFalse((root/'invalid').exists())
+
     def test_git_baseline_reads_exact_committed_blob_and_refuses_missing_or_oversized_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
