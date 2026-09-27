@@ -52,10 +52,19 @@ class RepairWorkspaceTests(unittest.TestCase):
             self.assertEqual(len(list((root/'work').glob('verification-*/review.md'))), 1)
             (root/'work/bob-candidate.json').write_text(json.dumps(json.loads(Path('examples/warehouse/bridge.json').read_text(encoding='utf-8'))), encoding='utf-8')
             passing = subprocess.run([sys.executable, 'verify_workspace.py', '--candidate',
-                                      'work/bob-candidate.json'], cwd=root, capture_output=True, timeout=120)
+                                      'work/bob-candidate.json', '--comparison'], cwd=root, capture_output=True, timeout=120)
             self.assertEqual(passing.returncode, 0, passing.stderr)
             self.assertIn(b'Independent replay matched', passing.stdout)
             self.assertEqual(len(list((root/'work').glob('verification-*/review.html'))), 2)
+            comparison = next((root/'work').glob('verification-*/comparison.zip'))
+            with zipfile.ZipFile(comparison) as archive:
+                before = json.loads(archive.read('baseline/report.json'))
+                after = json.loads(archive.read('candidate/report.json'))
+            self.assertEqual((before['status'], after['status']), ('blocked', 'pass'))
+            self.assertEqual((comparison.parent/'comparison.html').read_text(encoding='utf-8'),
+                             render_review([before, after]))
+            self.assertIn('108/124', (comparison.parent/'comparison.md').read_text(encoding='utf-8'))
+            self.assertIn(b'VERIFIED PACKET', (comparison.parent/'comparison-audit.log').read_bytes())
             reports = [json.loads(p.read_text(encoding='utf-8')) for p in (root/'work').glob('verification-*/report.json')]
             self.assertEqual(len(reports), 2)
             report = next(r for r in reports if r['status'] == 'pass')

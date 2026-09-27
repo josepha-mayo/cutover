@@ -109,6 +109,12 @@ Inspect the source before running it. No API keys or account information are inc
    open that attempt's review.html for an offline walkthrough of the recorded steps.
    The HTML displays evidence; it does not execute SQL or reverify itself.
 7. Export the before/after review entirely locally:
+   `python verify_workspace.py --candidate work/bob-candidate.json --comparison`.
+   This checks fixed inputs, snapshots the candidate, freshly executes both plans,
+   and independently audits comparison.zip before writing comparison.md and
+   comparison.html in that new attempt folder. Its exit still follows the candidate;
+   the blocked original remains in the packet even when the repair passes.
+   For separate SQL overrides, use the individual commands instead:
    `python -m cutover --contract contract.json --plan work/bob-candidate.json --baseline-plan baseline-plan.json --bundle work/before-after.zip`.
    For separate SQL sources, add `--migration-file work/repaired.sql --baseline-migration-file work/original.sql`; adapters still come from the respective plan files.
    Then independently verify the ZIP and write a shareable PR note:
@@ -132,7 +138,10 @@ from pathlib import Path
 root = Path(__file__).resolve().parent
 parser = argparse.ArgumentParser()
 parser.add_argument('--candidate', type=Path)
+parser.add_argument('--comparison', action='store_true', help='Also export and independently audit the original-versus-candidate packet')
 args = parser.parse_args()
+if args.comparison and not args.candidate:
+    parser.error('--comparison requires --candidate')
 try:
     manifest = json.loads((root/'WORKSPACE_MANIFEST.json').read_text(encoding='utf-8'))
     for name, expected in manifest['files'].items():
@@ -148,10 +157,14 @@ try:
             raise ValueError('Candidate JSON exceeds 64 KiB')
         snapshot = output/'candidate.json'
         snapshot.write_bytes(candidate.read_bytes())
-        result = subprocess.run([sys.executable, '-m', 'cutover', '--contract',
+        command = [sys.executable, '-m', 'cutover', '--contract',
             str(root/'contract.json'), '--plan', str(snapshot), '--output',
             str(output/'report.json'), '--markdown',
-            str(output/'review.md')], cwd=root, timeout=120)
+            str(output/'review.md')]
+        if args.comparison:
+            command += ['--baseline-plan', str(root/'baseline-plan.json'),
+                        '--bundle', str(output/'comparison.zip')]
+        result = subprocess.run(command, cwd=root, timeout=120)
         if result.returncode not in (0, 1):
             raise ValueError('Candidate execution did not produce a verified outcome')
         audited = subprocess.run([sys.executable, '-m', 'cutover.audit_report',
@@ -165,6 +178,16 @@ try:
         (output/'review.html').write_text(render_review([report]), encoding='utf-8')
         print('Independent replay matched the candidate report. Audit log retained.')
         print('Offline recorded walkthrough: ' + str(output/'review.html'))
+        if args.comparison:
+            comparison = subprocess.run([sys.executable, '-m', 'cutover.audit_bundle',
+                '--bundle', str(output/'comparison.zip'), '--markdown', str(output/'comparison.md'),
+                '--html', str(output/'comparison.html')], cwd=root, capture_output=True, timeout=120)
+            (output/'comparison-audit.log').write_bytes(comparison.stdout+b'\\n'+comparison.stderr)
+            # The fixed original is blocked, so a verified paired packet exits 1
+            # even when the current candidate passes.
+            if comparison.returncode != 1:
+                raise ValueError('Before/after packet was not independently verified; inspect comparison-audit.log')
+            print('Verified before/after walkthrough: ' + str(output/'comparison.html'))
         sys.exit(result.returncode)
 except (OSError, ValueError, KeyError, subprocess.TimeoutExpired) as exc:
     print('UNVERIFIED: ' + str(exc), file=sys.stderr)
