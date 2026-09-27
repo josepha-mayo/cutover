@@ -164,6 +164,12 @@ Git SQL uses the same UTF-8/size bounds as a supplied candidate SQL file. Choose
 one candidate source: --candidate-plan, --candidate-migration-file or
 --candidate-git-ref. --candidate-git-path requires --candidate-git-ref.
 
+Every verified review also writes pr-summary.md: compact verdict, current or
+retained-original counterexample, candidate identities and supplied source
+provenance. Use it as the PR note; keep its relative links with the evidence folder
+or replace them with your artifact links. Full SQL/trace evidence remains in
+review.md, review.html and comparison.zip. Unverified attempts get no PR summary.
+
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.
 Set the new read/write/insert adapters in each plan. The reader must return all

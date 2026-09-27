@@ -32,6 +32,39 @@ def terminal_witness(report):
     return lines
 
 
+def render_pr_summary(baseline, candidate, baseline_git=None, candidate_source=None):
+    """Compact PR note from reports already independently audited by the caller."""
+    lines = ['# Cutover PR review: candidate '+candidate['status'].upper(), '',
+             '| Executed plan | Full suite | Completed-rollout failures | Migration-window failures |',
+             '| --- | --- | --- | --- |']
+    for label, report in (('Original baseline', baseline), ('Candidate', candidate)):
+        window = next(c for c in report['categories'] if c['id'] == 'migration_window')
+        completed_total = report['total']-window['total']
+        completed_failed = completed_total-(report['passed']-window['passed'])
+        lines.append(f"| {label} | {report['status'].upper()} {report['passed']}/{report['total']} | "
+                     f"{completed_failed}/{completed_total} | {window['total']-window['passed']}/{window['total']} |")
+    lines += ['', 'Window counts describe each plan separately; different SQL sequences are not paired by step number.', '']
+    witness_report = candidate if candidate['status'] == 'blocked' else baseline
+    if witness_report.get('witness'):
+        lines += ['## '+('Current candidate counterexample' if witness_report is candidate else 'Original counterexample retained; current candidate passed'),
+                  '', '~~~text', *terminal_witness(witness_report), '~~~', '',
+                  'Display is bounded; inspect the full recorded trace and SQL in [review.html](review.html).', '']
+    else:
+        lines += ['No blocked counterexample was retained in either executed plan.', '']
+    if baseline_git or candidate_source:
+        sources = {}
+        if baseline_git: sources['original_sql'] = baseline_git
+        if candidate_source: sources['candidate_sql'] = candidate_source
+        lines += ['## SQL source identity', '', '~~~json', json.dumps(sources,ensure_ascii=True,indent=2), '~~~', '']
+    lines += ['## Candidate evidence identity', '', '~~~json',
+              json.dumps({key:candidate[key] for key in ('plan_hash','contract_hash','suite_hash','engine_sha256')},indent=2),
+              '~~~', '', '[Full review and SQL changes](review.md) · [Offline trace viewer](review.html) · [Replayable packet](comparison.zip)', '',
+              'Generated only after independent comparison audit and any requested packaging checks. '
+              'Bounded sequential SQLite evidence, not whole-application verification, signed provenance or production approval. '
+              'Review the supplied contract/adapters and operational rollout separately.', '']
+    return '\n'.join(lines)
+
+
 def git_baseline(project, ref, path=None):
     """Read a bounded committed SQL blob without fetching or changing a checkout."""
     git_directory = project
@@ -241,6 +274,10 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
                     raise ValueError('PR kit identities differ from the reviewed comparison')
             (output/'pending-pr-kit.zip').rename(output/'pr-kit.zip')
             status['pr_kit'] = 'pr-kit.zip'
+        with zipfile.ZipFile(output/'comparison.zip') as archive:
+            original = json.loads(archive.read('baseline/report.json'))
+        (output/'pr-summary.md').write_text(render_pr_summary(original, report, git_source, candidate_sql_source), encoding='utf-8')
+        status['pr_summary'] = 'pr-summary.md'
         status['status'] = report['status']
         status['candidate'] = {'passed': report['passed'], 'total': report['total']}
         save()
@@ -301,6 +338,7 @@ def main():
             print(line)
     for line in terminal_witness(report):
         print(line)
+    print('Compact PR note: pr-summary.md. Keep the relative evidence links with its review folder.')
     print('Offline walkthrough: review.html. Open locally; it displays evidence without running SQL or using the network.')
     if args.expected_contract_hash:
         print('Reviewed contract hash matched: '+args.expected_contract_hash.lower())

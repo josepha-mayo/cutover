@@ -184,6 +184,8 @@ The Git option requires Git installed and the project inside that repository. It
 
 ## Bring your own contract through the CLI
 
+Each verified local review also writes `pr-summary.md`: a compact verdict, current or retained-original counterexample, candidate identities and source provenance when supplied. Paste it with the accompanying evidence folder or replace its relative links with your own artifact links. The full SQL comparison remains in `review.md`, `review.html` and `comparison.zip`. Unverified attempts do not receive a passing PR summary.
+
 A developer can supply a bounded single-table SQLite contract and candidate plan as JSON. The [warehouse contract](examples/warehouse/contract.json) is a complete example with its own bin-code payloads. Its [late synchronization plan](examples/warehouse/late_bridge.json) misses an acknowledged old-worker move; its [window-safe plan](examples/warehouse/bridge.json) passes the reported suite.
 
 ```powershell

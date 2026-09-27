@@ -44,6 +44,11 @@ class LocalProjectReviewTests(unittest.TestCase):
             self.assertEqual(source['commit'],candidate)
             self.assertEqual(source['blob'],git('rev-parse',candidate+':release.sql').decode().strip())
             self.assertEqual(source['sha256'],hashlib.sha256(repaired).hexdigest())
+            summary=(root/'review/pr-summary.md').read_text(encoding='utf-8')
+            self.assertLess(len(summary),7000)
+            for value in ('candidate PASS','BLOCKED 108/124','PASS 124/124','R-07','A-01',candidate,baseline,source['sha256'],'comparison.zip'):
+                self.assertIn(value,summary)
+            self.assertIn('Original counterexample retained; current candidate passed',summary)
             for name in ('review.md','review.html'):
                 note=(root/'review'/name).read_text(encoding='utf-8')
                 self.assertIn(candidate,note);self.assertIn(baseline,note)
@@ -90,6 +95,9 @@ class LocalProjectReviewTests(unittest.TestCase):
                 self.assertIn(source.name,note)
                 self.assertNotIn(str(root),note)
             self.assertFalse((root/'unsafe/pr-kit.zip').exists())
+            summary=(root/'unsafe/pr-summary.md').read_text(encoding='utf-8')
+            self.assertIn('candidate BLOCKED',summary)
+            self.assertIn('Current candidate counterexample',summary)
             raw=b'\xef\xbb\xbf'+repaired.replace('\n','\r\n').encode();source.write_bytes(raw)
             self.assertEqual(review(project,root/'repaired',candidate_migration_file=source),0)
             with zipfile.ZipFile(root/'repaired/pr-kit.zip') as archive:
@@ -304,6 +312,7 @@ class LocalProjectReviewTests(unittest.TestCase):
             status = json.loads((root/'review-3/review-status.json').read_text(encoding='utf-8'))
             self.assertEqual(status['status'], 'unverified')
             self.assertFalse((root/'review-3/pr-kit.zip').exists())
+            self.assertFalse((root/'review-3/pr-summary.md').exists())
             self.assertFalse((root/'review-3/bob-repair-workspace.zip').exists())
             (root/'saved-candidate.json').write_text('{broken', encoding='utf-8')
             malformed_saved = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-4',
