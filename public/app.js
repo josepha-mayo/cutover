@@ -319,7 +319,7 @@ function renderReport() {
   const rowId=failedRead&&[...new Set([...Object.keys(failedRead.expected),...Object.keys(failedRead.actual)])].find(id=>failedRead.expected[id]!==failedRead.actual[id]);
   const value=value=>value===undefined?'(missing row)':JSON.stringify(value);
   const gap=rowId===undefined?'':`<p class="witness-gap">Row ${escape(rowId)} · ledger expected <strong>${escape(value(failedRead.expected[rowId]))}</strong>; ${escape(failedRead.action)} observed <strong>${escape(value(failedRead.actual[rowId]))}</strong>.</p>`;
-  $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?'The SQL worked. The data disagreed.':['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p>${gap}</div>`;
+  $('finding').innerHTML=`<span class="finding-icon">${passed?'✓':'↳'}</span><div><h3>${passed?'Passing evidence, with a boundary.':witness.failure.kind==='data_mismatch'?(failedRead&&rowId===undefined?'The reader contract failed.':'The SQL worked. The data disagreed.'):['adapter_contract','target_contract','target_mismatch'].includes(witness.failure.kind)?'The target contract is unmet.':'A real query fails during handover.'}</h3><p>${passed?`${report.total} probes passed on this SQLite contract. This does not certify untested workloads or another database engine.`:escape(witness.failure.message)}</p>${gap}</div>`;
   $('export').disabled=false; $('export-review').disabled=!report.review_markdown; $('export-bundle').disabled=bundleBusy; $('brief').disabled=false;
   $('export-ci-kit').hidden=!(report.case==='custom'&&report.status==='pass');
   $('ci-kit-note').hidden=$('export-ci-kit').hidden;
@@ -345,7 +345,7 @@ function renderWindowMap() {
   const earliest=[...grouped].find(([,kinds])=>[...kinds.write,...kinds.insert].some(probe=>!probe.passed));
   const firstFailure=earliest&&[...earliest[1].write,...earliest[1].insert].find(probe=>!probe.passed);
   const brokenAction=firstFailure?.failure?.action;
-  const windowFinding=brokenAction==='old.read'?'An old reader breaks before the migration finishes.':brokenAction==='new.read'?'An acknowledged old operation is missing from the final new read.':brokenAction?.startsWith('old.')?'An old worker operation fails during the migration.':'Inspect the failing replay for the broken step.';
+  const windowFinding=brokenAction==='old.read'?'An old reader breaks before the migration finishes.':brokenAction==='new.read'?'The final new read fails after an old worker operation.':brokenAction?.startsWith('old.')?'An old worker operation fails during the migration.':'Inspect the failing replay for the broken step.';
   $('window-summary').textContent=earliest
     ?`First observed gap: after statement ${earliest[0]} of ${last}. ${windowFinding}`
     :`Old writes, inserts, and reads stayed consistent in ${report.categories.find(item=>item.id==='migration_window')?.total||0} tested migration windows.`;
@@ -425,6 +425,9 @@ function renderTrace(probe) {
       const shown=(values)=>Object.hasOwn(values,row)?JSON.stringify(values[row]):'Missing row';
       const write=probe.trace.slice(0,probe.trace.indexOf(mismatch)).findLast(event=>event.status==='pass'&&/\.(write|insert)$/.test(event.action)&&String(event.params?.id)===row&&JSON.stringify(event.params?.value)===JSON.stringify(mismatch.expected[row]));
       story.textContent=`${write?`${write.action} acknowledged the value. `:''}At ${mismatch.action}, the ledger expects row ${row}: ${shown(mismatch.expected)}; observed: ${shown(mismatch.actual)}.${changed.length>1?` ${changed.length} rows differ; inspect the full observation below.`:''}`;
+      story.hidden=false;
+    }else{
+      story.textContent='Recorded row values agree, but the reader failed. These maps do not retain duplicate returned rows or prove adapter-contract compliance. Inspect the executed reader SQL and replay the original packet to diagnose the failure.';
       story.hidden=false;
     }
   }
