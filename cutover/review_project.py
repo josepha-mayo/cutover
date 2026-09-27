@@ -208,6 +208,8 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
             adapted[operation] = sql
         validate_plan(adapted)
         inputs['supplied-candidate.json'] = (json.dumps(adapted,ensure_ascii=True,indent=2)+'\n').encode('utf-8')
+        if len(inputs['supplied-candidate.json']) > 65536:
+            raise ValueError('Assembled candidate JSON exceeds 64 KiB; shorten the supplied SQL before reviewing')
     output.mkdir(parents=True, exist_ok=False)
     snapshot = output/'inputs'
     snapshot.mkdir()

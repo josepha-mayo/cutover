@@ -192,8 +192,9 @@ exact bytes in inputs/supplied-candidate-<operation>.sql and are decoded into
 inputs/supplied-candidate.json for execution. Source byte hashes appear in the
 note/status; they are unsigned labels, not authenticated provenance. Query-file
 flags can accompany a candidate migration file or Git source; a complete
---candidate-plan cannot be combined with them. The comparison and passing kit
-use the same retained candidate queries.
+--candidate-plan cannot be combined with them. The assembled candidate JSON must also fit the CLI's 64 KiB plan limit; oversized
+combinations are refused before an evidence folder is created. The comparison
+and passing kit use the same retained candidate queries.
 
 ```text
 python -m cutover.review_project --project my-release --candidate-migration-file migration.sql --candidate-read-file new-read.sql --candidate-write-file new-write.sql --candidate-insert-file new-insert.sql --out review-repair

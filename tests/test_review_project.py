@@ -49,6 +49,10 @@ class LocalProjectReviewTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'Candidate read SQL.*not UTF-8'):
                 review(project,root/'invalid',**args)
             self.assertFalse((root/'invalid').exists())
+            files['read'].write_text(plan['read']+' -- '+'東京'*5500,encoding='utf-8')
+            with self.assertRaisesRegex(ValueError,'Assembled candidate JSON exceeds 64 KiB'):
+                review(project,root/'oversized',**args)
+            self.assertFalse((root/'oversized').exists())
 
     def test_candidate_git_commit_survives_changed_working_file(self):
         from cutover.review_project import review
