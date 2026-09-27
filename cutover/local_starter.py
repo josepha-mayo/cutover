@@ -141,6 +141,15 @@ project inputs. Missing refs/files, symlinks and files over 64 KiB are refused.
 This is not a signature or a full application diff. Use either a Git ref or a
 baseline SQL file, not both, and a new output folder for each attempt.
 
+To review the actual candidate SQL elsewhere in your repository, add
+`--candidate-migration-file db/relocation.sql`. Its exact UTF-8 bytes (including
+BOM/line endings) are retained in inputs/supplied-candidate.sql and override only
+the candidate migration. Candidate adapters still come from project candidate.json;
+the copied project migration.sql remains retained but cannot override this file.
+SQL must be nonempty, at most 64 KiB and 12,000 characters, without NUL. Choose
+either this SQL file or --candidate-plan, not both. The comparison and passing kit
+execute the same retained SQL snapshot; the source file is never edited.
+
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.
 Set the new read/write/insert adapters in each plan. The reader must return all

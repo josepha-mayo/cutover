@@ -11,6 +11,39 @@ from cutover.review_project import git_baseline
 
 
 class LocalProjectReviewTests(unittest.TestCase):
+    def test_actual_candidate_sql_overrides_stale_copy_and_binds_passing_kit(self):
+        from cutover.init_contract import build_contract
+        from cutover.review_project import review
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); project=root/'release';project.mkdir()
+            contract, plan=build_contract('Actual PR SQL','shipments','loading_bay','dispatch_bay','A-01','B-02','GATE-09')
+            reference=json.loads(Path('examples/warehouse/bridge.json').read_text(encoding='utf-8'))
+            repaired=reference['migration'].replace('stock_items','shipments').replace('pick_bin','loading_bay').replace('fulfillment_bin','dispatch_bay')
+            for name,data in [('contract.json',contract),('baseline.json',plan),('candidate.json',plan)]:
+                (project/name).write_text(json.dumps(data),encoding='utf-8')
+            (project/'migration.sql').write_text(repaired,encoding='utf-8')
+            source=root/'actual-pr.sql';raw=b'\xef\xbb\xbf'+plan['migration'].replace('\n','\r\n').encode()
+            source.write_bytes(raw)
+            self.assertEqual(review(project,root/'unsafe',candidate_migration_file=source),1)
+            report=json.loads((root/'unsafe/candidate-report.json').read_text(encoding='utf-8'))
+            self.assertEqual(report['plan']['migration'],raw.decode('utf-8-sig'))
+            self.assertEqual((root/'unsafe/inputs/supplied-candidate.sql').read_bytes(),raw)
+            self.assertEqual(source.read_bytes(),raw)
+            self.assertFalse((root/'unsafe/pr-kit.zip').exists())
+            raw=b'\xef\xbb\xbf'+repaired.replace('\n','\r\n').encode();source.write_bytes(raw)
+            self.assertEqual(review(project,root/'repaired',candidate_migration_file=source),0)
+            with zipfile.ZipFile(root/'repaired/pr-kit.zip') as archive:
+                self.assertEqual(json.loads(archive.read('evidence/report.json'))['plan']['migration'],raw.decode('utf-8-sig'))
+            self.assertEqual(source.read_bytes(),raw)
+            for index,invalid in enumerate((b'',b'\xff',b'x'*12001,b'SELECT 1;\0')):
+                source.write_bytes(invalid);output=root/f'invalid-{index}'
+                with self.assertRaises((ValueError,UnicodeError)):
+                    review(project,output,candidate_migration_file=source)
+                self.assertFalse(output.exists())
+            with self.assertRaisesRegex(ValueError,'not both'):
+                review(project,root/'conflict',candidate_plan=project/'candidate.json',candidate_migration_file=source)
+            self.assertFalse((root/'conflict').exists())
+
     def test_terminal_counterexample_preserves_missing_null_and_escapes_untrusted_values(self):
         from cutover.review_project import terminal_witness
         report = {'witness': {'id':'window-1', 'trace':[

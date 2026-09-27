@@ -63,7 +63,10 @@ def git_baseline(project, ref, path=None):
 
 
 def review(project, output, bob_workspace=False, candidate_plan=None, baseline_migration=None,
-           baseline_git_ref=None, baseline_git_path=None, expected_contract_hash=None):
+           baseline_git_ref=None, baseline_git_path=None, expected_contract_hash=None,
+           candidate_migration_file=None):
+    if candidate_plan is not None and candidate_migration_file is not None:
+        raise ValueError('Choose a complete candidate plan or candidate SQL file, not both')
     if expected_contract_hash is not None:
         expected_contract_hash = expected_contract_hash.lower()
         if not re.fullmatch(r'[0-9a-f]{64}', expected_contract_hash):
@@ -79,6 +82,14 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         if candidate_plan.stat().st_size > 65536:
             raise ValueError('Supplied candidate plan must be at most 64 KiB')
         inputs['supplied-candidate.json'] = candidate_plan.read_bytes()
+    if candidate_migration_file is not None:
+        if candidate_migration_file.stat().st_size > 65536:
+            raise ValueError('Supplied candidate SQL must be at most 64 KiB')
+        raw = candidate_migration_file.read_bytes()
+        sql = raw.decode('utf-8-sig')
+        if not sql.strip() or '\0' in sql or len(sql) > 12000:
+            raise ValueError('Expected nonempty UTF-8 candidate SQL without NUL, up to 12,000 characters')
+        inputs['supplied-candidate.sql'] = raw
     if baseline_migration is not None:
         if baseline_migration.stat().st_size > 65536:
             raise ValueError('Supplied baseline SQL must be at most 64 KiB')
@@ -98,6 +109,7 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
     status = {'status': 'unverified', 'input_sha256': {name: hashlib.sha256(raw).hexdigest()
               for name, raw in inputs.items()}, 'steps': []}
     status['candidate_source'] = ('supplied-candidate.json (all five plan fields)' if candidate_plan
+                                  else 'candidate.json adapters and supplied-candidate.sql' if candidate_migration_file
                                   else 'candidate.json adapters and migration.sql')
     supplied_baseline = baseline_migration is not None or git_source is not None
     status['baseline_source'] = ('baseline.json adapters and supplied-baseline.sql' if supplied_baseline
@@ -132,7 +144,7 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         candidate_args = ['--contract', snapshot/'contract.json', '--plan',
                           snapshot/('supplied-candidate.json' if candidate_plan else 'candidate.json')]
         if candidate_plan is None:
-            candidate_args += ['--migration-file', snapshot/'migration.sql']
+            candidate_args += ['--migration-file', snapshot/('supplied-candidate.sql' if candidate_migration_file else 'migration.sql')]
         baseline_args = ['--baseline-plan', snapshot/'baseline.json']
         if supplied_baseline:
             baseline_args += ['--baseline-migration-file', snapshot/'supplied-baseline.sql']
@@ -214,8 +226,11 @@ def main():
     parser.add_argument('--out', type=Path, required=True, help='New evidence folder; existing folders refused')
     parser.add_argument('--bob-workspace', action='store_true',
                         help='Export a local Bob repair workspace only when the audited candidate is blocked')
-    parser.add_argument('--candidate-plan', type=Path,
+    candidate = parser.add_mutually_exclusive_group()
+    candidate.add_argument('--candidate-plan', type=Path,
                         help='Review all fields of a saved candidate JSON instead of project candidate.json/migration.sql')
+    candidate.add_argument('--candidate-migration-file', type=Path,
+                        help='Snapshot actual candidate UTF-8 SQL; overrides only migration, retaining candidate.json adapters')
     parser.add_argument('--expected-contract-hash',
                         help='Reviewed canonical contract SHA-256; mismatch stops before SQL and retains unverified evidence')
     baseline = parser.add_mutually_exclusive_group()
@@ -230,7 +245,8 @@ def main():
         code = review(args.project.resolve(), args.out.resolve(), args.bob_workspace,
                       args.candidate_plan.resolve() if args.candidate_plan else None,
                       args.baseline_migration_file.resolve() if args.baseline_migration_file else None,
-                      args.baseline_git_ref, args.baseline_git_path, args.expected_contract_hash)
+                      args.baseline_git_ref, args.baseline_git_path, args.expected_contract_hash,
+                      args.candidate_migration_file.resolve() if args.candidate_migration_file else None)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')

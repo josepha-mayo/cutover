@@ -161,8 +161,10 @@ For an original migration stored as SQL, add `--baseline-migration-file migratio
 For a schema-changing PR, read the original migration directly from a locally available Git commit:
 
 ```text
-python -m cutover.review_project --project my-release --baseline-git-ref origin/main --baseline-git-path db/relocation.sql --out review-pr
+python -m cutover.review_project --project my-release --baseline-git-ref origin/main --baseline-git-path db/relocation.sql --candidate-migration-file db/relocation.sql --out review-pr
 ```
+
+`--candidate-migration-file` snapshots the actual candidate SQL byte-for-byte into `inputs/supplied-candidate.sql`, then executes that snapshot with the project candidate adapters. It overrides the copied project migration only; it does not infer adapters from SQL. The source is never edited, and comparison/kit export share the same snapshot. Choose either this SQL source or a complete `--candidate-plan`, not both. UTF-8 SQL is bounded to 64 KiB and 12,000 characters without NUL.
 
 For a Git baseline, the offline `review.html` includes the resolved commit, repository SQL path and blob alongside the executed reports. This identifies the local baseline SQL snapshot; adapters and contract still come from your supplied project, and the page is not a signature or a review of the whole application at that commit.
 
