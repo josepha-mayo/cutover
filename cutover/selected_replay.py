@@ -3,10 +3,38 @@ import copy
 import json
 
 from .engine import load_case, migration_statements, rehearse, replay
-from .reporting import render_reproduction, replay_section
+from .reporting import render_reproduction, replay_section, fenced
 
 
 IDENTITIES = ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')
+
+
+def row_observation_summary(trace):
+    """Describe retained row observations without inferring missing database state."""
+    event = next((step for step in trace if step['status'] == 'fail'
+                  and isinstance(step.get('expected'), dict)
+                  and isinstance(step.get('actual'), dict)), None)
+    if event is None:
+        return []
+    expected, actual = event['expected'], event['actual']
+    keys = list(dict.fromkeys([*expected, *actual]))
+    changed = [key for key in keys if (key in expected) != (key in actual)
+               or expected.get(key) != actual.get(key)]
+    if not changed:
+        return []
+    def shown(values, key):
+        if key not in values:
+            return 'Row not returned'
+        if values[key] is None:
+            return 'SQL null'
+        return json.dumps(values[key], ensure_ascii=False)
+    rows = ['Row ' + json.dumps(str(key), ensure_ascii=False) + '\n'
+            'Expected by contract: ' + shown(expected, key) + '\n'
+            'Reader observed: ' + shown(actual, key) for key in changed]
+    return ['## Recorded row difference', '',
+            f'{len(changed)} mismatched row(s); {len(keys) - len(changed)} other recorded row(s) unchanged.', '',
+            fenced('\n\n'.join(rows)), '',
+            'This summary describes the failed reader observation. The full executed SQL and observations follow.', '']
 
 
 def rehearse_selected(case, plan, probe_id, identities, observed_probe, contract=None, *, review_only=False):
@@ -57,6 +85,7 @@ def rehearse_selected(case, plan, probe_id, identities, observed_probe, contract
                          'returned rows or prove adapter-contract compliance. Inspect the executed SQL and '
                          'replay the original packet to diagnose this failure.', '']
                         if failed_read is not None and failed_read['expected'] == failed_read['actual'] else []),
+                      *row_observation_summary(selected['trace']),
                       *replay_section(selected, 'Selected executed failure'),
                       '## Evidence identity', '',
                       *[f'- {key}: `{report[key]}`' for key in IDENTITIES], ''])

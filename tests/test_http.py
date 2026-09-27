@@ -176,6 +176,9 @@ class HttpTests(unittest.TestCase):
                     self.assertNotIn(f'**`{report["witness"]["id"]}`**', note)
                     self.assertIn(report['plan_hash'], note)
                     self.assertIn('not necessarily the shortest witness', note)
+                    self.assertIn('## Recorded row difference', note)
+                    self.assertIn('Expected by contract:', note)
+                    self.assertIn('Reader observed:', note)
                     self.assertIn(json.dumps(probe['payload'], ensure_ascii=False), note)
                 request = urllib.request.Request(self.base + '/api/replay',
                     data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'})
