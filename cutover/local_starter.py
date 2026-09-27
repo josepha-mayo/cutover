@@ -60,7 +60,8 @@ queries, then run one local review command:
 
 If you already have migration SQL, add `--migration-file path/to/original.sql`
 to the setup command. It copies the exact UTF-8 file (up to 64 KiB) into the
-new project and both original plans, leaving the source untouched. Importing
+new project and both original plans, leaving the source untouched. SQL is also
+limited to 12,000 characters without NUL bytes, matching the review command. Importing
 does not establish a verdict. The generated schema and old/new queries are
 still a two-column starter: inspect and adapt them to your actual contract.
 

@@ -39,7 +39,7 @@ def main():
         parser.add_argument('--'+name, required=True)
     parser.add_argument('--out', type=Path, required=True, help='New folder; existing folders are refused')
     parser.add_argument('--migration-file', type=Path,
-                        help='Snapshot your UTF-8 migration SQL instead of generating a backfill (at most 64 KiB)')
+                        help='Snapshot UTF-8 SQL instead of generating a backfill (64 KiB, 12,000 characters, no NUL)')
     args = parser.parse_args()
     try:
         contract, plan = build_contract(args.project, args.table, args.old_column, args.new_column,
@@ -50,8 +50,8 @@ def main():
                 raise ValueError('Migration SQL must be at most 64 KiB')
             migration_bytes = args.migration_file.read_bytes()
             sql = migration_bytes.decode('utf-8-sig')
-            if not sql.strip():
-                raise ValueError('Migration SQL must not be empty')
+            if not sql.strip() or '\0' in sql or len(sql) > 12000:
+                raise ValueError('Expected nonempty UTF-8 migration SQL without NUL characters, up to 12,000 characters')
             plan['migration'] = sql
             plan['name'] = ('Imported original SQL: '+args.migration_file.name)[:100]
         # Validate fixed old queries on disposable SQLite before saving any inputs.

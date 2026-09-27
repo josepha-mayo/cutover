@@ -37,7 +37,7 @@ class LocalContractSetupTests(unittest.TestCase):
             readme = (root/'release/README.md').read_text(encoding='utf-8')
             self.assertIn('No verdict is inferred', readme)
             self.assertNotIn('generated one-time backfill should block', readme)
-            for invalid in (b'', b'\xff', b'x'*65537):
+            for invalid in (b'', b'\xff', b'x'*65537, b'x'*12001, b'SELECT 1;\0'):
                 source.write_bytes(invalid)
                 bad = args[:-1]+['invalid-release']
                 self.assertEqual(run(bad).returncode, 2)
