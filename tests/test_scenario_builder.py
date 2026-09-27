@@ -68,6 +68,22 @@ class ScenarioBuilderTests(unittest.TestCase):
         self.assertEqual(payloads[0], "O'Connell")
         self.assertEqual(len(payloads), len(set(payloads)))
 
+    def test_explicit_clear_is_primary_witness_and_bridge_preserves_it(self):
+        built = self.build(dict(project="Clear a delivery instruction", table="items",
+                                oldColumn="location", newColumn="destination",
+                                firstValue="A-01", secondValue="B-02",
+                                incomingValue="ignored while clearing", clearIncoming="on"))
+        self.assertTrue(built["ok"], built)
+        scenario = built["value"]
+        self.assertEqual(scenario["contract"]["payloads"][0], "")
+        self.assertEqual(len(set(scenario["contract"]["payloads"])), 5)
+        before = run_rehearsal("custom", scenario["unsafe"], scenario["contract"])
+        after = run_rehearsal("custom", scenario["safe"], scenario["contract"])
+        self.assertEqual(before["status"], "blocked")
+        self.assertEqual(before["witness"]["payload"], "")
+        self.assertEqual(after["status"], "pass")
+        self.assertEqual(after["passed"], after["total"])
+
     def test_invalid_identifiers_are_rejected_before_sql(self):
         base = dict(project="My release", table="items", oldColumn="location",
                     newColumn="destination", firstValue="A-01", secondValue="B-02",

@@ -771,6 +771,11 @@ function openScenario() {
 $('build-scenario').addEventListener('click',openScenario);
 $('comparison-scenario').addEventListener('click',openScenario);
 $('scenario-close').addEventListener('click',()=>$('scenario-dialog').close());
+$('scenario-clear-incoming').addEventListener('change',event=>{
+  const field=$('scenario-form').elements.incomingValue;
+  field.disabled=event.target.checked;
+  field.required=!event.target.checked;
+});
 $('scenario-form').addEventListener('submit',async event=>{
   event.preventDefault();
   if(busy)return;

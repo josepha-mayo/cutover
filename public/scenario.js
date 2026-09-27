@@ -8,7 +8,8 @@ export function buildScenario(input) {
   const oldColumn = String(input.oldColumn || '').trim();
   const newColumn = String(input.newColumn || '').trim();
   const values = [String(input.firstValue ?? ''), String(input.secondValue ?? '')];
-  const incomingValue = String(input.incomingValue ?? '');
+  const clearIncoming = input.clearIncoming === 'on' || input.clearIncoming === true;
+  const incomingValue = clearIncoming ? '' : String(input.incomingValue ?? '');
   if (!project || project.length > 100) throw Error('Give this scenario a name of at most 100 characters.');
   for (const [label, name] of [['Table', table], ['Old column', oldColumn], ['New column', newColumn]]) {
     if (!identifier.test(name)) throw Error(`${label} must be a simple SQL identifier of at most 63 characters.`);
@@ -18,16 +19,16 @@ export function buildScenario(input) {
     throw Error('The id column is reserved for record identity.');
   if (values.some(value => !value || value.length > 1000))
     throw Error('Enter two nonempty sample values of at most 1000 characters.');
-  if (!incomingValue || incomingValue.length > 1000)
+  if ((!incomingValue && !clearIncoming) || incomingValue.length > 1000)
     throw Error('Enter the exact incoming write to protect (at most 1000 characters).');
   const payloads = [incomingValue];
   for (const sample of ["O'Connell", '0', '東京-棚', 'next release']) {
-    if (payloads.length === 4) break;
+    if (payloads.length === (clearIncoming ? 5 : 4)) break;
     if (!payloads.includes(sample)) payloads.push(sample);
   }
   // Keep the existing named inputs, then challenge a legitimate clear-to-empty
   // write. Empty text is distinct from SQL NULL and from a row not returned.
-  payloads.push('');
+  if (!payloads.includes('')) payloads.push('');
   const q = name => `"${name}"`;
   const t = q(table), old = q(oldColumn), next = q(newColumn);
   const read = `SELECT id, ${next} AS value FROM ${t} ORDER BY id`;
