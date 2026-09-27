@@ -53,7 +53,15 @@ def main():
 
 This is a generated synthetic two-column SQLite starter, not your production schema or a passing repair. Inspect and adapt contract.json to your fixed old-worker schema and queries. Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
 
-From the extracted Cutover runtime folder where you ran the setup command, run:
+After editing, run one review from the extracted runtime folder:
+
+```text
+python -m cutover.review_project --project "{args.out.as_posix()}" --out review-1
+```
+
+This snapshots the four input files, compares both plans, independently audits the packet and writes review.md. A passing candidate also exports pr-kit.zip; inspect its four files before copying them into your repository. Blocked/unverified candidates do not produce a ready PR kit. Existing output folders are refused; use review-2 for the next attempt. The exit follows the candidate: 0 passing, 1 blocked, 2 unverified. The original blocked baseline remains in the comparison.
+
+Alternatively, run each step from the extracted runtime folder:
 
 ```text
 python -m cutover --contract "{args.out.as_posix()}/contract.json" --plan "{args.out.as_posix()}/baseline.json" --bundle "{args.out.as_posix()}/unsafe.zip"

@@ -138,6 +138,15 @@ python -m cutover --contract my-release/contract.json --plan my-release/baseline
 
 This validates the generated old-worker queries locally and creates the contract, original backfill, editable candidate/migration SQL and repair instructions in a new folder. The backfill should block; no passing repair is supplied. Adapt the synthetic schema and fixed queries to your actual contract, edit the candidate and compare before/after. Existing folders are refused. Use `--incoming-value ""` for a legitimate clear-to-empty write. This is Codex setup assistance, not a new Bob task.
 
+After editing the generated migration SQL and candidate adapters, run the complete local review with one command:
+
+```text
+python -m cutover.review_project --project my-release --out review-1
+```
+
+It retains a byte-exact snapshot of the four input files, a freshly executed and independently audited comparison ZIP, a review note, per-stage logs and a machine-readable status. Only a passing candidate gets a ready `pr-kit.zip`, bound to the same plan, contract, suite and evaluator identities as the comparison. The original blocked baseline stays in the evidence. Exit 0 follows a passing candidate, 1 a verified block, and 2 unverified input or failure; existing evidence folders are refused. Inspect the kit's four consumer files before adding the check to your own repository.
+
+
 
 ## Bring your own contract through the CLI
 

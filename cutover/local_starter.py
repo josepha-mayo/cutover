@@ -12,7 +12,7 @@ def render_local_starter():
     names = ['LICENSE', 'cutover/__init__.py', 'cutover/__main__.py',
         'cutover/engine.py', 'cutover/service.py', 'cutover/worker.py',
         'cutover/reporting.py', 'cutover/bundle.py', 'cutover/audit_report.py',
-        'cutover/audit_bundle.py', 'cutover/selected_replay.py', 'cutover/ci_kit.py', 'cutover/init_contract.py']
+        'cutover/audit_bundle.py', 'cutover/selected_replay.py', 'cutover/ci_kit.py', 'cutover/init_contract.py', 'cutover/review_project.py']
     for case in ('parcel', 'contacts', 'warehouse'):
         for plan in ('contract', 'rename', 'backfill', 'late_bridge', 'bridge'):
             name = f'examples/{case}/{plan}.json'
@@ -54,8 +54,20 @@ python -m cutover.init_contract --project "Dispatch release" --table shipments -
 python -m cutover --contract my-release/contract.json --plan my-release/baseline.json --bundle my-release/unsafe.zip
 ```
 
-The second command should block. Read my-release/README.md for the repair and
-comparison commands. Inspect and adapt the synthetic schema to your real old
+The second command should block. Edit my-release/migration.sql and the candidate
+queries, then run one local review command:
+
+```text
+python -m cutover.review_project --project my-release --out review-1
+```
+
+It snapshots the four actual inputs, freshly compares the original and candidate,
+independently audits the packet, writes review.md and retains logs. A passing
+candidate also exports pr-kit.zip with the reviewed contract lock; a blocked or
+unverified candidate does not produce a ready PR kit. Existing review folders
+are refused. Inspect kit files before copying them into your repository.
+
+Read my-release/README.md for the individual repair and comparison commands. Inspect and adapt the synthetic schema to your real old
 queries before relying on it. Existing output folders are refused.
 
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
