@@ -143,10 +143,18 @@ def audit_files(supplied):
         reports = (report,)
     with zipfile.ZipFile(io.BytesIO(canonical)) as archive:
         expected = members(archive)
-    if supplied.keys() != expected.keys():
-        raise ValueError('Review packet members differ from the expected format')
-    for name, content in expected.items():
-        if supplied[name] != content:
+    if supplied != expected:
+        # Older packets included a data-gap script for equal-map reader failures.
+        # Accept only their exact historical companion bytes after full replay;
+        # never execute that script or reinterpret it as proof of a value gap.
+        legacy = (render_comparison_bundle(before, after, contract, legacy_witness=True)
+                  if paired else render_bundle(report, contract, legacy_witness=True))
+        with zipfile.ZipFile(io.BytesIO(legacy)) as archive:
+            historical = members(archive)
+        if supplied != historical:
+            if supplied.keys() != expected.keys():
+                raise ValueError('Review packet members differ from the expected format')
+            name = next(name for name in expected if supplied[name] != expected[name])
             raise ValueError(f'{name} differs from the verified report')
     return reports
 

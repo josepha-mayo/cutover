@@ -136,6 +136,7 @@ class HttpTests(unittest.TestCase):
         failure = next(event for event in probe['trace'] if event['status'] == 'fail')
         self.assertEqual(failure['expected'], failure['actual'])
         self.assertFalse(probe['passed'])
+        self.assertNotIn('reproduction_python', report)
         payload = {**inputs, 'probe_id': probe['id'], 'observed_probe': probe,
                    **{key: report[key] for key in ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}}
         code, body = self.request('/api/replay', payload)

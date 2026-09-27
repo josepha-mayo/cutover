@@ -25,6 +25,18 @@ def structured(value):
     return fenced(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True), 'json')
 
 
+def has_reproducible_data_gap(report):
+    """Recorded maps must retain a value or row-presence gap, not just a verdict."""
+    witness = report.get('witness')
+    if not witness or witness.get('failure', {}).get('kind') not in ('data_mismatch', 'target_mismatch'):
+        return False
+    failed = next((event for event in witness.get('trace', []) if event.get('status') == 'fail'), None)
+    if not failed or not isinstance(failed.get('expected'), dict) or not isinstance(failed.get('actual'), dict):
+        return False
+    expected, actual = json.loads(json.dumps([failed['expected'], failed['actual']]))
+    return expected != actual
+
+
 def render_reproduction(report, contract, *, ascii_output=False):
     """Export a standalone, in-memory Python replay of an observed data gap."""
     witness = report.get('witness')

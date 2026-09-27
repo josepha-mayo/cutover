@@ -20,6 +20,38 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReviewReportTests(unittest.TestCase):
+    def test_equal_map_reader_packets_omit_data_gap_script_and_keep_legacy_auditable(self):
+        contract = json.loads((ROOT / 'examples/warehouse/contract.json').read_text(encoding='utf-8'))
+        plan = json.loads((ROOT / 'examples/warehouse/bridge.json').read_text(encoding='utf-8'))
+        plan['read'] = ('SELECT id, fulfillment_bin AS value FROM stock_items UNION ALL '
+                        'SELECT id, fulfillment_bin AS value FROM stock_items ORDER BY id')
+        blocked = rehearse('custom', plan, contract)
+        safe_plan = json.loads((ROOT / 'examples/warehouse/bridge.json').read_text(encoding='utf-8'))
+        safe = rehearse('custom', safe_plan, contract)
+        failure = next(step for step in blocked['witness']['trace'] if step['status'] == 'fail')
+        self.assertEqual(failure['expected'], failure['actual'])
+        self.assertEqual(blocked['status'], 'blocked')
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'review.zip'
+            for paired in (False, True):
+                for legacy in (False, True):
+                    packet = (render_comparison_bundle(blocked, safe, contract, legacy_witness=legacy)
+                              if paired else render_bundle(blocked, contract, legacy_witness=legacy))
+                    path.write_bytes(packet)
+                    with zipfile.ZipFile(path) as archive:
+                        files = {name: archive.read(name) for name in archive.namelist()}
+                    prefix = 'baseline/' if paired else ''
+                    self.assertEqual(prefix + 'witness.py' in files, legacy)
+                    if not legacy:
+                        self.assertIn(b'No standalone data-gap script', files[prefix + 'README.md'])
+                    self.assertEqual(audit_bundle(path)[0]['status'], 'blocked')
+                    files[prefix + 'README.md'] += b'altered claim'
+                    with zipfile.ZipFile(path, 'w') as archive:
+                        for name, content in files.items():
+                            archive.writestr(name, content)
+                    with self.assertRaisesRegex(ValueError, 'differ'):
+                        audit_bundle(path)
+
     def test_bundle_auditor_replays_blocked_packet_and_detects_changed_review(self):
         report = rehearse('parcel', load_plan('parcel', 'late_bridge'))
         with tempfile.TemporaryDirectory() as temporary:

@@ -19,7 +19,7 @@ from cutover.local_starter import render_local_starter
 from cutover.bob_proof_pack import render_bob_proof_pack
 from cutover.engine import load_case, repair_brief
 from cutover.fragility import challenge_steps
-from cutover.reporting import render_markdown, render_reproduction
+from cutover.reporting import has_reproducible_data_gap, render_markdown, render_reproduction
 from cutover.service import WORKER_TIMEOUT_SECONDS, catalog, run_rehearsal, run_selected_replay, validate_imported_contract, verify_report_against_replay
 
 STATIC = Path(__file__).parent / 'public'
@@ -318,7 +318,7 @@ class Handler(BaseHTTPRequestHandler):
                         })
                     else:
                         report['review_markdown'] = render_markdown(report)
-                        if report['witness'] and report['witness']['failure']['kind'] in ('data_mismatch', 'target_mismatch'):
+                        if has_reproducible_data_gap(report):
                             report['reproduction_python'] = render_reproduction(
                                 report, contract if contract is not None else load_case(body['case']))
                         self.send(200, report)
@@ -346,7 +346,7 @@ class Handler(BaseHTTPRequestHandler):
                 enriched = []
                 for saved in reports:
                     report = {**saved, 'review_markdown': render_markdown(saved)}
-                    if saved.get('witness') and saved['witness']['failure']['kind'] in ('data_mismatch', 'target_mismatch'):
+                    if has_reproducible_data_gap(saved):
                         report['reproduction_python'] = render_reproduction(saved, contract)
                     enriched.append(report)
                 self.send(200, {'audit': 'verified', 'archive_sha256': hashlib.sha256(payload).hexdigest(),

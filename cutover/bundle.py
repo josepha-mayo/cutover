@@ -4,10 +4,10 @@ import io
 import json
 import zipfile
 
-from .reporting import render_markdown, render_reproduction
+from .reporting import render_markdown, render_reproduction, has_reproducible_data_gap
 
 
-def bundle_files(report, contract):
+def bundle_files(report, contract, *, legacy_witness=False):
     case = report['case']
     audit = ('python -m cutover.audit_report --contract contract.json --plan plan.json --report report.json'
              if case == 'custom' else
@@ -35,21 +35,26 @@ def bundle_files(report, contract):
         'review.md': render_markdown(report),
     }
     witness = report.get('witness')
-    if witness and witness['failure']['kind'] in ('data_mismatch', 'target_mismatch'):
+    data_failure = witness and witness['failure']['kind'] in ('data_mismatch', 'target_mismatch')
+    if data_failure and (legacy_witness or has_reproducible_data_gap(report)):
         files['witness.py'] = render_reproduction(report, contract)
         files['README.md'] += '\nRun `python -I witness.py` to reproduce the recorded data gap.\n'
+    elif data_failure:
+        files['README.md'] += ('\nNo standalone data-gap script is included: the recorded row maps do not\n'
+                               'retain a differing value or missing row. A reader-contract failure can\n'
+                               'still block the release; replay the full report with the audit command.\n')
     return files
 
 
-def render_bundle(report, contract):
+def render_bundle(report, contract, *, legacy_witness=False):
     output = io.BytesIO()
     with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
-        for name, content in bundle_files(report, contract).items():
+        for name, content in bundle_files(report, contract, legacy_witness=legacy_witness).items():
             archive.writestr(name, content.encode('utf-8'))
     return output.getvalue()
 
 
-def render_comparison_bundle(before, after, contract):
+def render_comparison_bundle(before, after, contract, *, legacy_witness=False):
     """Package two fresh reports without pretending distinct SQL boundaries pair."""
     for key in ('case', 'contract_hash', 'engine_sha256', 'suite_hash'):
         if before[key] != after[key]:
@@ -123,6 +128,6 @@ def render_comparison_bundle(before, after, contract):
         archive.writestr('README.md', readme.encode('utf-8'))
         archive.writestr('comparison.json', (json.dumps(summary, indent=2) + '\n').encode('utf-8'))
         for label, report in (('baseline', before), ('candidate', after)):
-            for name, content in bundle_files(report, contract).items():
+            for name, content in bundle_files(report, contract, legacy_witness=legacy_witness).items():
                 archive.writestr(f'{label}/{name}', content.encode('utf-8'))
     return output.getvalue()
