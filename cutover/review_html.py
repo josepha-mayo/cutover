@@ -14,7 +14,7 @@ article,section{padding:20px;background:#fffefa;border:1px solid #dfe3d8;border-
 .blocked{border-left:4px solid #ad403a}.pass{border-left:4px solid #427d5e}label{display:block;margin:10px 0;font-weight:600}
 select,input,button{font:inherit;max-width:100%;min-height:44px}select{width:100%;padding:8px}input[type=range]{width:100%;accent-color:#ea653a}
 button{padding:8px 15px;margin-right:8px;background:#f4f5ef;border:1px solid #bac7b8;border-radius:4px;cursor:pointer}
-button:disabled{opacity:.45;cursor:default}:focus-visible{outline:3px solid #ea653a;outline-offset:3px}
+.step-link{display:inline-block;min-height:44px;padding:8px 0;margin-right:12px}button:disabled{opacity:.45;cursor:default}:focus-visible{outline:3px solid #ea653a;outline-offset:3px}
 pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f5ef;padding:14px;font:12px/1.6 monospace;max-height:360px;overflow:auto}
 code,.identity{overflow-wrap:anywhere}.identity{font:11px/1.6 monospace;color:#58665b}summary{cursor:pointer;min-height:44px}
 .observations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.observations>div{min-width:0}
@@ -24,6 +24,7 @@ code,.identity{overflow-wrap:anywhere}.identity{font:11px/1.6 monospace;color:#5
 SCRIPT = '''
 const reports=JSON.parse(document.getElementById('recorded-data').textContent);
 const $=id=>document.getElementById(id);
+const requestedReviewHash=location.hash;
 const text=(tag,value,parent)=>{const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;};
 const newFailures=new Set();
 if(reports.length===2){
@@ -48,6 +49,29 @@ reports.forEach((r,i)=>{
   $('summary').append(card);
   const option=document.createElement('option');option.value=i;option.textContent=label+' · '+r.plan.name+' · '+r.status;$('plan').append(option);
 });
+function reviewLocator(report,probe,slot,position,failedOnly){
+  return '#'+new URLSearchParams({ct:'1',slot:String(slot),plan:report.plan_hash,contract:report.contract_hash,
+    suite:report.suite_hash,engine:report.engine_sha256,probe:probe.id,step:String(position),failed:failedOnly?'1':'0'}).toString();
+}
+function readReviewLocator(hash,items){
+  if(!hash)return null;
+  const fields=new URLSearchParams(hash.slice(1));if(!fields.has('ct'))return null;
+  const keys=['ct','slot','plan','contract','suite','engine','probe','step','failed'];
+  if(hash.length>2048||fields.size!==keys.length||keys.some(key=>fields.getAll(key).length!==1)||fields.get('ct')!=='1')return false;
+  if(!/^(0|1)$/.test(fields.get('slot'))||!/^[0-9]+$/.test(fields.get('step'))||!['0','1'].includes(fields.get('failed')))return false;
+  const slot=Number(fields.get('slot')),report=items[slot],position=Number(fields.get('step'));
+  if(!report||['plan','contract','suite','engine'].some((key,i)=>fields.get(key)!==
+    [report.plan_hash,report.contract_hash,report.suite_hash,report.engine_sha256][i]))return false;
+  const probe=report.results.find(p=>p.id===fields.get('probe'));
+  const failedOnly=fields.get('failed')==='1';
+  if(!probe||!Number.isSafeInteger(position)||position<0||position>=probe.trace.length||(failedOnly&&probe.passed))return false;
+  return {slot,probe:probe.id,position,failedOnly};
+}
+function updateRecordedLink(){
+  $('locator-status').textContent='';
+  $('saved-step').hidden=!selected;
+  if(selected)$('saved-step').href=reviewLocator(reports[current],selected,current,step,$('failures').checked);
+}
 let timingPair=null;
 function completedCounterpart(probe,report){
   if(probe.passed||probe.category!=='migration_window'||probe.failure?.kind!=='data_mismatch')return null;
@@ -104,7 +128,7 @@ function choosePlan(preferred=null){
   $('identity').textContent=`Contract SHA-256: ${r.contract_hash} · Suite SHA-256: ${r.suite_hash} · Engine SHA-256: ${r.engine_sha256}`;
   $('sql').replaceChildren();['migration','read','write','insert'].forEach(key=>{text('h3',key,$('sql'));text('pre',r.plan[key],$('sql'));});
   $('probe-comparison').textContent='';
-  if(!probes.length){selected=null;$('selected-note').disabled=true;$('note-status').textContent='';$('accepted-write').hidden=true;$('matching-probe').hidden=true;$('timing-probe').hidden=true;$('timing-note').textContent='';timingPair=null;}
+  if(!probes.length){selected=null;updateRecordedLink();$('selected-note').disabled=true;$('note-status').textContent='';$('accepted-write').hidden=true;$('matching-probe').hidden=true;$('timing-probe').hidden=true;$('timing-note').textContent='';timingPair=null;}
   if(probes.length){const regression=current===1?probes.find(p=>newFailures.has(p.id)):null;
     $('probe').value=probes.some(p=>p.id===preferred)?preferred:regression?regression.id:probes.some(p=>p.id===r.witness?.id)?r.witness.id:probes[0].id;chooseProbe();}
 }
@@ -126,6 +150,7 @@ function renderStep(){
   $('position').max=Math.max(0,selected.trace.length-1);$('position').value=step;
   $('position').setAttribute('aria-valuetext',`Step ${step+1} of ${selected.trace.length}: ${e.action}`);
   $('previous').disabled=step===0;$('next').disabled=step===selected.trace.length-1;
+  updateRecordedLink();
   $('event').replaceChildren();
   text('h2',`Step ${step+1}/${selected.trace.length}: ${e.action} · ${e.status}`,$('event'));
   text('p',(e.detail||'Executed.')+(e.connection?' · '+e.connection+' connection':''),$('event'));
@@ -141,6 +166,7 @@ function selectedFailureNote(probe,report){
   const partner=completedCounterpart(probe,report);
   const counterpart=partner?report.results.find(p=>p.id===partner.other):null;
   const evidence={
+    review_fragment:reviewLocator(report,probe,current,step,$('failures').checked),
     review_role:reports.length===1?'executed':current===0?'baseline':'candidate',
     recorded_candidate:reports.length===2?{status:reports[1].status,passed:reports[1].passed,total:reports[1].total,
       plan_hash:reports[1].plan_hash}:null,
@@ -158,6 +184,7 @@ function selectedFailureNote(probe,report){
     'Recorded evidence selected from an offline review. This export does not execute SQL or independently reverify the report. The HTML and this note are unsigned. Keep the original review packet for independent replay.\\n\\n'+
     'Sequential SQLite schedules only; this is not proof of production safety or simultaneous transaction behavior.\\n\\n'+
     (counterpart?'The completed-rollout contrast uses the same recorded accepted write SQL, row/input and reader SQL in this plan, with a different schedule. Passing traces may omit row snapshots.\\n\\n':'')+
+    'Append review_fragment to this same HTML review URL to reopen the recorded step. The fragment contains report identities and a location, not SQL, payloads or file paths.\\n\\n'+
     '## Selected recorded evidence\\n\\n'+fence+'json\\n'+json+'\\n'+fence+'\\n';
 }
 $('selected-note').onclick=()=>{
@@ -201,6 +228,18 @@ $('timing-probe').onclick=()=>{
   $('timing-probe').focus();
 };
 $('plan').value=String(current);$('failures').checked=reports[current].status==='blocked';choosePlan();
+function restoreSavedReview(hash){
+  const restored=readReviewLocator(hash,reports);
+  if(restored===false)$('locator-status').textContent='The saved step is invalid or belongs to a different recorded review. No saved location was applied.';
+  else if(restored){
+    current=restored.slot;$('plan').value=String(current);$('failures').checked=restored.failedOnly;choosePlan(restored.probe);
+    step=restored.position;renderStep();$('probe').focus();
+    $('locator-status').textContent='Restored saved probe '+restored.probe+', step '+(step+1)+'. This locator does not authenticate or reverify evidence.';
+  }
+}
+window.addEventListener('hashchange',()=>restoreSavedReview(location.hash));
+restoreSavedReview(requestedReviewHash);
+
 '''
 
 
@@ -258,10 +297,10 @@ def render_review(reports, baseline_git=None, candidate_sql_source=None):
 <p class="scope">Offline review generated after independent replay. This page displays recorded evidence; it does not execute SQL or reverify itself. No network access is required. The HTML is not signed.</p>
 <p class="scope">Sequential SQLite schedules only. Passing does not establish production safety, simultaneous transaction behavior or another database engine. Different migration sequences have their own statement boundaries; window probes are not paired by step number.</p>
 {provenance}<div id="summary" class="cards"></div>{changes}<section><p id="review-focus" aria-live="polite"></p><label for="plan">Executed plan</label><select id="plan"></select>
-<p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
+<p id="locator-status" class="scope" role="status"></p><p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
 <label for="probe">Recorded probe</label><select id="probe"></select><p id="probe-comparison" aria-live="polite"></p><button id="matching-probe" type="button" hidden>Inspect matching baseline probe</button><p id="timing-note" class="scope" aria-live="polite"></p><button id="timing-probe" type="button" hidden>Inspect this write after completed rollout</button><button id="selected-note" type="button" disabled>Download selected counterexample note</button><p id="note-status" class="scope" role="status"></p><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">
-<button id="previous" type="button">Previous step</button><button id="next" type="button">Next step</button><button id="accepted-write" type="button" hidden>Inspect the acknowledged write</button><div id="event" aria-live="polite"></div></div>
+<button id="previous" type="button">Previous step</button><button id="next" type="button">Next step</button><button id="accepted-write" type="button" hidden>Inspect the acknowledged write</button><a id="saved-step" class="step-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Open a link to this recorded step ↗</a><div id="event" aria-live="polite"></div></div>
 <details><summary>Full executed SQL for selected plan</summary><div id="sql"></div></details></section>
 <noscript><p>JavaScript is disabled. Read the companion Markdown and JSON for the complete evidence.</p></noscript></main>
 <script id="recorded-data" type="application/json">{payload}</script><script>{SCRIPT}</script></body></html>
