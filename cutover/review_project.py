@@ -111,6 +111,19 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
     status['candidate_source'] = ('supplied-candidate.json (all five plan fields)' if candidate_plan
                                   else 'candidate.json adapters and supplied-candidate.sql' if candidate_migration_file
                                   else 'candidate.json adapters and migration.sql')
+    candidate_sql_source = None
+    if candidate_migration_file is not None:
+        source = candidate_migration_file.resolve()
+        try:
+            label = source.relative_to(Path.cwd().resolve()).as_posix()
+            scope = 'Relative to invocation directory'
+        except ValueError:
+            label = source.name
+            scope = 'Filename only; source is outside invocation directory'
+        candidate_sql_source = {'path': label, 'path_scope': scope,
+                                'snapshot': 'inputs/supplied-candidate.sql',
+                                'sha256': status['input_sha256']['supplied-candidate.sql']}
+        status['candidate_sql_source'] = candidate_sql_source
     supplied_baseline = baseline_migration is not None or git_source is not None
     status['baseline_source'] = ('baseline.json adapters and supplied-baseline.sql' if supplied_baseline
                                 else 'baseline.json (all five plan fields)')
@@ -159,17 +172,23 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
                            '`. Checked before SQL execution and retained in review-status.json. '
                            'Formatting and key order do not change this identity; schema, adapters, seeds and payloads do. '
                            'This is not a signature. Changes to the expected hash require separate review.\n')
-        if git_source is not None:
+        if git_source is not None or candidate_sql_source is not None:
             from .review_html import render_review
             with zipfile.ZipFile(output/'comparison.zip') as archive:
                 audited_reports = [json.loads(archive.read(prefix+'report.json'))
                                    for prefix in ('baseline/', 'candidate/')]
-            (output/'review.html').write_text(render_review(audited_reports, git_source), encoding='utf-8')
-            with (output/'review.md').open('a', encoding='utf-8') as note:
-                note.write('\n## Baseline SQL source\n\nLocal Git snapshot (not a signature):\n\n'+
+            (output/'review.html').write_text(render_review(audited_reports, git_source, candidate_sql_source), encoding='utf-8')
+            if git_source is not None:
+                with (output/'review.md').open('a', encoding='utf-8') as note:
+                    note.write('\n## Baseline SQL source\n\nLocal Git snapshot (not a signature):\n\n'+
                            '```json\n'+json.dumps(git_source, ensure_ascii=True, indent=2)+'\n```\n\n'+
                            'Exact bytes are retained in `inputs/supplied-baseline.sql`. '
                            'Only migration SQL comes from Git; adapters and contract are the supplied project inputs.\n')
+        if candidate_sql_source is not None:
+            with (output/'review.md').open('a', encoding='utf-8') as note:
+                note.write('\n## Candidate SQL source\n\n'+'```json\n'+json.dumps(candidate_sql_source, ensure_ascii=True, indent=2)+'\n```\n\n'+
+                           'Byte hash of the retained SQL snapshot, including any BOM and line endings. '
+                           'Adapters still come from candidate.json; this is not a whole-PR verification or signature.\n')
         report = json.loads((output/'candidate-report.json').read_text(encoding='utf-8'))
         if expected_contract_hash is not None and report['contract_hash'] != expected_contract_hash:
             raise ValueError('Executed report differs from the reviewed contract hash')

@@ -43,6 +43,10 @@ class OfflineReviewTests(unittest.TestCase):
         self.assertIn('&lt;img src=x&gt;.sql', page)
         self.assertNotIn('<img src=x>', page)
         self.assertIn('Only baseline migration SQL', page)
+        candidate = render_review(self.reports, candidate_sql_source={'path':'<img src=x>.sql','path_scope':'Filename only','snapshot':'inputs/supplied-candidate.sql','sha256':'abc123'})
+        self.assertIn('&lt;img src=x&gt;.sql', candidate)
+        self.assertNotIn('<img src=x>', candidate)
+        self.assertIn('SQL byte SHA-256', candidate)
 
     @classmethod
     def setUpClass(cls):

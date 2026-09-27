@@ -29,6 +29,15 @@ class LocalProjectReviewTests(unittest.TestCase):
             self.assertEqual(report['plan']['migration'],raw.decode('utf-8-sig'))
             self.assertEqual((root/'unsafe/inputs/supplied-candidate.sql').read_bytes(),raw)
             self.assertEqual(source.read_bytes(),raw)
+            import hashlib
+            source_status=json.loads((root/'unsafe/review-status.json').read_text(encoding='utf-8'))['candidate_sql_source']
+            self.assertEqual(source_status['sha256'],hashlib.sha256(raw).hexdigest())
+            self.assertEqual(source_status['path'],source.name)
+            for artifact in ('review.md','review.html'):
+                note=(root/'unsafe'/artifact).read_text(encoding='utf-8')
+                self.assertIn(source_status['sha256'],note)
+                self.assertIn(source.name,note)
+                self.assertNotIn(str(root),note)
             self.assertFalse((root/'unsafe/pr-kit.zip').exists())
             raw=b'\xef\xbb\xbf'+repaired.replace('\n','\r\n').encode();source.write_bytes(raw)
             self.assertEqual(review(project,root/'repaired',candidate_migration_file=source),0)

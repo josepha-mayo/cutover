@@ -81,7 +81,7 @@ def content_security_policy():
               f"style-src 'sha256-{digest(STYLE)}'; base-uri 'none'; form-action 'none'")
 
 
-def render_review(reports, baseline_git=None):
+def render_review(reports, baseline_git=None, candidate_sql_source=None):
     """Caller must independently audit reports before presenting this export."""
     reports = list(reports)
     payload = json.dumps(reports, ensure_ascii=True, separators=(',', ':'))
@@ -111,6 +111,13 @@ def render_review(reports, baseline_git=None):
                       '<p class="scope">Local Git snapshot, not a signature. Only baseline migration SQL comes from this commit; '
                       'adapters and contract are supplied project inputs. Exact SQL bytes are retained in '
                       '<code>inputs/supplied-baseline.sql</code>. This does not verify the whole application at that commit.</p></section>')
+    if candidate_sql_source is not None:
+        fields = ''.join('<dt>'+label+'</dt><dd class="identity">'+html.escape(str(candidate_sql_source[key]))+'</dd>'
+                         for label, key in [('Source file', 'path'), ('Path scope', 'path_scope'),
+                                            ('Retained snapshot', 'snapshot'), ('SQL byte SHA-256', 'sha256')])
+        provenance += ('<section><h2>Candidate SQL reviewed</h2><dl>'+fields+'</dl>'
+                       '<p class="scope">Byte hash includes any BOM and line endings. The candidate executes this retained snapshot; '
+                       'adapters still come from candidate.json. This does not verify the whole PR and is not a signature.</p></section>')
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="{policy}"><title>Cutover recorded review</title><style>{STYLE}</style></head>
