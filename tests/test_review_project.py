@@ -139,6 +139,10 @@ class LocalProjectReviewTests(unittest.TestCase):
             repaired = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-2',
                            '--bob-workspace', '--candidate-plan', 'saved-candidate.json'])
             self.assertEqual(repaired.returncode, 0, repaired.stderr)
+            self.assertIn(b'Original baseline: BLOCKED 55/125', repaired.stdout)
+            self.assertIn(b'Current candidate: PASS 155/155', repaired.stdout)
+            self.assertIn(b'not a failure of the current candidate', repaired.stdout)
+            self.assertIn(b'Recorded counterexample:', repaired.stdout)
             self.assertFalse((root/'review-2/bob-repair-workspace.zip').exists())
             note = (root/'review-2/review.md').read_text(encoding='utf-8')
             self.assertIn('| Baseline | BLOCKED | 55/125', note)

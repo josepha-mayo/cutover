@@ -74,6 +74,9 @@ independently audits the packet, writes review.md and review.html, and retains l
 The terminal also shows a bounded recorded counterexample for a blocked candidate:
 operation sequence, expected data and observed data. Long values are shortened only
 for display; the packet and walkthrough retain the full evidence.
+After a passing repair, it still shows the original blocked verdict and its
+counterexample, clearly separated from the current passing candidate. Probe totals
+can differ because migration boundary probes depend on each plan.
 Open review.html locally to inspect verdicts, exact SQL and each recorded replay step. It needs no
 network access or server and does not execute SQL or reverify itself. The page is
 unsigned; share only when its included SQL/values are appropriate for the reviewer.

@@ -235,6 +235,15 @@ def main():
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')
     report = json.loads((args.out/'candidate-report.json').read_text(encoding='utf-8'))
+    with zipfile.ZipFile(args.out/'comparison.zip') as archive:
+        original = json.loads(archive.read('baseline/report.json'))
+    print(f'Original baseline: {original["status"].upper()} {original["passed"]}/{original["total"]}')
+    print(f'Current candidate: {report["status"].upper()} {report["passed"]}/{report["total"]}')
+    print('Probe totals can differ with each plan\'s migration boundaries; this is bounded rehearsal evidence.')
+    if code == 0 and original.get('witness'):
+        print('Original failure retained in the comparison (not a failure of the current candidate):')
+        for line in terminal_witness(original):
+            print(line)
     for line in terminal_witness(report):
         print(line)
     print('Offline walkthrough: review.html. Open locally; it displays evidence without running SQL or using the network.')
