@@ -40,6 +40,8 @@ class ScenarioBuilderTests(unittest.TestCase):
                 scenario = built["value"]
                 contract = scenario["contract"]
                 self.assertEqual(contract["payloads"][0], "R-07")
+                self.assertEqual(contract["payloads"][-1], "")
+                self.assertEqual(len(contract["payloads"]), 5)
                 meta = validate_imported_contract(contract)
                 self.assertEqual(meta["seed_count"], 2)
                 before = run_rehearsal("custom", scenario["unsafe"], contract)
@@ -51,6 +53,10 @@ class ScenarioBuilderTests(unittest.TestCase):
                                  (after["contract_hash"], after["suite_hash"]))
                 self.assertIsNotNone(before["witness"])
                 self.assertEqual(before["witness"]["payload"], "R-07")
+                empty = [item for item in before['results'] if item['payload'] == '']
+                self.assertTrue(any(not item['passed'] and item['category'] == 'migration_window'
+                                    for item in empty))
+                self.assertTrue(all(item['passed'] for item in after['results'] if item['payload'] == ''))
 
     def test_incoming_value_avoids_duplicate_probe_payloads(self):
         built = self.build(dict(project="My release", table="items",

@@ -25,6 +25,9 @@ export function buildScenario(input) {
     if (payloads.length === 4) break;
     if (!payloads.includes(sample)) payloads.push(sample);
   }
+  // Keep the existing named inputs, then challenge a legitimate clear-to-empty
+  // write. Empty text is distinct from SQL NULL and from a row not returned.
+  payloads.push('');
   const q = name => `"${name}"`;
   const t = q(table), old = q(oldColumn), next = q(newColumn);
   const read = `SELECT id, ${next} AS value FROM ${t} ORDER BY id`;
