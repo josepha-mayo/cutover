@@ -15,6 +15,7 @@ from cutover.bundle import render_bundle, render_comparison_bundle
 from cutover.audit_bundle import audit_bytes
 from cutover.ci_kit import render_ci_kit
 from cutover.repair_workspace import render_repair_workspace
+from cutover.local_starter import render_local_starter
 from cutover.engine import load_case, repair_brief
 from cutover.fragility import challenge_steps
 from cutover.reporting import render_markdown, render_reproduction
@@ -82,6 +83,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_video()
         if path == '/watch' and not VIDEO.is_file():
             return self.send(404, {'error': 'The final presentation has not been published yet'})
+        if path == '/api/local-starter':
+            return self.send(200, render_local_starter(), 'application/zip',
+                             {'Content-Disposition': 'attachment; filename="cutover-local-starter.zip"'})
         if path == '/api/catalog':
             return self.send(200, catalog())
         if path == '/api/example/warehouse':

@@ -125,6 +125,10 @@ and copy only the four listed workflow/contract/adapters/SQL files into your
 application repository. New downloaded Bob workspaces include this CLI export
 path, so a locally repaired candidate can reach a PR without another upload.
 
+## Start locally without a clone or Bob setup
+
+[Download the local starter](https://cutover-rehearsal.onrender.com/api/local-starter), extract into a new folder and inspect its README and source. Python 3.10+ is enough for the CLI; no pip install, account or API key is needed. It includes prewritten sample contracts/plans, before/after review export, independent ZIP auditing and local PR-kit export. These commands execute local disposable SQLite and do not upload your SQL to Render. Optional Bob integration still needs its separate local workspace or the full checkout. Bundled plans are reference examples, not new Bob output.
+
 ## Bring your own contract through the CLI
 
 A developer can supply a bounded single-table SQLite contract and candidate plan as JSON. The [warehouse contract](examples/warehouse/contract.json) is a complete example with its own bin-code payloads. Its [late synchronization plan](examples/warehouse/late_bridge.json) misses an acknowledged old-worker move; its [window-safe plan](examples/warehouse/bridge.json) passes the reported suite.

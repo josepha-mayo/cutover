@@ -22,6 +22,15 @@ WAREHOUSE = Path(__file__).resolve().parents[1] / 'examples' / 'warehouse'
 
 
 class HttpTests(unittest.TestCase):
+    def test_local_starter_download_needs_no_sql_input(self):
+        with urllib.request.urlopen(self.base + '/api/local-starter', timeout=15) as response:
+            self.assertEqual(response.headers['Content-Type'], 'application/zip')
+            self.assertIn('cutover-local-starter.zip', response.headers['Content-Disposition'])
+            with zipfile.ZipFile(io.BytesIO(response.read())) as archive:
+                self.assertIn('cutover/audit_bundle.py', archive.namelist())
+                self.assertIn('SOURCE_INVENTORY.json', archive.namelist())
+                self.assertIn(b'no pip install', archive.read('README.md'))
+
     def test_repair_workspace_requires_fresh_blocked_custom_identity(self):
         contract = json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8'))
         plan = json.loads((WAREHOUSE / 'late_bridge.json').read_text(encoding='utf-8'))
