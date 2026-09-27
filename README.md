@@ -129,6 +129,16 @@ path, so a locally repaired candidate can reach a PR without another upload.
 
 [Download the local starter](https://cutover-rehearsal.onrender.com/api/local-starter), extract into a new folder and inspect its README and source. Python 3.10+ is enough for the CLI; no pip install, account or API key is needed. It includes prewritten sample contracts/plans, before/after review export, independent ZIP auditing and local PR-kit export. These commands execute local disposable SQLite and do not upload your SQL to Render. Optional Bob integration still needs its separate local workspace or the full checkout. Bundled plans are reference examples, not new Bob output.
 
+For a simple two-column rename, generate editable inputs locally rather than authoring contract JSON by hand:
+
+```text
+python -m cutover.init_contract --project "Dispatch release" --table shipments --old-column loading_bay --new-column dispatch_bay --first-value A-01 --second-value B-02 --incoming-value GATE-09 --out my-release
+python -m cutover --contract my-release/contract.json --plan my-release/baseline.json --bundle my-release/unsafe.zip
+```
+
+This validates the generated old-worker queries locally and creates the contract, original backfill, editable candidate/migration SQL and repair instructions in a new folder. The backfill should block; no passing repair is supplied. Adapt the synthetic schema and fixed queries to your actual contract, edit the candidate and compare before/after. Existing folders are refused. Use `--incoming-value ""` for a legitimate clear-to-empty write. This is Codex setup assistance, not a new Bob task.
+
+
 ## Bring your own contract through the CLI
 
 A developer can supply a bounded single-table SQLite contract and candidate plan as JSON. The [warehouse contract](examples/warehouse/contract.json) is a complete example with its own bin-code payloads. Its [late synchronization plan](examples/warehouse/late_bridge.json) misses an acknowledged old-worker move; its [window-safe plan](examples/warehouse/bridge.json) passes the reported suite.

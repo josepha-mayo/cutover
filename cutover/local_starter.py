@@ -12,7 +12,7 @@ def render_local_starter():
     names = ['LICENSE', 'cutover/__init__.py', 'cutover/__main__.py',
         'cutover/engine.py', 'cutover/service.py', 'cutover/worker.py',
         'cutover/reporting.py', 'cutover/bundle.py', 'cutover/audit_report.py',
-        'cutover/audit_bundle.py', 'cutover/selected_replay.py', 'cutover/ci_kit.py']
+        'cutover/audit_bundle.py', 'cutover/selected_replay.py', 'cutover/ci_kit.py', 'cutover/init_contract.py']
     for case in ('parcel', 'contacts', 'warehouse'):
         for plan in ('contract', 'rename', 'backfill', 'late_bridge', 'bridge'):
             name = f'examples/{case}/{plan}.json'
@@ -46,7 +46,19 @@ candidate, passing claim or credentials are included in this starter.
 
 ## Bring your own migration
 
-Copy a sample contract and plan into new files. Set your schema, synthetic seed
+For a simple two-column rename, create editable inputs locally without writing
+JSON by hand. This generates an unsafe backfill, not a passing repair:
+
+```text
+python -m cutover.init_contract --project "Dispatch release" --table shipments --old-column loading_bay --new-column dispatch_bay --first-value A-01 --second-value B-02 --incoming-value GATE-09 --out my-release
+python -m cutover --contract my-release/contract.json --plan my-release/baseline.json --bundle my-release/unsafe.zip
+```
+
+The second command should block. Read my-release/README.md for the repair and
+comparison commands. Inspect and adapt the synthetic schema to your real old
+queries before relying on it. Existing output folders are refused.
+
+For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.
 Set the new read/write/insert adapters in each plan. The reader must return all
 records as id and value; update/insert use named :id and :value inputs.
