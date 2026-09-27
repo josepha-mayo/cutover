@@ -25,7 +25,8 @@ SCRIPT = '''
 const reports=JSON.parse(document.getElementById('recorded-data').textContent);
 const $=id=>document.getElementById(id);
 const text=(tag,value,parent)=>{const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;};
-let current=0, selected=null, step=0;
+let current=reports.length===2&&reports[1].status==='blocked'?1:
+  reports[0].status==='blocked'?0:reports.length-1, selected=null, step=0;
 reports.forEach((r,i)=>{
   const label=reports.length===1?'Executed plan':i===0?'Baseline':'Candidate';
   const card=document.createElement('article');card.className=r.status;
@@ -42,6 +43,14 @@ function chooseProbe(){
 }
 function choosePlan(){
   const r=reports[current];$('probe').replaceChildren();
+  $('review-focus').textContent=reports.length===1?
+    'Inspect the recorded '+r.status+' result for this executed plan.':
+    current===1?(r.status==='blocked'?
+      'The candidate is blocked. Inspect its counterexample before merging.':
+      'The candidate passed this bounded suite. Select Baseline to inspect the original result.'):
+    (reports[1].status==='pass'&&r.status==='blocked'?
+      'The candidate passed; this is the retained original failure. Select Candidate to inspect the repair.':
+      'This is the original baseline. Select Candidate to inspect the proposed change.');
   const probes=r.results.filter(p=>!$('failures').checked||!p.passed);
   probes.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.passed?'PASS':'FAIL'} · ${p.title} · input ${JSON.stringify(p.payload)}`;$('probe').append(o);});
   $('probe').disabled=!probes.length;$('empty').hidden=!!probes.length;$('walk').hidden=!probes.length;
@@ -70,7 +79,7 @@ $('plan').onchange=()=>{current=Number($('plan').value);choosePlan();};
 $('failures').onchange=choosePlan;$('probe').onchange=chooseProbe;
 $('position').oninput=()=>{step=Number($('position').value);renderStep();};
 $('previous').onclick=()=>{step--;renderStep();};$('next').onclick=()=>{step++;renderStep();};
-choosePlan();
+$('plan').value=String(current);$('failures').checked=reports[current].status==='blocked';choosePlan();
 '''
 
 
@@ -127,7 +136,7 @@ def render_review(reports, baseline_git=None, candidate_sql_source=None):
 <body><main><h1>Follow the write. Review the migration.</h1>
 <p class="scope">Offline review generated after independent replay. This page displays recorded evidence; it does not execute SQL or reverify itself. No network access is required. The HTML is not signed.</p>
 <p class="scope">Sequential SQLite schedules only. Passing does not establish production safety, simultaneous transaction behavior or another database engine. Different migration sequences have their own statement boundaries; window probes are not paired by step number.</p>
-{provenance}<div id="summary" class="cards"></div>{changes}<section><label for="plan">Executed plan</label><select id="plan"></select>
+{provenance}<div id="summary" class="cards"></div>{changes}<section><p id="review-focus" aria-live="polite"></p><label for="plan">Executed plan</label><select id="plan"></select>
 <p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
 <label for="probe">Recorded probe</label><select id="probe"></select><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">
