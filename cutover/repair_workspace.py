@@ -13,7 +13,7 @@ SOURCES = (
     'LICENSE', 'configure_bob.py', 'mcp_server.py', 'requirements-mcp.txt',
     'cutover/__init__.py', 'cutover/__main__.py', 'cutover/audit_report.py',
     'cutover/bundle.py', 'cutover/engine.py', 'cutover/reporting.py',
-    'cutover/selected_replay.py', 'cutover/service.py', 'cutover/worker.py',
+    'cutover/selected_replay.py', 'cutover/service.py', 'cutover/worker.py', 'cutover/ci_kit.py',
 )
 
 
@@ -103,8 +103,12 @@ Inspect the source before running it. No API keys or account information are inc
 6. Independently check the saved result:
    `python verify_workspace.py --candidate work/bob-candidate.json`.
    Exit 0 means this suite passed, 1 means blocked, and other errors remain unverified.
-   Each attempt retains its report and Markdown in a new folder under work/. Import the candidate into
-   the browser to compare it and, on a pass, export a separately verified PR gate kit.
+   Each attempt retains its report and Markdown in a new folder under work/.
+7. After that check passes, export the pinned PR gate entirely locally:
+   `python -m cutover --contract contract.json --plan work/bob-candidate.json --ci-kit work/pr-kit.zip --ci-control baseline-plan.json`.
+   The passing candidate and unsafe control are freshly executed and independently audited.
+   Inspect the kit README and copy only its four listed files into your repository.
+   This archive contains your supplied SQL and seed values; decide what to share.
 
 Hashes detect changes against this package's inventory, not publisher authenticity.
 Deliberately replacing the inventory defeats that check. Bob IDE access is separate;

@@ -6,7 +6,7 @@ from pathlib import Path
 from .engine import load_case, load_plan
 from .bundle import render_bundle
 from .reporting import render_markdown, render_reproduction
-from .service import WORKER_TIMEOUT_SECONDS, run_rehearsal, run_selected_replay
+from .service import WORKER_TIMEOUT_SECONDS, run_rehearsal, run_selected_replay, verify_report_against_replay
 from .selected_replay import IDENTITIES
 
 for stream in (sys.stdout, sys.stderr):
@@ -24,7 +24,13 @@ parser.add_argument("--markdown", type=Path, help="Review-ready Markdown from th
 parser.add_argument("--repro", type=Path, help="Standalone Python replay of a failing data mismatch witness.")
 parser.add_argument("--selected-probe", help="Exact failed probe ID for --markdown/--repro; report and bundle retain the canonical suite witness.")
 parser.add_argument("--bundle", type=Path, help="ZIP with inputs, executed evidence, review and any replayable witness.")
+parser.add_argument("--ci-kit", type=Path, help="Independently audited passing custom-contract PR gate kit, generated entirely locally.")
+parser.add_argument("--ci-control", type=Path, help="Optional unsafe plan JSON for the local CI kit; must independently reproduce a data mismatch under the same contract.")
 args = parser.parse_args()
+if args.ci_kit and not args.contract:
+    parser.error("--ci-kit requires --contract and --plan")
+if args.ci_control and not args.ci_kit:
+    parser.error("--ci-control requires --ci-kit")
 if args.selected_probe and not (args.markdown or args.repro):
     parser.error("--selected-probe requires --markdown or --repro")
 if args.migration_file and not args.plan:
@@ -33,13 +39,15 @@ if args.contract and not args.plan:
     parser.error("--contract requires a candidate --plan")
 if args.contract and args.case != 'parcel':
     parser.error("--case selects a bundled example and cannot be combined with --contract")
-destinations = [path.resolve() for path in (args.output, args.markdown, args.repro, args.bundle) if path]
+destinations = [path.resolve() for path in (args.output, args.markdown, args.repro, args.bundle, args.ci_kit) if path]
 if len(destinations) != len(set(destinations)):
     parser.error("Evidence outputs must be different files")
-inputs = {path.resolve() for path in (args.contract, args.plan, args.migration_file) if path}
-for destination in (args.output, args.markdown, args.repro, args.bundle):
+inputs = {path.resolve() for path in (args.contract, args.plan, args.migration_file, args.ci_control) if path}
+for destination in (args.output, args.markdown, args.repro, args.bundle, args.ci_kit):
     if destination and destination.resolve() in inputs:
         parser.error("Evidence outputs cannot overwrite a contract, candidate plan or migration source")
+if args.ci_kit and args.ci_kit.exists():
+    parser.error("CI kit output already exists; choose a new file")
 
 
 def read_json(path, label):
@@ -71,6 +79,26 @@ except subprocess.TimeoutExpired:
     parser.error(f'Rehearsal exceeded its {WORKER_TIMEOUT_SECONDS} second budget; no verdict was produced')
 except ValueError as exc:
     parser.error(str(exc))
+kit = None
+if args.ci_kit:
+    try:
+        from .ci_kit import render_ci_kit
+        if report['status'] != 'pass':
+            raise ValueError('CI kit requires a passing candidate; no kit was written')
+        verify_report_against_replay('custom', plan, report, contract)
+        control = None
+        if args.ci_control:
+            control_plan = read_json(args.ci_control, 'Unsafe control')
+            control = run_rehearsal('custom', control_plan, contract)
+            if (control['status'] != 'blocked' or not control.get('witness') or
+                    control['witness']['failure']['kind'] != 'data_mismatch' or
+                    any(control[key] != report[key] for key in
+                        ('contract_hash', 'engine_sha256', 'suite_hash'))):
+                raise ValueError('CI control must reproduce a comparable blocked data mismatch')
+            verify_report_against_replay('custom', control_plan, control, contract)
+        kit, kit_slug = render_ci_kit(report, contract, control)
+    except (ValueError, subprocess.TimeoutExpired) as exc:
+        parser.error(f'Local CI kit not verified: {exc}')
 try:
     selected_export = None
     if args.selected_probe:
@@ -100,6 +128,14 @@ if args.repro:
 if args.bundle:
     args.bundle.parent.mkdir(parents=True, exist_ok=True)
     args.bundle.write_bytes(bundle)
+if kit is not None:
+    args.ci_kit.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with args.ci_kit.open('xb') as target:
+            target.write(kit)
+    except OSError as exc:
+        parser.error(f'Cannot write new CI kit: {exc}')
+    print(f"Local PR gate kit: {args.ci_kit}; independently replayed; {kit_slug}")
 print(f"{report['status'].upper()}: {report['passed']}/{report['total']} rollout and window probes; "
       f"same-version baseline {report['baseline']['passed']}/{report['baseline']['total']}; "
       f"plan {report['plan_hash'][:12]}")

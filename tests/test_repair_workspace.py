@@ -50,6 +50,14 @@ class RepairWorkspaceTests(unittest.TestCase):
             self.assertEqual(len(reports), 2)
             report = next(r for r in reports if r['status'] == 'pass')
             self.assertEqual((report['passed'], report['total']), (124, 124))
+            kit = subprocess.run([sys.executable, '-m', 'cutover', '--contract', 'contract.json',
+                                  '--plan', 'work/bob-candidate.json', '--ci-kit', 'work/pr-kit.zip',
+                                  '--ci-control', 'baseline-plan.json'], cwd=root,
+                                 capture_output=True, timeout=120)
+            self.assertEqual(kit.returncode, 0, kit.stderr)
+            with zipfile.ZipFile(root/'work/pr-kit.zip') as archive:
+                self.assertEqual(json.loads(archive.read('evidence/report.json'))['status'], 'pass')
+                self.assertEqual(json.loads(archive.read('evidence/unsafe-control-report.json'))['status'], 'blocked')
 
     def test_changed_contract_stops_before_candidate_execution(self):
         with tempfile.TemporaryDirectory() as tmp:

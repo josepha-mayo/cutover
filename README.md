@@ -99,6 +99,25 @@ its old-write synchronization SQL. Both retained review packets passed
 independent replay against their GitHub run checkouts. That historical kit
 retains its earlier Action pin; new downloads include the contract lock.
 
+## Export a PR gate entirely locally
+
+After a private custom candidate passes, produce the same pinned four-file gate
+kit without submitting SQL to Render:
+
+```powershell
+python -m cutover --contract examples/warehouse/contract.json --plan examples/warehouse/bridge.json --ci-kit work/local-warehouse-ci-kit.zip --ci-control examples/warehouse/late_bridge.json
+python -m ci.install_kit --kit work/local-warehouse-ci-kit.zip
+```
+
+Replace the example paths with your reviewed contract and candidate. The optional
+`--ci-control` must independently reproduce a data mismatch under that same
+contract. The candidate and control are freshly executed and separately audited
+before packaging. A blocked candidate, nonfailing control or existing destination
+refuses kit export. Inspect the kit README, keep its failing control for review,
+and copy only the four listed workflow/contract/adapters/SQL files into your
+application repository. New downloaded Bob workspaces include this CLI export
+path, so a locally repaired candidate can reach a PR without another upload.
+
 ## Bring your own contract through the CLI
 
 A developer can supply a bounded single-table SQLite contract and candidate plan as JSON. The [warehouse contract](examples/warehouse/contract.json) is a complete example with its own bin-code payloads. Its [late synchronization plan](examples/warehouse/late_bridge.json) misses an acknowledged old-worker move; its [window-safe plan](examples/warehouse/bridge.json) passes the reported suite.
