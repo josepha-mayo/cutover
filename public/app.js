@@ -69,6 +69,7 @@ function setBusy(value, label='Executing SQL rehearsals…') {
   $('comparison-scenario').disabled=value;
   $('retry-catalog').disabled=value||catalogLoading;
   $('proof-tour').disabled=value||proofTourBusy;
+  for(const id of ['earlier-boundary','later-boundary'])$(id).disabled=value||!$(id).dataset.probe;
   $('run').innerHTML=value?`<span>${escape(label)}</span><span>◌</span>`:'<span>Run release rehearsal</span><span>↗</span>';
   if(!value){updateModeControls();renderComparison();}
   updateReplayExport();
@@ -91,6 +92,7 @@ function invalidate() {
   $('trace').replaceChildren(); $('trace-title').textContent='Nothing inferred. Everything replayed.'; $('trace-id').textContent=''; $('trace-payload').textContent='';
   $('trace-label').textContent='REPLAY';
   $('trace-story').hidden=true; $('trace-story').textContent='';
+  $('boundary-navigator').hidden=true;
   $('window-map').hidden=true; $('window-stages').replaceChildren();
   $('finding').innerHTML='<span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div>';
   $('export').disabled=true; $('export-review').disabled=true; $('export-repro').disabled=true; $('export-bundle').disabled=true; $('brief').disabled=true;
@@ -351,8 +353,24 @@ function renderMatrix() {
     target.focus();
   })));
 }
+function renderBoundaryNavigation(probe) {
+  const match=/^window_(write|insert)_after_(\d+)-(\d+)$/.exec(probe.id);
+  const peers=match?report.results.filter(item=>{
+    const other=/^window_(write|insert)_after_(\d+)-(\d+)$/.exec(item.id);
+    return other&&other[1]===match[1]&&other[3]===match[3]&&item.payload===probe.payload;
+  }).sort((a,b)=>a.migration_boundary-b.migration_boundary):[];
+  const index=peers.findIndex(item=>item.id===probe.id);
+  $('boundary-navigator').hidden=index<0||peers.length<2;
+  if(index<0)return;
+  $('boundary-position').textContent=`Old ${match[1]==='write'?'update':'insert'} · after ${probe.migration_boundary} of ${peers.at(-1).migration_boundary} statements · ${probe.passed?'passed':'failed'}`;
+  for(const [id,target] of [['earlier-boundary',peers[index-1]],['later-boundary',peers[index+1]]]) {
+    $(id).disabled=busy||!target;
+    $(id).dataset.probe=target?.id||'';
+  }
+}
 function renderTrace(probe) {
   if(!probe)return; selected=probe.id;
+  renderBoundaryNavigation(probe);
   $('trace-label').textContent=report.witness?.id===probe.id?'SHORTEST OBSERVED FAILURE':'EXECUTED REPLAY';
   $('trace-id').textContent=probe.passed?'PASS':'FAIL'; $('trace-title').textContent=probe.title;
   const seededWrite=probe.actions?.some(action=>action.endsWith('.write'));
@@ -499,6 +517,11 @@ document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener
 $('try-cross-record').addEventListener('click',()=>{if(busy||activeCase?.id==='custom')return;reference='cross_record';setPlan(activeCase.plans.cross_record,'Prewritten negative control · not AI generated');run();});
 Object.values(fields).forEach(id=>$(id).addEventListener('input',()=>{reference=null;candidateSource='Custom candidate · not yet executed';candidateProvenance='custom candidate';$('source-label').textContent=candidateSource;$('bob-evidence-link').hidden=true;document.querySelectorAll('[data-plan]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});invalidate();updateModeControls();}));
 $('failures-only').addEventListener('change',renderMatrix);
+for(const id of ['earlier-boundary','later-boundary'])$(id).addEventListener('click',()=>{
+  if(!report||busy)return;
+  const probe=report.results.find(item=>item.id===$(id).dataset.probe);
+  if(probe)renderTrace(probe);
+});
 $('brief').addEventListener('click',showBob); $('bob-nav').addEventListener('click',showBob);
 $('export-bundle').addEventListener('click',async()=>{
   if(!report||bundleBusy)return;
