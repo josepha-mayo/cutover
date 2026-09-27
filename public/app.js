@@ -55,6 +55,7 @@ function updateModeControls() {
   $('open-plan').disabled=busy||!activeCase;
   $('open-sql').disabled=busy||!activeCase;
   $('import-sql').disabled=busy||!activeCase;
+  $('save-sql').disabled=busy||!activeCase||!$('migration').value.trim();
   $('open-contract').disabled=busy;
   $('open-packet').disabled=busy;
   $('retry-catalog').disabled=busy||catalogLoading;
@@ -680,6 +681,11 @@ $('export-repro').addEventListener('click',()=>exportSelected());
 $('export-selected-review').addEventListener('click',()=>exportSelected('markdown'));
 $('export-review').addEventListener('click',()=>report?.review_markdown&&download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.md`,report.review_markdown,'text/markdown'));
 $('save-plan').addEventListener('click',()=>download(`cutover-${activeCase.id}-candidate.json`,pretty(currentPlan())));
+$('save-sql').addEventListener('click',()=>{
+  if(busy||!activeCase||!$('migration').value.trim())return;
+  download(`cutover-${fileSlug(activeCase.project||activeCase.id)}-migration.sql`,$('migration').value,'application/sql;charset=utf-8');
+  notify('Editable migration SQL downloaded. This source file is not a verified verdict; rerun after changes.');
+});
 $('save-contract').addEventListener('click',()=>importedContract&&download(`cutover-${fileSlug(importedContract.project)}-contract.json`,pretty(importedContract)));
 $('download-brief').addEventListener('click',()=>download('CUTOVER-BOB-TASK.txt',briefText,'text/plain'));
 for(const name of ['contract','packet','plan','sql']) {
