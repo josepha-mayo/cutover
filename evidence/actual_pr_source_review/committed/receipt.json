@@ -1,0 +1,42 @@
+{
+  "runtime_commit": "5659d3b0df14b48aba7e0a5ec66f98f389cd7705",
+  "starter_sha256": "f81bfe9517ada9bc4c680f0aebb24f40594cb87d48c48fcf057c123656a551dc",
+  "baseline_git": {
+    "commit": "4bf0e9c31aeb2add321c8b4450efa1b494716444",
+    "path": "db/relocation.sql",
+    "blob": "687de3b7ae3dd0798bb10cf86057ce98af8b2c8c"
+  },
+  "candidate_sql_source": {
+    "path": "db/relocation.sql",
+    "path_scope": "Repository path at candidate commit",
+    "snapshot": "inputs/supplied-candidate.sql",
+    "sha256": "371aab8a669c64a52964b6402ebf17324ad9bb1f5da6ebaec61ff330abd4e0f0",
+    "commit": "f973f99fc0b83b7f645e7b534c740d66e7dd535e",
+    "blob": "290f49150911a80dc9f0fe445570e34017456ebf"
+  },
+  "original": [
+    108,
+    124
+  ],
+  "candidate": [
+    124,
+    124
+  ],
+  "working_file_and_tracked_status_unchanged": true,
+  "kit_both_identities_matched": true,
+  "missing_candidate_ref_refused_before_output": true,
+  "files": {
+    "source.bundle": "a6406f272bea2df9b342ea3bfd004efcff95f9be5d5b5dbd270ce2c6995287fc",
+    "comparison.zip": "9f4b9c4427109f9c846c3e43f96b553075e592faa835b51640736fc98f73a988",
+    "pr-kit.zip": "ad7fa31af3467d4e9bba06c1b1960836d626931a4672931969b9bd205cd8a277",
+    "review.html": "13303d53ab26dfdc011d58a3ca70e8ae039f83e38df08b046b78b62c8202548f",
+    "review.md": "c96b324508bdb784ce9aab7f931919ca5f5685e953e0aa3b210bb0fa6b6fdcc7",
+    "inputs/baseline.json": "d9ed19eece5d73031328f5db286b83f63cbfdf9994fd9c6990c3f0c3d841d05f",
+    "inputs/candidate.json": "87e63953162037027f1001ed2200b7ce6d9addf2a8dac9830a2168c8f7856545",
+    "inputs/contract.json": "b73e40534e692361db79c96c1909e52bf9124b8d5a1a652d3871704f09a7f201",
+    "inputs/migration.sql": "d3cd5042f97738960d802ad6b3a548dfa18152215118ba18f04493bc6944b0e4",
+    "inputs/supplied-baseline.sql": "653addede7fe516bd50616b669aad16ae18ac2f220e5ae19edba96a3c78111d7",
+    "inputs/supplied-candidate.sql": "371aab8a669c64a52964b6402ebf17324ad9bb1f5da6ebaec61ff330abd4e0f0"
+  },
+  "scope": "Prospectively committed synthetic SQL control; prewritten reference candidate, not customer adoption or new Bob output"
+}

@@ -31,3 +31,9 @@ python -m cutover.review_project --project path/to/inputs --baseline-migration-f
 ```
 
 This freshly executes both plans and should return candidate pass, while preserving the original blocked baseline. It uses source files, not the original recorded Git provenance. The prewritten passing reference is test input, not a Bob-generated repair. Passing remains bounded sequential SQLite evidence.
+
+## Compare two exact committed SQL versions
+
+The later [committed-source control](committed/README.md) includes a [downloadable Git history and review ZIP](https://raw.githubusercontent.com/josepha-mayo/cutover/main/evidence/actual_pr_source_review/committed/committed-control.zip). Both SQL sources were prospectively committed before execution. The working file was then changed to invalid SQL, while the copied project migration remained stale. Cutover reviewed the committed blobs: original **108/124 blocked → candidate 124/124 pass**.
+
+The download contains the two-commit Git bundle, actual recorded review and PR kit, supplied inputs, hashes and a PowerShell recipe. Independently cloning that bundle restored both byte-exact SQL blobs; the documented fresh-review recipe reproduced the result without changing the working SQL. The candidate is a prewritten reference, not new Bob output. Candidate commit/path/blob and exact SQL byte hash appear in the note and offline review. The runtime was 5659d3b; this later control does not replace the earlier working-file control above.
