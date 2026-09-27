@@ -204,13 +204,17 @@ function selectedFailureNote(probe,report){
   };
   const json=JSON.stringify(evidence,null,2),runs=json.match(/`+/g)||[];
   const fence='`'.repeat(Math.max(3,...runs.map(run=>run.length+1)));
+  const failedRead=probe.trace.find(e=>e.status==='fail'),rows=failedRead&&recordedRowChanges(failedRead);
+  const rowSummary=rows?.changes.length?
+    '## Recorded reader mismatch\\n\\n'+rows.changes.length+' mismatched row'+(rows.changes.length===1?'':'s')+'; '+rows.unchanged+' other recorded row'+(rows.unchanged===1?'':'s')+' unchanged.\\n\\n'+
+    fence+'text\\n'+rows.changes.map(row=>'Row '+JSON.stringify(row.key)+'\\nExpected by contract: '+recordedValue(row.expected,row.expectedPresent)+'\\nReader observed: '+recordedValue(row.actual,row.actualPresent)).join('\\n\\n')+'\\n'+fence+'\\n\\n':'';
   return '# Cutover selected counterexample\\n\\n'+
     (reports.length===2&&current===0?'This selected failure belongs to the retained baseline. Inspect the recorded candidate verdict below separately; exporting this original failure does not change that verdict.\\n\\n':'')+
     'Recorded evidence selected from an offline review. This export does not execute SQL or independently reverify the report. The HTML and this note are unsigned. Keep the original review packet for independent replay.\\n\\n'+
     'Sequential SQLite schedules only; this is not proof of production safety or simultaneous transaction behavior.\\n\\n'+
     (counterpart?'The completed-rollout contrast uses the same recorded accepted write SQL, row/input and reader SQL in this plan, with a different schedule. Passing traces may omit row snapshots.\\n\\n':'')+
     'Append review_fragment to this same HTML review URL to reopen the recorded step. The fragment contains report identities and a location, not SQL, payloads or file paths.\\n\\n'+
-    '## Selected recorded evidence\\n\\n'+fence+'json\\n'+json+'\\n'+fence+'\\n';
+    rowSummary+'## Selected recorded evidence\\n\\n'+fence+'json\\n'+json+'\\n'+fence+'\\n';
 }
 $('selected-note').onclick=()=>{
   if(!selected)return;
