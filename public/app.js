@@ -56,6 +56,10 @@ function updateModeControls() {
   $('open-plan').disabled=busy||!activeCase;
   $('open-sql').disabled=busy||!activeCase;
   $('import-sql').disabled=busy||!activeCase;
+  for(const field of ['read','write','insert']) {
+    $(`open-${field}`).disabled=busy||!activeCase;
+    $(`import-${field}`).disabled=busy||!activeCase;
+  }
   $('save-sql').disabled=busy||!activeCase||!$('migration').value.trim();
   $('open-contract').disabled=busy;
   $('open-packet').disabled=busy;
@@ -748,32 +752,36 @@ $('save-sql').addEventListener('click',()=>{
 });
 $('save-contract').addEventListener('click',()=>importedContract&&download(`cutover-${fileSlug(importedContract.project)}-contract.json`,pretty(importedContract)));
 $('download-brief').addEventListener('click',()=>download('CUTOVER-BOB-TASK.txt',briefText,'text/plain'));
-for(const name of ['contract','packet','plan','sql']) {
+for(const name of ['contract','packet','plan','sql','read','write','insert']) {
   $(`open-${name}`).addEventListener('click',()=>{
     const input=$(`import-${name}`);
     if(!input.disabled)input.click();
   });
 }
-$('import-sql').addEventListener('change',async event=>{
-  if(busy||!activeCase)return;
-  const file=event.target.files[0]; if(!file)return;
-  setBusy(true,'Reading migration SQL…');
-  try {
-    if(!/\.sql$/i.test(file.name))throw Error('Choose a .sql migration file.');
-    if(file.size>65536)throw Error('Migration exceeds 64 KiB. Use the local CLI.');
-    const sql=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());
-    if(!sql.trim()||sql.includes('\0')||sql.length>12000)throw Error('Expected nonempty UTF-8 SQL, without NUL characters, up to 12,000 characters.');
-    $('migration').value=sql;
-    $('plan-name').value=`Imported SQL: ${file.name}`.slice(0,100);
-    $('migration').dispatchEvent(new Event('input',{bubbles:true}));
-    candidateSource=`Imported ${file.name} · not yet executed`;
-    candidateProvenance='imported migration candidate';
-    document.querySelector('.adapters').open=true;
-    $('source-label').textContent=candidateSource;
-    notify('Migration imported. Contract and application queries retained. Run a fresh rehearsal.');
-  } catch(error){notify(`Migration not imported. ${error.message}`);}
-  finally{event.target.value='';setBusy(false);}
-});
+for(const field of ['migration','read','write','insert']) {
+  const inputId=field==='migration'?'import-sql':`import-${field}`;
+  const label=field==='migration'?'Migration':`${field[0].toUpperCase()+field.slice(1)} query`;
+  $(inputId).addEventListener('change',async event=>{
+    if(busy||!activeCase)return;
+    const file=event.target.files[0]; if(!file)return;
+    setBusy(true,`Reading ${label.toLowerCase()} SQL…`);
+    try {
+      if(!/\.sql$/i.test(file.name))throw Error('Choose a .sql file.');
+      if(file.size>65536)throw Error('SQL file exceeds 64 KiB. Use the local CLI.');
+      const sql=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());
+      if(!sql.trim()||sql.includes('\0')||sql.length>12000)throw Error('Expected nonempty UTF-8 SQL, without NUL characters, up to 12,000 characters.');
+      $(field).value=sql;
+      if(field==='migration')$('plan-name').value=`Imported SQL: ${file.name}`.slice(0,100);
+      $(field).dispatchEvent(new Event('input',{bubbles:true}));
+      candidateSource=`Imported ${label.toLowerCase()}: ${file.name} · not yet executed`;
+      candidateProvenance='imported SQL candidate';
+      document.querySelector('.adapters').open=true;
+      $('source-label').textContent=candidateSource;
+      notify(`${label} imported. Other SQL and the contract retained. Run a fresh rehearsal.`);
+    } catch(error){notify(`${label} not imported. ${error.message}`);}
+    finally{event.target.value='';setBusy(false);}
+  });
+}
 $('import-plan').addEventListener('change',async event=>{
   if(busy||!activeCase)return;
   const file=event.target.files[0]; if(!file)return;
