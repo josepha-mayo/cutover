@@ -10,7 +10,8 @@ from pathlib import Path
 
 from .bundle import render_bundle, render_comparison_bundle
 from .engine import load_case
-from .service import verify_report_against_replay
+from .service import verify_report_against_replay, run_selected_replay
+from .selected_replay import IDENTITIES
 from .reporting import fenced, render_markdown
 
 MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
@@ -123,7 +124,9 @@ def main():
                           if (same_migration or item['category'] != 'migration_window')
                           and item['id'] in old and old[item['id']]['payload'] == item['payload']
                           and old[item['id']]['actions'] == item['actions']]
+                regressions = [right for left, right in paired if left['passed'] and not right['passed']]
                 summary = {'paired_probes': len(paired),
+                           'regressed_probe_ids': [probe['id'] for probe in regressions],
                            'resolved': sum(not left['passed'] and right['passed'] for left, right in paired),
                            'regressed': sum(left['passed'] and not right['passed'] for left, right in paired),
                            'window_probes_paired': same_migration,
@@ -140,8 +143,18 @@ def main():
                 review += ['',
                            'Window counts describe each plan separately. Different statement sequences create different tested boundaries; '
                            'a smaller denominator does not imply equivalent coverage. The packet retains both full reports.', '',
-                           '## Measured comparison', '', fenced(json.dumps(summary, indent=2), 'json'), '',
-                           '## Executed SQL changes', '',
+                           '## Measured comparison', '', fenced(json.dumps(summary, indent=2), 'json'), '']
+                if regressions:
+                    with zipfile.ZipFile(args.bundle) as archive:
+                        contract = json.loads(archive.read('candidate/contract.json')) if after['case'] == 'custom' else None
+                    first = regressions[0]
+                    selected = run_selected_replay(after['case'], after['plan'], first['id'],
+                        {key: after[key] for key in IDENTITIES}, first, contract, review_only=True)
+                    review += ['## First new regression', '',
+                               'This exact paired probe passed in the baseline and failed in the candidate. '
+                               'Its candidate observations were freshly rerun and matched before this note was written.', '',
+                               selected['review_markdown'], '']
+                review += ['## Executed SQL changes', '',
                            'Textual differences do not establish which SQL line caused the measured change.', '']
                 for key in ('migration', 'read', 'write', 'insert'):
                     if before['plan'][key] != after['plan'][key]:

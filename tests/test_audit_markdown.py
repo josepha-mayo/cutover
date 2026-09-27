@@ -45,6 +45,23 @@ class VerifiedMarkdownTests(unittest.TestCase):
             self.assertIn('| Candidate | PASS | 124/124 | 0/76 | 0/48 |', text)
             self.assertLess(text.index('## Review verdict'), text.index('## Executed SQL changes'))
 
+    def test_new_regression_is_freshly_replayed_before_sql_changes(self):
+        regressed = rehearse('parcel', dict(load_plan('parcel', 'late_bridge'),
+            write='UPDATE orders SET shipping_address = :value WHERE id = -1'))
+        pair = render_comparison_bundle(self.before, regressed, load_case('parcel'))
+        with tempfile.TemporaryDirectory() as folder:
+            packet, output = Path(folder)/'regressed.zip', Path(folder)/'review.md'
+            packet.write_bytes(pair)
+            result = self.run_cli(packet, output)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            text = output.read_text(encoding='utf-8')
+            self.assertIn('## First new regression', text)
+            self.assertIn('new_to_old-0', text)
+            self.assertIn('"regressed": 32', text)
+            self.assertIn('WHERE id = -1', text)
+            self.assertLess(text.index('## First new regression'), text.index('## Executed SQL changes'))
+            self.assertIn('freshly rerun and matched', text)
+
     def test_changed_comparison_refuses_output(self):
         with tempfile.TemporaryDirectory() as folder:
             packet, output = Path(folder) / 'pair.zip', Path(folder) / 'review.md'
