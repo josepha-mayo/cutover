@@ -9,6 +9,7 @@ if (['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) {
 }
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
 let pinnedReport = null, proofTourBusy = false;
+let walkIndex=0;
 let catalogLoading = false;
 let bundleBusy = false;
 let ciKitBusy = false;
@@ -101,6 +102,7 @@ function invalidate() {
   $('trace').replaceChildren(); $('trace-title').textContent='Nothing inferred. Everything replayed.'; $('trace-id').textContent=''; $('trace-payload').textContent='';
   $('trace-label').textContent='REPLAY';
   $('trace-story').hidden=true; $('trace-story').textContent='';
+  if($('replay-walk')){$('replay-walk').hidden=true;$('replay-walk').querySelector('div').replaceChildren();}
   $('boundary-navigator').hidden=true;
   $('window-map').hidden=true; $('window-stages').replaceChildren();
   $('finding').innerHTML='<span class="finding-icon">↳</span><div><h3>Evidence, before assurance.</h3><p>Every result comes from executed SQL and an independent record of acknowledged writes.</p></div>';
@@ -402,6 +404,7 @@ function renderBoundaryNavigation(probe) {
   }
 }
 function renderTrace(probe) {
+  walkIndex=0;
   if(!probe)return; selected=probe.id;
   renderBoundaryNavigation(probe);
   $('trace-label').textContent=report.witness?.id===probe.id?'SHORTEST OBSERVED FAILURE':'EXECUTED REPLAY';
@@ -436,7 +439,29 @@ function renderTrace(probe) {
     b.classList.toggle('chosen',chosen);b.setAttribute('aria-pressed',String(chosen));
     b.tabIndex=b===anchor?0:-1;
   });
+  renderWalkStep();
   updateReplayExport();
+}
+function renderWalkStep() {
+  const probe=report?.results.find(item=>item.id===selected);
+  let panel=$('replay-walk');
+  if(!panel){
+    panel=document.createElement('details'); panel.id='replay-walk';
+    panel.innerHTML='<summary>Walk this recorded replay</summary><p>Step through recorded SQL without rerunning it. No database state is inferred between reads.</p><button type="button" class="secondary">Previous step</button><label>Replay step <input type="range" min="0" value="0"></label><button type="button" class="secondary">Next step</button><div aria-live="polite"></div>';
+    $('trace').before(panel);
+    const buttons=panel.querySelectorAll('button'),slider=panel.querySelector('input');
+    buttons[0].onclick=()=>{walkIndex--;renderWalkStep();};
+    buttons[1].onclick=()=>{walkIndex++;renderWalkStep();};
+    slider.oninput=()=>{walkIndex=Number(slider.value);renderWalkStep();};
+  }
+  panel.hidden=!probe?.trace.length;
+  if(panel.hidden)return;
+  walkIndex=Math.max(0,Math.min(probe.trace.length-1,walkIndex));
+  const event=probe.trace[walkIndex],slider=panel.querySelector('input'),buttons=panel.querySelectorAll('button');
+  slider.max=String(probe.trace.length-1);slider.value=String(walkIndex);
+  slider.setAttribute('aria-valuetext',`Step ${walkIndex+1}: ${event.action}`);
+  buttons[0].disabled=walkIndex===0;buttons[1].disabled=walkIndex===probe.trace.length-1;
+  panel.querySelector('div').innerHTML=`<div class="trace-step ${escape(event.status)}"><p>STEP ${walkIndex+1} / ${probe.trace.length} · ${escape(event.status)}</p><h4>${escape(event.action)}</h4><p>${escape(event.detail||'Executed.')}${event.connection?' · '+escape(event.connection)+' connection':''}</p><pre>${escape(event.sql||'No SQL recorded.')}${event.params?'\n\nInputs: '+escape(pretty(event.params)):''}</pre>${Object.hasOwn(event,'expected')&&Object.hasOwn(event,'actual')?`<div class="comparison"><div class="expected">EXPECTED BY CONTRACT<pre>${escape(pretty(event.expected))}</pre></div><div class="actual">READER OBSERVED<pre>${escape(pretty(event.actual))}</pre></div></div>`:'<p>No row values recorded at this step. Inputs are not a database snapshot.</p>'}</div>`;
 }
 function updateReplayExport() {
   const probe=report?.results.find(item=>item.id===selected);
