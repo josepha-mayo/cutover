@@ -15,7 +15,7 @@
   <section class="developer-fit" aria-label="When to use Cutover">
     <div><strong>Use it before a schema-changing PR merges.</strong><p>Your new application passes its smoke test. An old queue worker or a rolled-back version may still write the old column.</p></div>
     <div><strong>Bring the SQL. Get a reviewable failure.</strong><p>Supply a SQLite contract, old/new queries and migration. Cutover returns the exact row, accepted write and reader mismatch—or a bounded passing report.</p></div>
-    <div><strong>Repair it, then keep it out of the PR.</strong><p>Give Bob the failing case. Independently rerun the candidate and export a pinned CI gate. Start locally for private schemas; other database engines and simultaneous transactions are outside this prototype.</p></div>
+    <div><strong>Repair it, then keep it out of the PR.</strong><p>Give Bob the failing case. Independently rerun the candidate and export a pinned CI gate. Start locally for private schemas; other database engines and simultaneous transactions are outside this prototype.</p><a class="developer-pr-link" href="/proof#committed-pr">Review actual PR SQL locally ↗</a></div>
   </section>
   <section id="connection-status" class="connection-status" aria-label="Demo connection" aria-live="polite"><p id="connection-message">Loading sample projects…</p><button id="retry-catalog" class="secondary" type="button" hidden>Retry loading projects ↻</button></section>
   <div class="project-line"><label for="case">SQL CONTRACT</label><select id="case" aria-label="SQL contract" disabled></select><span id="case-description"></span><span class="tag">LIVE SQL</span></div>
