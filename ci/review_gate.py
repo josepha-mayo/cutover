@@ -91,7 +91,7 @@ def _emit_annotation(classification: str, plan: Path, report: dict,
         witness = report.get("witness") or {}
         failure = witness.get("failure") or {}
         expected, actual = failure.get("expected") or {}, failure.get("actual") or {}
-        row = next((key for key in expected if expected.get(key) != actual.get(key)), None)
+        row = next((key for key in expected if key not in actual or expected[key] != actual[key]), None)
         message = (f"Verified block: {report.get('passed')}/{report.get('total')} probes passed.\n"
                    f"First witness: {witness.get('id', 'unknown')}.")
         if location:
@@ -99,7 +99,7 @@ def _emit_annotation(classification: str, plan: Path, report: dict,
         if row is not None:
             value = lambda item: json.dumps(item, ensure_ascii=False)
             message += (f"\nRow {row}: expected {value(expected[row])}, "
-                        f"observed {value(actual.get(row))}.")
+                        f"observed {value(actual[row]) if row in actual else 'ROW NOT RETURNED'}.")
         title = "Cutover verified data-safety block"
     else:
         message = (f"Unverified: CLI exit {cli_exit}, audit exit {audit_exit}. "

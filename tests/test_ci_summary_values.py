@@ -1,11 +1,24 @@
 """Review summaries preserve row presence and hostile Markdown payloads."""
 import json
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from unittest.mock import patch
 
-from ci.review_gate import _build_summary
+from ci.review_gate import _build_summary, _emit_annotation
 
 
 class SummaryValueTests(unittest.TestCase):
+    def test_annotation_distinguishes_absence_from_null(self):
+        for actual, observed in (({}, "ROW NOT RETURNED"), ({"1": None}, "null")):
+            report = {"witness": {"id": "reader", "failure": {
+                "expected": {"1": "address"}, "actual": actual}}}
+            output = StringIO()
+            with patch.dict("os.environ", {"GITHUB_ACTIONS": "true"}), redirect_stdout(output):
+                _emit_annotation("verified_block", Path("candidate.json"), report, 1, 1)
+            self.assertIn("observed " + observed, output.getvalue())
+
     def summary_value(self, expected, actual):
         report = {"witness": {"id": "reader", "failure": {
             "expected": expected, "actual": actual}}}
