@@ -157,6 +157,8 @@ python -m cutover --contract contract.json --plan repaired-plan.json --baseline-
 python -m cutover.audit_bundle --bundle before-after.zip --markdown before-after-review.md
 ```
 
+If your migrations are separate SQL files, add `--migration-file migrations/repaired.sql --baseline-migration-file migrations/original.sql` to the first command. Each file overrides only its corresponding plan's migration; both plans retain their own adapters. UTF-8 BOM is accepted and removed, while SQL text and line endings are retained in the executed plan. Output paths cannot overwrite either SQL source.
+
 The first command freshly executes both plans against the same contract and independently replays both reports before writing a new comparison ZIP. It keeps changed SQL boundaries separate and includes both complete packets, exact SQL and measured resolved/regressed probes. Existing comparison files are refused. Its exit code follows the candidate (0 pass, 1 blocked); the archive auditor exits 1 when either retained plan is blocked, even when the repair passes. That preserves the original failure as review evidence. Neither command sends SQL to the hosted demo.
 
 To turn a saved single or comparison ZIP into a PR note locally, run:

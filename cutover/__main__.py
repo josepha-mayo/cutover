@@ -27,7 +27,10 @@ parser.add_argument("--bundle", type=Path, help="ZIP with inputs, executed evide
 parser.add_argument("--ci-kit", type=Path, help="Independently audited passing custom-contract PR gate kit, generated entirely locally.")
 parser.add_argument("--ci-control", type=Path, help="Optional unsafe plan JSON for the local CI kit; must independently reproduce a data mismatch under the same contract.")
 parser.add_argument("--baseline-plan", type=Path, help="Rerun this plan locally against the same contract and export both independently audited reports in --bundle.")
+parser.add_argument("--baseline-migration-file", type=Path, help="UTF-8 .sql file overriding the baseline migration; requires --baseline-plan.")
 args = parser.parse_args()
+if args.baseline_migration_file and not args.baseline_plan:
+    parser.error("--baseline-migration-file requires --baseline-plan")
 if args.baseline_plan and not args.bundle:
     parser.error("--baseline-plan requires --bundle")
 if args.ci_kit and not args.contract:
@@ -45,7 +48,7 @@ if args.contract and args.case != 'parcel':
 destinations = [path.resolve() for path in (args.output, args.markdown, args.repro, args.bundle, args.ci_kit) if path]
 if len(destinations) != len(set(destinations)):
     parser.error("Evidence outputs must be different files")
-inputs = {path.resolve() for path in (args.contract, args.plan, args.migration_file, args.ci_control, args.baseline_plan) if path}
+inputs = {path.resolve() for path in (args.contract, args.plan, args.migration_file, args.ci_control, args.baseline_plan, args.baseline_migration_file) if path}
 for destination in (args.output, args.markdown, args.repro, args.bundle, args.ci_kit):
     if destination and destination.resolve() in inputs:
         parser.error("Evidence outputs cannot overwrite a contract, candidate plan or migration source")
@@ -64,20 +67,28 @@ def read_json(path, label):
         parser.error(f"Cannot read {label} JSON: {exc}")
 
 
-contract = read_json(args.contract, 'Contract') if args.contract else None
-plan = read_json(args.plan, 'Plan') if args.plan else load_plan(args.case, args.reference)
-if args.migration_file:
+def with_migration_file(plan, path):
+    if path is None:
+        return plan
     try:
-        if args.migration_file.stat().st_size > 65536:
+        if path.stat().st_size > 65536:
             parser.error("Migration SQL must be at most 64 KiB")
-        sql = args.migration_file.read_bytes().decode('utf-8-sig')
+        sql = path.read_bytes().decode('utf-8-sig')
         if not sql.strip() or '\0' in sql or len(sql) > 12000:
             parser.error("Expected nonempty UTF-8 migration SQL without NUL characters, up to 12,000 characters")
         if not isinstance(plan, dict):
             parser.error("Candidate plan must be a JSON object")
-        plan = dict(plan, migration=sql, name=f'Imported SQL: {args.migration_file.name}'[:100])
+        return dict(plan, migration=sql, name=f'Imported SQL: {path.name}'[:100])
     except (OSError, UnicodeError) as exc:
         parser.error(f"Cannot read migration SQL: {exc}")
+
+
+contract = read_json(args.contract, 'Contract') if args.contract else None
+plan = with_migration_file(read_json(args.plan, 'Plan') if args.plan else load_plan(args.case, args.reference),
+                           args.migration_file)
+baseline_plan = (with_migration_file(read_json(args.baseline_plan, 'Baseline plan'), args.baseline_migration_file)
+                 if args.baseline_plan else None)
+
 try:
     report = run_rehearsal('custom' if contract is not None else args.case, plan, contract)
 except subprocess.TimeoutExpired:
@@ -121,7 +132,6 @@ except ValueError as exc:
     parser.error(str(exc))
 try:
     if args.baseline_plan:
-        baseline_plan = read_json(args.baseline_plan, 'Baseline plan')
         baseline = run_rehearsal('custom' if contract is not None else args.case, baseline_plan, contract)
         for executed in (baseline, report):
             verify_report_against_replay('custom' if contract is not None else args.case,
