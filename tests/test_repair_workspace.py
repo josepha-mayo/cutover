@@ -59,6 +59,21 @@ class RepairWorkspaceTests(unittest.TestCase):
                 self.assertEqual(json.loads(archive.read('evidence/report.json'))['status'], 'pass')
                 self.assertEqual(json.loads(archive.read('evidence/unsafe-control-report.json'))['status'], 'blocked')
 
+    def test_extracted_workspace_exports_and_audits_local_comparison(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            zipfile.ZipFile(io.BytesIO(self.packet)).extractall(root)
+            (root/'candidate.json').write_bytes(Path('examples/warehouse/bridge.json').read_bytes())
+            result = subprocess.run([sys.executable, '-m', 'cutover', '--contract', 'contract.json',
+                '--plan', 'candidate.json', '--baseline-plan', 'baseline-plan.json',
+                '--bundle', 'comparison.zip'], cwd=root, capture_output=True, timeout=120)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = subprocess.run([sys.executable, '-m', 'cutover.audit_bundle', '--bundle',
+                'comparison.zip', '--markdown', 'review.md'], cwd=root, capture_output=True, timeout=120)
+            self.assertEqual(audit.returncode, 1, audit.stderr)
+            self.assertIn('108/124', (root/'review.md').read_text(encoding='utf-8'))
+            self.assertIn('124/124', (root/'review.md').read_text(encoding='utf-8'))
+
     def test_changed_contract_stops_before_candidate_execution(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

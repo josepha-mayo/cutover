@@ -11,7 +11,7 @@ from .engine import digest, validate_contract, validate_plan
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = (
     'LICENSE', 'configure_bob.py', 'mcp_server.py', 'requirements-mcp.txt',
-    'cutover/__init__.py', 'cutover/__main__.py', 'cutover/audit_report.py',
+    'cutover/__init__.py', 'cutover/__main__.py', 'cutover/audit_report.py', 'cutover/audit_bundle.py',
     'cutover/bundle.py', 'cutover/engine.py', 'cutover/reporting.py',
     'cutover/selected_replay.py', 'cutover/service.py', 'cutover/worker.py', 'cutover/ci_kit.py',
 )
@@ -104,7 +104,14 @@ Inspect the source before running it. No API keys or account information are inc
    `python verify_workspace.py --candidate work/bob-candidate.json`.
    Exit 0 means this suite passed, 1 means blocked, and other errors remain unverified.
    Each attempt retains its report and Markdown in a new folder under work/.
-7. After that check passes, export the pinned PR gate entirely locally:
+7. Export the before/after review entirely locally:
+   `python -m cutover --contract contract.json --plan work/bob-candidate.json --baseline-plan baseline-plan.json --bundle work/before-after.zip`.
+   Then independently verify the ZIP and write a shareable PR note:
+   `python -m cutover.audit_bundle --bundle work/before-after.zip --markdown work/before-after-review.md`.
+   The auditor exits 1 if either plan is blocked, even when the repair passes;
+   exit 2 means unverified and writes no note. Existing output files are refused.
+   Both plans retain their SQL and evidence; changed migration boundaries stay separate.
+8. After the candidate check passes, export the pinned PR gate entirely locally:
    `python -m cutover --contract contract.json --plan work/bob-candidate.json --ci-kit work/pr-kit.zip --ci-control baseline-plan.json`.
    The passing candidate and unsafe control are freshly executed and independently audited.
    Inspect the kit README and copy only its four listed files into your repository.
