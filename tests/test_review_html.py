@@ -20,6 +20,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class OfflineReviewTests(unittest.TestCase):
+    def test_git_provenance_is_visible_but_cannot_inject_markup(self):
+        page = render_review(self.reports, {'commit': 'abc123', 'path': '<img src=x>.sql', 'blob': 'def456'})
+        self.assertIn('abc123', page)
+        self.assertIn('def456', page)
+        self.assertIn('&lt;img src=x&gt;.sql', page)
+        self.assertNotIn('<img src=x>', page)
+        self.assertIn('Only baseline migration SQL', page)
+
     @classmethod
     def setUpClass(cls):
         cls.contract = json.loads((ROOT/'examples/warehouse/contract.json').read_text(encoding='utf-8'))

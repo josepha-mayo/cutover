@@ -133,6 +133,10 @@ class LocalProjectReviewTests(unittest.TestCase):
             source_status = json.loads((root/'review-git/review-status.json').read_text())
             self.assertEqual(source_status['baseline_git']['commit'], commit)
             self.assertIn(commit, (root/'review-git/review.md').read_text(encoding='utf-8'))
+            offline = (root/'review-git/review.html').read_text(encoding='utf-8')
+            for value in source_status['baseline_git'].values():
+                self.assertIn(value, offline)
+            self.assertIn('does not verify the whole application', offline)
             with zipfile.ZipFile(root/'review-git/comparison.zip') as archive:
                 git_report = json.loads(archive.read('baseline/report.json'))
             self.assertEqual(git_report['plan_hash'], executed['plan_hash'])

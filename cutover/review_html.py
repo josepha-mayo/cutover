@@ -1,6 +1,7 @@
 """Render audited reports as a self-contained, non-executing offline review."""
 import base64
 import hashlib
+import html
 import json
 
 
@@ -79,18 +80,26 @@ def content_security_policy():
               f"style-src 'sha256-{digest(STYLE)}'; base-uri 'none'; form-action 'none'")
 
 
-def render_review(reports):
+def render_review(reports, baseline_git=None):
     """Caller must independently audit reports before presenting this export."""
     payload = json.dumps(list(reports), ensure_ascii=True, separators=(',', ':'))
     payload = payload.replace('&', '\\u0026').replace('<', '\\u003c').replace('>', '\\u003e')
     policy = content_security_policy()
+    provenance = ''
+    if baseline_git is not None:
+        fields = ''.join('<dt>'+label+'</dt><dd class="identity">'+html.escape(str(baseline_git[key]))+'</dd>'
+                         for label, key in [('Commit', 'commit'), ('Repository SQL path', 'path'), ('Git blob', 'blob')])
+        provenance = ('<section><h2>Original SQL reviewed</h2><dl>'+fields+'</dl>'
+                      '<p class="scope">Local Git snapshot, not a signature. Only baseline migration SQL comes from this commit; '
+                      'adapters and contract are supplied project inputs. Exact SQL bytes are retained in '
+                      '<code>inputs/supplied-baseline.sql</code>. This does not verify the whole application at that commit.</p></section>')
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="{policy}"><title>Cutover recorded review</title><style>{STYLE}</style></head>
 <body><main><h1>Follow the write. Review the migration.</h1>
 <p class="scope">Offline review generated after independent replay. This page displays recorded evidence; it does not execute SQL or reverify itself. No network access is required. The HTML is not signed.</p>
 <p class="scope">Sequential SQLite schedules only. Passing does not establish production safety, simultaneous transaction behavior or another database engine. Different migration sequences have their own statement boundaries; window probes are not paired by step number.</p>
-<div id="summary" class="cards"></div><section><label for="plan">Executed plan</label><select id="plan"></select>
+{provenance}<div id="summary" class="cards"></div><section><label for="plan">Executed plan</label><select id="plan"></select>
 <p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
 <label for="probe">Recorded probe</label><select id="probe"></select><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">

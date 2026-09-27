@@ -160,6 +160,8 @@ For a schema-changing PR, read the original migration directly from a locally av
 python -m cutover.review_project --project my-release --baseline-git-ref origin/main --baseline-git-path db/relocation.sql --out review-pr
 ```
 
+For a Git baseline, the offline `review.html` includes the resolved commit, repository SQL path and blob alongside the executed reports. This identifies the local baseline SQL snapshot; adapters and contract still come from your supplied project, and the page is not a signature or a review of the whole application at that commit.
+
 The Git option requires Git installed and the project inside that repository. It resolves the ref to a commit and snapshots the tracked SQL blob, even if the working-tree file has changed. The review note and status retain the commit, repository-relative path and blob identity. It does not fetch, switch branches, or modify the checkout. Without `--baseline-git-path`, it reads the project's `migration.sql` at that commit. Missing refs/files, symbolic links and SQL larger than 64 KiB are refused. Git supplies only the baseline migration; contract and baseline adapters remain the reviewed project inputs. This is a local source binding, not a signature or a comparison of every application file. Use a new output folder for each attempt.
 
 

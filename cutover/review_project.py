@@ -106,6 +106,11 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
                                     '--html', output/'review.html'], 'audit')
         status['offline_review'] = 'review.html'
         if git_source is not None:
+            from .review_html import render_review
+            with zipfile.ZipFile(output/'comparison.zip') as archive:
+                audited_reports = [json.loads(archive.read(prefix+'report.json'))
+                                   for prefix in ('baseline/', 'candidate/')]
+            (output/'review.html').write_text(render_review(audited_reports, git_source), encoding='utf-8')
             with (output/'review.md').open('a', encoding='utf-8') as note:
                 note.write('\n## Baseline SQL source\n\nLocal Git snapshot (not a signature):\n\n'+
                            '```json\n'+json.dumps(git_source, ensure_ascii=True, indent=2)+'\n```\n\n'+
