@@ -31,6 +31,13 @@ def render_bob_proof_pack():
         files[path] = data
         evidence[path] = hashlib.sha256(data).hexdigest()
     files['BOB_EVIDENCE_INVENTORY.json'] = (json.dumps(evidence, indent=2) + '\n').encode()
+    recorded = {
+        'recorded-review.html': (ROOT/'public/bob-review-example.html').read_bytes(),
+        'recorded-comparison.zip': (ROOT/'evidence/bob_review_walkthrough/comparison.zip').read_bytes(),
+    }
+    files.update(recorded)
+    files['RECORDED_REVIEW_INVENTORY.json'] = (json.dumps({
+        name: hashlib.sha256(raw).hexdigest() for name, raw in recorded.items()}, indent=2)+'\n').encode()
     files['README.md'] = b'''# Verify Cutover's actual IBM Bob contribution locally
 
 This pack retains two existing event-period IBM Bob IDE task summaries and
@@ -38,6 +45,29 @@ histories, both saved repair plans, and their historical evidence. It does not
 invoke Bob or claim a new task. The local evaluator and this packaging are Codex
 work. Python 3.10+ is sufficient: no pip install, API key, account or repository
 clone is needed for these commands. Inspect source before execution.
+
+## Inspect the recorded comparison first
+
+Open recorded-review.html in a browser after extracting this pack. It is the
+self-contained recorded walkthrough of the unchanged saved Bob Warehouse
+repair: all 76 completed-rollout checks passed in the unsafe baseline, while
+16 migration-window probes failed. The repair passes 116/116 on its own tested
+boundaries. The page shows actual SQL changes and recorded expected/observed
+values without executing SQL or requiring network access. It is unsigned and
+does not reverify itself; external source/history links are optional.
+
+recorded-comparison.zip is its exact retained packet. These are recorded
+results, not new runs of the evaluator packaged here. The required original
+IDE summaries and histories remain below. To independently verify the packet:
+
+```text
+python -m cutover.audit_bundle --bundle recorded-comparison.zip
+```
+
+Exit 1 means the packet is verified and its blocked baseline retained. Exit 2
+means unverified. RECORDED_REVIEW_INVENTORY.json lists content hashes, not a
+signature or authentication of Bob authorship. The separate fresh commands
+below produce new outputs without replacing the recorded comparison.
 
 ## Inspect the original event evidence
 

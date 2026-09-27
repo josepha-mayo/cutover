@@ -13,6 +13,24 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class BobProofPackTests(unittest.TestCase):
+    def test_recorded_review_keeps_its_original_packet_and_exact_saved_bob_candidate(self):
+        from cutover.audit_bundle import audit_files, members
+        with zipfile.ZipFile(io.BytesIO(render_bob_proof_pack())) as archive:
+            inventory = json.loads(archive.read('RECORDED_REVIEW_INVENTORY.json'))
+            for name, digest in inventory.items():
+                self.assertEqual(hashlib.sha256(archive.read(name)).hexdigest(), digest)
+            self.assertEqual(archive.read('recorded-review.html'), (ROOT/'public/bob-review-example.html').read_bytes())
+            packet = archive.read('recorded-comparison.zip')
+            self.assertEqual(packet, (ROOT/'evidence/bob_review_walkthrough/comparison.zip').read_bytes())
+            with zipfile.ZipFile(io.BytesIO(packet)) as comparison:
+                reports = audit_files(members(comparison))
+            self.assertEqual((reports[0]['passed'], reports[0]['total']), (108,124))
+            self.assertEqual((reports[1]['passed'], reports[1]['total']), (116,116))
+            self.assertEqual(reports[1]['plan'], json.loads(archive.read('bob_sessions/warehouse-07a20bdb56f5-candidate.json')))
+            window = next(c for c in reports[0]['categories'] if c['id']=='migration_window')
+            self.assertEqual(reports[0]['passed']-window['passed'], reports[0]['total']-window['total'])
+            self.assertIn(b'not new runs', archive.read('README.md'))
+
     def test_original_evidence_and_both_fresh_repairs_verify_without_site_packages(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
