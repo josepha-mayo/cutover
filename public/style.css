@@ -41,3 +41,5 @@
 .adapter-help{font-size:11px;line-height:1.7;color:var(--muted);margin:6px 0 10px;overflow-wrap:anywhere}.adapter-help code{font-size:10px;color:var(--ink)}
 .comparison-sql{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}.comparison-sql summary{cursor:pointer;font-size:12px;min-height:44px;display:flex;align-items:center}.comparison-sql p{font-size:11px;line-height:1.7}.comparison-sql h4{font-size:12px;margin:18px 0 8px}.comparison-sql-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.comparison-sql-pair>div{min-width:0}.comparison-sql-pair strong{font:9px var(--mono)}.comparison-sql-pair pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;padding:12px;background:var(--paper);font:10px/1.6 var(--mono)}@media(max-width:900px){.comparison-sql-pair{grid-template-columns:1fr}}
 .comparison-panel{container-type:inline-size}@container(max-width:600px){.comparison-sql-pair{grid-template-columns:minmax(0,1fr)}}
+
+.code-heading{flex-wrap:wrap;gap:8px}.code-heading>span{flex-basis:100%;margin-left:0}
