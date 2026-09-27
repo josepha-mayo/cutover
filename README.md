@@ -142,6 +142,8 @@ Already have migration SQL? Add `--migration-file path/to/original.sql` to the s
 
 Already have the old SQLite table DDL? Also add `--schema-file path/to/schema.sql`. The setup retains its exact bytes in `schema.sql`, uses the decoded DDL in the contract and validates the generated old-worker queries before saving. Exactly one named table is supported, with `id` and the old column but without the new column, views or initial triggers. Indexes and extra columns may remain when the synthetic seeds and generated inserts work; required extra columns without usable defaults are refused. This imports no database rows and tracks only the selected value column. Review your adapters and extra-column behavior separately. Schema SQL has the same UTF-8, size and NUL limits as migration SQL.
 
+To use the existing old-worker queries, add any of `--old-read-file path/to/read.sql`, `--old-write-file path/to/write.sql` and `--old-insert-file path/to/insert.sql`. Each replaces its corresponding generated old query, retains exact file bytes in the project and fixes the decoded SQL in the contract. The reader must return `id`/`value`; the updater and inserter use `:id`/`:value`. Setup checks these queries against the synthetic seeds and payloads before creating the folder, with no template fallback on failure. Unsupplied old queries and new-worker queries remain generated; inspect them before review. Nothing is inferred from application source or copied from a live database.
+
 After editing the migration SQL and candidate adapters, run the complete local review with one command:
 
 ```text

@@ -6,6 +6,15 @@ import re
 import subprocess
 
 
+def read_sql_file(path, label):
+    with path.open('rb') as source:
+        raw = source.read(65537)
+    sql = raw.decode('utf-8-sig')
+    if len(raw) > 65536 or not sql.strip() or '\0' in sql or len(sql) > 12000:
+        raise ValueError(f'{label} must be nonempty UTF-8 without NUL, at most 64 KiB and 12,000 characters')
+    return raw, sql
+
+
 def build_contract(project, table, old_column, new_column, first, second, incoming):
     if not project.strip() or len(project) > 100:
         raise ValueError('Project name must contain 1–100 characters')
@@ -42,26 +51,27 @@ def main():
                         help='Snapshot UTF-8 SQL instead of generating a backfill (64 KiB, 12,000 characters, no NUL)')
     parser.add_argument('--schema-file', type=Path,
                         help='Use existing single-table SQLite DDL with synthetic seed values; validated locally before saving')
+    for operation in ('read', 'write', 'insert'):
+        parser.add_argument('--old-'+operation+'-file', type=Path,
+                            help='Snapshot the old-worker SQL; validated with synthetic seeds and payloads before saving')
     args = parser.parse_args()
     try:
         contract, plan = build_contract(args.project, args.table, args.old_column, args.new_column,
                                        args.first_value, args.second_value, args.incoming_value)
         schema_bytes = None
         if args.schema_file is not None:
-            with args.schema_file.open('rb') as source:
-                schema_bytes = source.read(65537)
-            schema = schema_bytes.decode('utf-8-sig')
-            if len(schema_bytes) > 65536 or not schema.strip() or '\0' in schema or len(schema) > 12000:
-                raise ValueError('Schema DDL must be nonempty UTF-8 without NUL, at most 64 KiB and 12,000 characters')
+            schema_bytes, schema = read_sql_file(args.schema_file, 'Schema DDL')
             contract['schema'] = schema
+        old_files = {}
+        for operation in ('read', 'write', 'insert'):
+            source = getattr(args, 'old_'+operation+'_file')
+            if source is not None:
+                raw, sql = read_sql_file(source, 'Old-worker '+operation+' SQL')
+                old_files[operation] = raw
+                contract['old'][operation] = sql
         migration_bytes = (plan['migration']+'\n').encode('utf-8')
         if args.migration_file is not None:
-            if args.migration_file.stat().st_size > 65536:
-                raise ValueError('Migration SQL must be at most 64 KiB')
-            migration_bytes = args.migration_file.read_bytes()
-            sql = migration_bytes.decode('utf-8-sig')
-            if not sql.strip() or '\0' in sql or len(sql) > 12000:
-                raise ValueError('Expected nonempty UTF-8 migration SQL without NUL characters, up to 12,000 characters')
+            migration_bytes, sql = read_sql_file(args.migration_file, 'Migration SQL')
             plan['migration'] = sql
             plan['name'] = ('Imported original SQL: '+args.migration_file.name)[:100]
         # Validate fixed old queries on disposable SQLite before saving any inputs.
@@ -73,19 +83,26 @@ def main():
         (args.out/'migration.sql').write_bytes(migration_bytes)
         if schema_bytes is not None:
             (args.out/'schema.sql').write_bytes(schema_bytes)
+        for operation, raw in old_files.items():
+            (args.out/('old-'+operation+'.sql')).write_bytes(raw)
         schema_scope = ('Your supplied schema DDL is retained byte-for-byte in schema.sql and decoded into contract.json. '
                         'The source was not edited. Exactly one named table is supported, without initial views or triggers; '
                         'id and the old column must exist, and the new column must be absent. Indexes and extra columns may remain '
-                        'when the generated old queries work with your synthetic seeds and inserts. '
+                        'when the configured old queries work with your synthetic seeds and inserts. '
                         'Extra-column values are not part of the tracked write ledger. This does not export live rows or verify the whole schema.'
                         if schema_bytes is not None else
                         'The schema is a generated synthetic two-column SQLite starter. Inspect and adapt it to your fixed old-worker contract.')
+        adapter_scope = ('Supplied old-worker SQL replaces only its corresponding generated query. Exact bytes are retained '
+                         'in old-read.sql, old-write.sql and/or old-insert.sql; decoded SQL is fixed in contract.json. '
+                         'The reader must return id/value; writes and inserts use :id and :value. All configured old queries '
+                         'were validated with these synthetic seeds and payloads before saving. Queries not supplied remain generated.'
+                         if old_files else 'Old-worker queries are generated templates; inspect and adapt them before use.')
         starting_sql = ('Your supplied SQL was copied byte-for-byte to migration.sql and decoded into both original plans. '
                         'The source file was not edited. No verdict is inferred from importing it.' if args.migration_file else
                         'The generated one-time backfill should block: a successful new-version smoke test does not protect old-worker writes after the copy.')
         (args.out/'README.md').write_text(f'''# Your local migration rehearsal
 
-{schema_scope} Seed values and incoming writes are supplied synthetic examples, not database rows. No passing repair is supplied. Inspect the generated old/new queries before use. Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
+{schema_scope} Seed values and incoming writes are supplied synthetic examples, not database rows. No passing repair is supplied. {adapter_scope} New-worker queries remain generated templates: inspect them before use. Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
 
 After editing, run one review from the extracted runtime folder:
 

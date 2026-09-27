@@ -75,6 +75,16 @@ required extra columns without usable defaults are refused. No live database
 rows are imported. Extra-column values are not tracked by the write ledger.
 Inspect the generated adapters; this is not whole-schema/application verification.
 
+To retain existing old-worker queries, add any of `--old-read-file old-read.sql`,
+`--old-write-file old-write.sql`, `--old-insert-file old-insert.sql` to setup.
+The reader returns id/value; writes and inserts use :id/:value parameters.
+Each supplied UTF-8 file replaces only that old query, retains its exact bytes
+in the project, and puts decoded SQL into the fixed contract. All old queries
+must work with the synthetic seeds/payloads before the folder is saved; invalid
+queries are refused rather than replaced by defaults. Unsupplied old queries
+and all new-worker queries remain generated templates. Inspect them before use.
+No queries are inferred from application source and no production rows are copied.
+
 ```text
 python -m cutover.review_project --project my-release --out review-1
 ```
