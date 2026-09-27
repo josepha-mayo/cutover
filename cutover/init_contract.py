@@ -115,7 +115,10 @@ def main():
                         'The generated one-time backfill should block: a successful new-version smoke test does not protect old-worker writes after the copy.')
         new_scope = ('Supplied new-worker SQL is retained byte-for-byte in new-read.sql, new-write.sql and/or new-insert.sql '
                      'and decoded into both initial plans. Unsupplied new queries remain generated templates. '
-                     'New queries are not executed by setup: rehearse them with the migration before relying on a verdict.'
+                     'New queries are not executed by setup: rehearse them with the migration before relying on a verdict. '
+                     'The new reader must return id/value from the new column without reading the old column; '
+                     'an old-column fallback such as COALESCE(new, old) remains an adapter-contract failure even when values match. '
+                     'New writes and inserts must store the payload directly in the new column; explicit dual-writes are supported.'
                      if new_files else 'New-worker queries remain generated templates: inspect them before use.')
         (args.out/'README.md').write_text(f'''# Your local migration rehearsal
 

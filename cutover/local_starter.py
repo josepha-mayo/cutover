@@ -91,6 +91,10 @@ These replace corresponding generated new queries in both initial plans and
 retain their exact source bytes in the project. Setup validates input shape,
 not new-query execution: the later rehearsal executes them with the migration.
 Missing flags leave that query generated; no passing claim or repair is inferred.
+The new reader must return id/value from the new column without reading the old
+column. A fallback such as COALESCE(new, old) remains blocked as an adapter-contract
+failure even when values match. New writes/inserts must store the payload directly
+in the new column; explicit dual-writes are supported.
 
 ```text
 python -m cutover.review_project --project my-release --out review-1
