@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dWSFP3pWIAFYGaNdDFu2T2zyDv4XZUvHBaZmlTnVGCg='; style-src 'sha256-OOUhCgu6rBUgqPCWRQnaaJOmiq1JMDM5YmnpzUVrilw='; base-uri 'none'; form-action 'none'"><title>Cutover recorded review</title><style>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ZJK+0MBP+AUXLoYF87tpwCaSMv8uGA7lPDVSx+puUBQ='; style-src 'sha256-OOUhCgu6rBUgqPCWRQnaaJOmiq1JMDM5YmnpzUVrilw='; base-uri 'none'; form-action 'none'"><title>Cutover recorded review</title><style>
 *{box-sizing:border-box}body{margin:0;background:#f4f5ef;color:#17211f;font:15px/1.6 system-ui,sans-serif}
 main{max-width:1100px;margin:auto;padding:28px}h1{font-size:34px;line-height:1.2}h2{font-size:20px}
 .scope{color:#58665b;font-size:13px}.cards,.columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
@@ -38,7 +38,7 @@ code,.identity{overflow-wrap:anywhere}.identity{font:11px/1.6 monospace;color:#5
 +BEGIN
 +  UPDATE shipments SET dispatch_bay = NEW.loading_bay WHERE id = NEW.id;
 +END;
-+UPDATE shipments SET dispatch_bay = loading_bay;</pre></details></section><section><label for="plan">Executed plan</label><select id="plan"></select>
++UPDATE shipments SET dispatch_bay = loading_bay;</pre></details></section><section><p id="review-focus" aria-live="polite"></p><label for="plan">Executed plan</label><select id="plan"></select>
 <p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
 <label for="probe">Recorded probe</label><select id="probe"></select><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">
@@ -49,7 +49,8 @@ code,.identity{overflow-wrap:anywhere}.identity{font:11px/1.6 monospace;color:#5
 const reports=JSON.parse(document.getElementById('recorded-data').textContent);
 const $=id=>document.getElementById(id);
 const text=(tag,value,parent)=>{const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;};
-let current=0, selected=null, step=0;
+let current=reports.length===2&&reports[1].status==='blocked'?1:
+  reports[0].status==='blocked'?0:reports.length-1, selected=null, step=0;
 reports.forEach((r,i)=>{
   const label=reports.length===1?'Executed plan':i===0?'Baseline':'Candidate';
   const card=document.createElement('article');card.className=r.status;
@@ -66,6 +67,14 @@ function chooseProbe(){
 }
 function choosePlan(){
   const r=reports[current];$('probe').replaceChildren();
+  $('review-focus').textContent=reports.length===1?
+    'Inspect the recorded '+r.status+' result for this executed plan.':
+    current===1?(r.status==='blocked'?
+      'The candidate is blocked. Inspect its counterexample before merging.':
+      'The candidate passed this bounded suite. Select Baseline to inspect the original result.'):
+    (reports[1].status==='pass'&&r.status==='blocked'?
+      'The candidate passed; this is the retained original failure. Select Candidate to inspect the repair.':
+      'This is the original baseline. Select Candidate to inspect the proposed change.');
   const probes=r.results.filter(p=>!$('failures').checked||!p.passed);
   probes.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.passed?'PASS':'FAIL'} · ${p.title} · input ${JSON.stringify(p.payload)}`;$('probe').append(o);});
   $('probe').disabled=!probes.length;$('empty').hidden=!!probes.length;$('walk').hidden=!probes.length;
@@ -94,5 +103,5 @@ $('plan').onchange=()=>{current=Number($('plan').value);choosePlan();};
 $('failures').onchange=choosePlan;$('probe').onchange=chooseProbe;
 $('position').oninput=()=>{step=Number($('position').value);renderStep();};
 $('previous').onclick=()=>{step--;renderStep();};$('next').onclick=()=>{step++;renderStep();};
-choosePlan();
+$('plan').value=String(current);$('failures').checked=reports[current].status==='blocked';choosePlan();
 </script></body></html>
