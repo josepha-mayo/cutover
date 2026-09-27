@@ -170,6 +170,13 @@ provenance. Use it as the PR note; keep its relative links with the evidence fol
 or replace them with your artifact links. Full SQL/trace evidence remains in
 review.md, review.html and comparison.zip. Unverified attempts get no PR summary.
 
+pr-review.zip is the portable handoff: extract it into a new folder to preserve
+the summary links, offline viewer, full review, source snapshots, comparison and
+any generated kit/workspace. Its README gives the independent comparison replay
+command. Its SHA256SUMS.json is an unsigned byte inventory, not authentication of
+outer notes or Git provenance. Execution logs stay in the original folder.
+
+
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.
 Set the new read/write/insert adapters in each plan. The reader must return all

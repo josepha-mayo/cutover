@@ -49,6 +49,15 @@ class LocalProjectReviewTests(unittest.TestCase):
             for value in ('candidate PASS','BLOCKED 108/124','PASS 124/124','R-07','A-01',candidate,baseline,source['sha256'],'comparison.zip'):
                 self.assertIn(value,summary)
             self.assertIn('Original counterexample retained; current candidate passed',summary)
+            with zipfile.ZipFile(root/'review/pr-review.zip') as archive:
+                hashes=json.loads(archive.read('SHA256SUMS.json'))
+                for name,wanted in hashes.items():
+                    self.assertEqual(hashlib.sha256(archive.read(name)).hexdigest(),wanted,name)
+                for name in ('pr-summary.md','review-status.json','review.html','review.md','comparison.zip','pr-kit.zip','inputs/supplied-candidate.sql'):
+                    self.assertEqual(archive.read(name),(root/'review'/name).read_bytes(),name)
+                self.assertNotIn('comparison.log',archive.namelist())
+                self.assertNotIn('audit.log',archive.namelist())
+
             for name in ('review.md','review.html'):
                 note=(root/'review'/name).read_text(encoding='utf-8')
                 self.assertIn(candidate,note);self.assertIn(baseline,note)
@@ -313,6 +322,7 @@ class LocalProjectReviewTests(unittest.TestCase):
             self.assertEqual(status['status'], 'unverified')
             self.assertFalse((root/'review-3/pr-kit.zip').exists())
             self.assertFalse((root/'review-3/pr-summary.md').exists())
+            self.assertFalse((root/'review-3/pr-review.zip').exists())
             self.assertFalse((root/'review-3/bob-repair-workspace.zip').exists())
             (root/'saved-candidate.json').write_text('{broken', encoding='utf-8')
             malformed_saved = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-4',

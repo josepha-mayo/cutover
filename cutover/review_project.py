@@ -1,6 +1,7 @@
 """Review a local setup folder and retain a fresh comparison, note and passing PR kit."""
 import argparse
 import hashlib
+import io
 import json
 import re
 from pathlib import Path
@@ -63,6 +64,47 @@ def render_pr_summary(baseline, candidate, baseline_git=None, candidate_source=N
               'Bounded sequential SQLite evidence, not whole-application verification, signed provenance or production approval. '
               'Review the supplied contract/adapters and operational rollout separately.', '']
     return '\n'.join(lines)
+
+
+def render_review_archive(output, summary, status):
+    """Package only the known verified artifacts; do not collect unrelated files."""
+    names = ['comparison.zip', 'review.md', 'review.html', 'candidate-report.json']
+    names += ['inputs/'+name for name in status['input_sha256']]
+    names += [name for name in ('pr-kit.zip', 'bob-repair-workspace.zip') if (output/name).is_file()]
+    files = {name:(output/name).read_bytes() for name in names}
+    files['pr-summary.md'] = summary.encode('utf-8')
+    files['review-status.json'] = (json.dumps(status,indent=2)+'\n').encode('utf-8')
+    files['README.md'] = b"""# Cutover PR review handoff
+
+Extract into a new folder. Open pr-summary.md for the verdict/counterexample and
+review.html for the offline trace and SQL. Relative evidence links work within
+this extracted folder. The HTML displays recorded evidence; it does not reverify
+itself or execute SQL. Full inputs and original reports remain in comparison.zip.
+
+With the current Cutover local starter/check-out available, independently replay:
+
+    python -m cutover.audit_bundle --bundle comparison.zip --markdown freshly-audited.md --html freshly-audited.html
+
+Exit0 means every retained plan passes; exit1 means verified evidence includes a
+blocked plan (including a blocked original before a passing repair); exit2 means
+unverified. Do not overwrite the original notes or relabel original runs.
+
+SHA256SUMS.json identifies these packaged bytes; it is unsigned and is not proof
+of publisher identity. The source Git metadata is local recorded provenance, not
+proof of whole-application execution at those commits. Only comparison.zip is
+independently replayed by the command; it does not authenticate these outer notes.
+A passing PR kit, or requested blocked Bob workspace, is included when generated;
+inspect its own README before use. Export does not invoke Bob or install a gate.
+
+This handoff contains the SQL/contract inputs you chose to export. Review what
+you share. Local execution logs stay in the original review folder.
+"""
+    files['SHA256SUMS.json'] = (json.dumps({name:hashlib.sha256(raw).hexdigest()
+                                         for name,raw in files.items()},indent=2)+'\n').encode('utf-8')
+    result = io.BytesIO()
+    with zipfile.ZipFile(result,'w',zipfile.ZIP_DEFLATED) as archive:
+        for name,raw in files.items():archive.writestr(name,raw)
+    return result.getvalue()
 
 
 def git_baseline(project, ref, path=None):
@@ -179,7 +221,7 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         status['baseline_git'] = git_source
 
     def save():
-        (output/'review-status.json').write_text(json.dumps(status, indent=2)+'\n', encoding='utf-8')
+        (output/'review-status.json').write_bytes((json.dumps(status, indent=2)+'\n').encode('utf-8'))
 
     def run(module, args, label):
         result = subprocess.run([sys.executable, '-m', module, *map(str, args)],
@@ -276,10 +318,13 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
             status['pr_kit'] = 'pr-kit.zip'
         with zipfile.ZipFile(output/'comparison.zip') as archive:
             original = json.loads(archive.read('baseline/report.json'))
-        (output/'pr-summary.md').write_text(render_pr_summary(original, report, git_source, candidate_sql_source), encoding='utf-8')
-        status['pr_summary'] = 'pr-summary.md'
-        status['status'] = report['status']
-        status['candidate'] = {'passed': report['passed'], 'total': report['total']}
+        summary = render_pr_summary(original, report, git_source, candidate_sql_source)
+        final_status = {**status, 'pr_summary':'pr-summary.md', 'review_archive':'pr-review.zip',
+                        'status':report['status'], 'candidate':{'passed':report['passed'], 'total':report['total']}}
+        archive = render_review_archive(output, summary, final_status)
+        (output/'pr-review.zip').write_bytes(archive)
+        (output/'pr-summary.md').write_bytes(summary.encode('utf-8'))
+        status.update(final_status)
         save()
         return code
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
@@ -339,6 +384,7 @@ def main():
     for line in terminal_witness(report):
         print(line)
     print('Compact PR note: pr-summary.md. Keep the relative evidence links with its review folder.')
+    print('Portable handoff: pr-review.zip. Extract it into a new folder to retain the note, source snapshots and evidence links.')
     print('Offline walkthrough: review.html. Open locally; it displays evidence without running SQL or using the network.')
     if args.expected_contract_hash:
         print('Reviewed contract hash matched: '+args.expected_contract_hash.lower())
