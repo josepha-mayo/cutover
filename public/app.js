@@ -626,6 +626,8 @@ $('export-bundle').addEventListener('click',async()=>{
     if(response.headers.get('Content-Type')!=='application/zip'||
        response.headers.get('X-Cutover-Plan-SHA256')!==snapshot.plan_hash||
        response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
+       response.headers.get('X-Cutover-Engine-SHA256')!==snapshot.engine_sha256||
+       response.headers.get('X-Cutover-Suite-SHA256')!==snapshot.suite_hash||
        response.headers.get('X-Cutover-Status')!==snapshot.status||
        response.headers.get('X-Cutover-Coverage')!==`${snapshot.passed}/${snapshot.total}`)
       throw Error('The new rehearsal differs from the displayed result. Run the candidate again before exporting.');
@@ -655,6 +657,8 @@ $('export-ci-kit').addEventListener('click',async()=>{
     if(response.headers.get('Content-Type')!=='application/zip'||
        response.headers.get('X-Cutover-Plan-SHA256')!==snapshot.plan_hash||
        response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
+       response.headers.get('X-Cutover-Engine-SHA256')!==snapshot.engine_sha256||
+       response.headers.get('X-Cutover-Suite-SHA256')!==snapshot.suite_hash||
        response.headers.get('X-Cutover-Status')!=='pass'||
        response.headers.get('X-Cutover-Coverage')!==`${snapshot.passed}/${snapshot.total}`||
        response.headers.get('X-Cutover-Audit')!=='independent-replay'||

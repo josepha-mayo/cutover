@@ -269,8 +269,13 @@ class HttpTests(unittest.TestCase):
                    'contract_hash': report['contract_hash'],
                    'baseline_plan': blocked_plan,
                    'baseline_plan_hash': blocked['plan_hash']}
-        code, body = self.request('/api/ci-kit', request, timeout=90)
-        self.assertEqual(code, 200)
+        req = urllib.request.Request(self.base + '/api/ci-kit', data=json.dumps(request).encode(),
+                                     headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=90) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers['X-Cutover-Engine-SHA256'], report['engine_sha256'])
+            self.assertEqual(response.headers['X-Cutover-Suite-SHA256'], report['suite_hash'])
+            body = response.read()
         with zipfile.ZipFile(io.BytesIO(body)) as archive:
             entry = json.loads(archive.read('manifest-entry.json'))
             self.assertEqual(entry['slug'], 'release-warehouse-bin-relocation')
@@ -404,6 +409,8 @@ class HttpTests(unittest.TestCase):
                 self.assertEqual((saved['status'], saved['passed'], saved['total']), ('blocked', 108, 124))
                 self.assertEqual(response.headers['X-Cutover-Plan-SHA256'], saved['plan_hash'])
                 self.assertEqual(response.headers['X-Cutover-Contract-SHA256'], saved['contract_hash'])
+                self.assertEqual(response.headers['X-Cutover-Engine-SHA256'], saved['engine_sha256'])
+                self.assertEqual(response.headers['X-Cutover-Suite-SHA256'], saved['suite_hash'])
                 self.assertEqual(response.headers['X-Cutover-Status'], 'blocked')
                 self.assertEqual(response.headers['X-Cutover-Coverage'], '108/124')
                 verify_report_against_replay('custom', plan, saved, contract)

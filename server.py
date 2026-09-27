@@ -317,6 +317,8 @@ class Handler(BaseHTTPRequestHandler):
                             'Content-Disposition': f'attachment; filename="cutover-{slug}-ci-kit.zip"',
                             'X-Cutover-Plan-SHA256': report['plan_hash'],
                             'X-Cutover-Contract-SHA256': report['contract_hash'],
+                            'X-Cutover-Engine-SHA256': report['engine_sha256'],
+                            'X-Cutover-Suite-SHA256': report['suite_hash'],
                             'X-Cutover-Status': report['status'],
                             'X-Cutover-Coverage': f'{report["passed"]}/{report["total"]}',
                             'X-Cutover-Audit': 'independent-replay',
@@ -349,6 +351,8 @@ class Handler(BaseHTTPRequestHandler):
                             'Content-Disposition': f'attachment; filename="cutover-review-{report["plan_hash"][:10]}.zip"',
                             'X-Cutover-Plan-SHA256': report['plan_hash'],
                             'X-Cutover-Contract-SHA256': report['contract_hash'],
+                            'X-Cutover-Engine-SHA256': report['engine_sha256'],
+                            'X-Cutover-Suite-SHA256': report['suite_hash'],
                             'X-Cutover-Status': report['status'],
                             'X-Cutover-Coverage': f'{report["passed"]}/{report["total"]}',
                         })
