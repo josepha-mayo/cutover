@@ -141,6 +141,7 @@ function acknowledgedWriteStep(probe){
     ['old.write','new.write','old.insert','new.insert'].includes(e.action)&&e.status==='pass');
   return writes.length===1?{writeStep:writes[0].i,readStep}:null;
 }
+const matchingFailedMaps='Recorded row values agree, but the step failed. A row map does not retain duplicate returned rows or prove adapter-contract compliance. Replay the original packet to diagnose this failure.';
 function recordedRowChanges(event){
   const expected=event.expected,actual=event.actual;
   if(event.status!=='fail'||!expected||!actual||typeof expected!=='object'||typeof actual!=='object'||Array.isArray(expected)||Array.isArray(actual))return null;
@@ -169,6 +170,7 @@ function renderStep(){
   if(e.params){text('h3','Executed inputs',$('event'));text('pre',JSON.stringify(e.params,null,2),$('event'));}
   if(Object.hasOwn(e,'expected')&&Object.hasOwn(e,'actual')){
     const differences=recordedRowChanges(e);
+    if(differences&&!differences.changes.length)text('p',matchingFailedMaps,$('event')).className='scope';
     if(differences?.changes.length){
       text('h3',`${differences.changes.length} recorded row mismatch${differences.changes.length===1?'':'es'}`,$('event'));
       text('p',`${differences.unchanged} other recorded row${differences.unchanged===1?'':'s'} unchanged. Values below come from this retained reader observation. No SQL was executed.`, $('event')).className='scope';
@@ -207,7 +209,7 @@ function selectedFailureNote(probe,report){
   const failedRead=probe.trace.find(e=>e.status==='fail'),rows=failedRead&&recordedRowChanges(failedRead);
   const rowSummary=rows?.changes.length?
     '## Recorded reader mismatch\\n\\n'+rows.changes.length+' mismatched row'+(rows.changes.length===1?'':'s')+'; '+rows.unchanged+' other recorded row'+(rows.unchanged===1?'':'s')+' unchanged.\\n\\n'+
-    fence+'text\\n'+rows.changes.map(row=>'Row '+JSON.stringify(row.key)+'\\nExpected by contract: '+recordedValue(row.expected,row.expectedPresent)+'\\nReader observed: '+recordedValue(row.actual,row.actualPresent)).join('\\n\\n')+'\\n'+fence+'\\n\\n':'';
+    fence+'text\\n'+rows.changes.map(row=>'Row '+JSON.stringify(row.key)+'\\nExpected by contract: '+recordedValue(row.expected,row.expectedPresent)+'\\nReader observed: '+recordedValue(row.actual,row.actualPresent)).join('\\n\\n')+'\\n'+fence+'\\n\\n':rows?'## Recorded reader observation\\n\\n'+matchingFailedMaps+'\\n\\n':'';
   return '# Cutover selected counterexample\\n\\n'+
     (reports.length===2&&current===0?'This selected failure belongs to the retained baseline. Inspect the recorded candidate verdict below separately; exporting this original failure does not change that verdict.\\n\\n':'')+
     'Recorded evidence selected from an offline review. This export does not execute SQL or independently reverify the report. The HTML and this note are unsigned. Keep the original review packet for independent replay.\\n\\n'+
