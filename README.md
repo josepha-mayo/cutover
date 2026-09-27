@@ -178,7 +178,25 @@ python -m cutover.review_project --project my-release --baseline-git-ref origin/
 
 Both references resolve once to local commit IDs. The review snapshots both SQL blobs without fetching, checking out or changing source files, and names the candidate commit/path/blob and exact SQL byte hash in the note and offline review. A later working-file edit does not change this review. Only migration SQL comes from these commits; contract and adapters remain supplied project inputs, so this does not test the whole application at either revision. Choose one candidate source: full plan, SQL file or Git commit.
 
-`--candidate-migration-file` snapshots the actual candidate SQL byte-for-byte into `inputs/supplied-candidate.sql`, then executes that snapshot with the project candidate adapters. It overrides the copied project migration only; it does not infer adapters from SQL. The source is never edited, and comparison/kit export share the same snapshot. The PR note and offline review name the candidate source and its exact byte SHA-256; paths outside the invocation directory display only the filename, avoiding a machine-local absolute path. Choose either this SQL source or a complete `--candidate-plan`, not both. UTF-8 SQL is bounded to 64 KiB and 12,000 characters without NUL.
+
+To review changed worker queries directly from files, add any of
+`--candidate-read-file new-read.sql`, `--candidate-write-file new-write.sql`,
+`--candidate-insert-file new-insert.sql` to a review command with a new output
+folder. These replace only named candidate adapters. Other adapters remain in
+candidate.json; the original baseline and fixed old-worker contract do not change.
+Files use the same UTF-8/64 KiB/12,000-character bounds as setup, retain their
+exact bytes in inputs/supplied-candidate-<operation>.sql and are decoded into
+inputs/supplied-candidate.json for execution. Source byte hashes appear in the
+note/status; they are unsigned labels, not authenticated provenance. Query-file
+flags can accompany a candidate migration file or Git source; a complete
+--candidate-plan cannot be combined with them. The comparison and passing kit
+use the same retained candidate queries.
+
+```text
+python -m cutover.review_project --project my-release --candidate-migration-file migration.sql --candidate-read-file new-read.sql --candidate-write-file new-write.sql --candidate-insert-file new-insert.sql --out review-repair
+```
+
+`--candidate-migration-file` snapshots the actual candidate SQL byte-for-byte into `inputs/supplied-candidate.sql`, then executes that snapshot with the candidate adapters (including any supplied candidate query-file overrides). It overrides the copied project migration only; it does not infer adapters from SQL. The source is never edited, and comparison/kit export share the same snapshot. The PR note and offline review name the candidate source and its exact byte SHA-256; paths outside the invocation directory display only the filename, avoiding a machine-local absolute path. Choose either this SQL source or a complete `--candidate-plan`, not both. UTF-8 SQL is bounded to 64 KiB and 12,000 characters without NUL.
 
 The [downloadable actual-PR source control](evidence/actual_pr_source_review/README.md) retains a prospective Git original, the changed working-tree SQL, exact source snapshots, actual comparison ZIP and exported kit. The copied project SQL was deliberately stale; the source-bound command still blocked the original and passed the supplied reference repair.
 

@@ -175,11 +175,29 @@ baseline SQL file, not both, and a new output folder for each attempt.
 To review the actual candidate SQL elsewhere in your repository, add
 `--candidate-migration-file db/relocation.sql`. Its exact UTF-8 bytes (including
 BOM/line endings) are retained in inputs/supplied-candidate.sql and override only
-the candidate migration. Candidate adapters still come from project candidate.json;
+the candidate migration. Unspecified candidate adapters still come from project candidate.json;
 the copied project migration.sql remains retained but cannot override this file.
 SQL must be nonempty, at most 64 KiB and 12,000 characters, without NUL. Choose
 either this SQL file or --candidate-plan, not both. The comparison and passing kit
 execute the same retained SQL snapshot; the source file is never edited.
+
+
+To review changed worker queries directly from files, add any of
+`--candidate-read-file new-read.sql`, `--candidate-write-file new-write.sql`,
+`--candidate-insert-file new-insert.sql` to a review command with a new output
+folder. These replace only named candidate adapters. Other adapters remain in
+candidate.json; the original baseline and fixed old-worker contract do not change.
+Files use the same UTF-8/64 KiB/12,000-character bounds as setup, retain their
+exact bytes in inputs/supplied-candidate-<operation>.sql and are decoded into
+inputs/supplied-candidate.json for execution. Source byte hashes appear in the
+note/status; they are unsigned labels, not authenticated provenance. Query-file
+flags can accompany a candidate migration file or Git source; a complete
+--candidate-plan cannot be combined with them. The comparison and passing kit
+use the same retained candidate queries.
+
+```text
+python -m cutover.review_project --project my-release --candidate-migration-file migration.sql --candidate-read-file new-read.sql --candidate-write-file new-write.sql --candidate-insert-file new-insert.sql --out review-repair
+```
 
 To review an exact committed candidate instead of the working file:
 

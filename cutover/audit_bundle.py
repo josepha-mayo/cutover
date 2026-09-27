@@ -101,7 +101,8 @@ def audit_upload_bytes(payload, *, archive_limit, member_limit, total_limit):
                 'inputs/contract.json', 'inputs/baseline.json', 'inputs/candidate.json',
                 'inputs/migration.sql'}
     optional = {'inputs/supplied-baseline.sql', 'inputs/supplied-candidate.sql',
-                'inputs/supplied-candidate.json',
+                'inputs/supplied-candidate.json', 'inputs/supplied-candidate-read.sql',
+                'inputs/supplied-candidate-write.sql', 'inputs/supplied-candidate-insert.sql',
                 'pr-kit.zip', 'bob-repair-workspace.zip'}
     if not required <= files.keys() or not files.keys() <= required | optional:
         raise ValueError('PR handoff members differ from the supported format')

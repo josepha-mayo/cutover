@@ -11,6 +11,45 @@ from cutover.review_project import git_baseline
 
 
 class LocalProjectReviewTests(unittest.TestCase):
+    def test_candidate_query_files_execute_without_changing_original_and_whole_handoff_replays(self):
+        from cutover.review_project import review
+        from cutover.audit_bundle import audit_with_context
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);project=root/'release';project.mkdir()
+            fixture=Path('evidence/actual_pr_source_review/inputs')
+            for name in ('contract.json','baseline.json','candidate.json','migration.sql'):
+                (project/name).write_bytes((fixture/name).read_bytes())
+            original={name:(project/name).read_bytes() for name in ('contract.json','baseline.json','candidate.json','migration.sql')}
+            plan=json.loads(original['candidate.json'])
+            files={}
+            for operation in ('read','write','insert'):
+                files[operation]=root/(operation+'.sql')
+                files[operation].write_bytes(b'\xef\xbb\xbf'+plan[operation].replace('\n','\r\n').encode('utf-8')+b'\r\n')
+            migration=root/'repair.sql';migration.write_bytes((fixture/'supplied-candidate.sql').read_bytes())
+            before=root/'original.sql';before.write_bytes((fixture/'supplied-baseline.sql').read_bytes())
+            args=dict(candidate_read_file=files['read'],candidate_write_file=files['write'],candidate_insert_file=files['insert'],
+                      candidate_migration_file=migration,baseline_migration=before)
+            self.assertEqual(review(project,root/'review',**args),0)
+            reports=audit_with_context(root/'review/pr-review.zip')[0]
+            self.assertEqual(reports[-1]['status'],'pass')
+            for operation,source in files.items():
+                self.assertEqual((root/'review/inputs'/('supplied-candidate-'+operation+'.sql')).read_bytes(),source.read_bytes())
+                self.assertEqual(reports[-1]['plan'][operation],source.read_bytes().decode('utf-8-sig'))
+            for name,raw in original.items():self.assertEqual((project/name).read_bytes(),raw)
+            files['write'].write_text(plan['write'].replace('id = :id','id = -1'),encoding='utf-8')
+            self.assertEqual(review(project,root/'blocked',**args),1)
+            blocked=audit_with_context(root/'blocked/pr-review.zip')[0]
+            self.assertEqual(blocked[-1]['status'],'blocked')
+            self.assertEqual(blocked[0]['plan_hash'],reports[0]['plan_hash'])
+            self.assertEqual(blocked[-1]['contract_hash'],reports[-1]['contract_hash'])
+            with self.assertRaisesRegex(ValueError,'complete candidate plan'):
+                review(project,root/'conflict',candidate_plan=project/'candidate.json',candidate_read_file=files['read'])
+            self.assertFalse((root/'conflict').exists())
+            files['read'].write_bytes(b'\xff')
+            with self.assertRaisesRegex(ValueError,'Candidate read SQL.*not UTF-8'):
+                review(project,root/'invalid',**args)
+            self.assertFalse((root/'invalid').exists())
+
     def test_candidate_git_commit_survives_changed_working_file(self):
         from cutover.review_project import review
         import hashlib

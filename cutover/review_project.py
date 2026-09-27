@@ -146,9 +146,15 @@ def git_baseline(project, ref, path=None):
 
 def review(project, output, bob_workspace=False, candidate_plan=None, baseline_migration=None,
            baseline_git_ref=None, baseline_git_path=None, expected_contract_hash=None,
-           candidate_migration_file=None, candidate_git_ref=None, candidate_git_path=None):
+           candidate_migration_file=None, candidate_git_ref=None, candidate_git_path=None,
+           candidate_read_file=None, candidate_write_file=None, candidate_insert_file=None):
     if sum(value is not None for value in (candidate_plan, candidate_migration_file, candidate_git_ref)) > 1:
         raise ValueError('Choose a complete candidate plan, candidate SQL file or candidate Git commit, not both')
+    query_files = {operation:source for operation,source in
+                   [('read',candidate_read_file),('write',candidate_write_file),('insert',candidate_insert_file)]
+                   if source is not None}
+    if candidate_plan is not None and query_files:
+        raise ValueError('A complete candidate plan cannot be combined with candidate query files')
     if expected_contract_hash is not None:
         expected_contract_hash = expected_contract_hash.lower()
         if not re.fullmatch(r'[0-9a-f]{64}', expected_contract_hash):
@@ -192,6 +198,16 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         inputs['supplied-baseline.sql'], git_source = git_baseline(project, baseline_git_ref, baseline_git_path)
     elif baseline_git_path is not None:
         raise ValueError('--baseline-git-path requires --baseline-git-ref')
+    if query_files:
+        from .init_contract import read_sql_file
+        from .engine import validate_plan
+        adapted = json.loads(inputs['candidate.json'].decode('utf-8-sig'))
+        for operation, source in query_files.items():
+            raw, sql = read_sql_file(source, 'Candidate '+operation+' SQL')
+            inputs['supplied-candidate-'+operation+'.sql'] = raw
+            adapted[operation] = sql
+        validate_plan(adapted)
+        inputs['supplied-candidate.json'] = (json.dumps(adapted,ensure_ascii=True,indent=2)+'\n').encode('utf-8')
     output.mkdir(parents=True, exist_ok=False)
     snapshot = output/'inputs'
     snapshot.mkdir()
@@ -202,6 +218,12 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
     status['candidate_source'] = ('supplied-candidate.json (all five plan fields)' if candidate_plan
                                   else 'candidate.json adapters and supplied-candidate.sql' if candidate_migration_file is not None or candidate_git is not None
                                   else 'candidate.json adapters and migration.sql')
+    if query_files:
+        status['candidate_query_sources'] = {
+            operation:{'file':source.name,'snapshot':'inputs/supplied-candidate-'+operation+'.sql',
+                       'sha256':status['input_sha256']['supplied-candidate-'+operation+'.sql']}
+            for operation,source in query_files.items()}
+        status['candidate_source'] += '; supplied candidate query files override only named adapters'
     candidate_sql_source = None
     if candidate_migration_file is not None:
         source = candidate_migration_file.resolve()
@@ -252,7 +274,7 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
             if actual != expected_contract_hash:
                 raise ValueError('Contract changed from the reviewed hash; review the contract separately before executing SQL')
         candidate_args = ['--contract', snapshot/'contract.json', '--plan',
-                          snapshot/('supplied-candidate.json' if candidate_plan else 'candidate.json')]
+                          snapshot/('supplied-candidate.json' if candidate_plan or query_files else 'candidate.json')]
         if candidate_plan is None:
             candidate_args += ['--migration-file', snapshot/('supplied-candidate.sql' if candidate_migration_file is not None or candidate_git is not None else 'migration.sql')]
         baseline_args = ['--baseline-plan', snapshot/'baseline.json']
@@ -285,7 +307,15 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
             with (output/'review.md').open('a', encoding='utf-8') as note:
                 note.write('\n## Candidate SQL source\n\n'+'```json\n'+json.dumps(candidate_sql_source, ensure_ascii=True, indent=2)+'\n```\n\n'+
                            'Byte hash of the retained SQL snapshot, including any BOM and line endings. '
-                           'Adapters still come from candidate.json; this is not a whole-PR verification or signature.\n')
+                           'Unspecified adapters come from candidate.json; any supplied candidate query files are listed separately. '
+                           'This is not a whole-PR verification or signature.\n')
+        if query_files:
+            with (output/'review.md').open('a', encoding='utf-8') as note:
+                note.write('\n## Candidate query files\n\n```json\n'+
+                           json.dumps(status['candidate_query_sources'],ensure_ascii=True,indent=2)+'\n```\n\n'
+                           'Exact source bytes are retained; decoded SQL is in the executed candidate plan. '
+                           'The original baseline and fixed old-worker contract are unchanged. '
+                           'These unsigned source labels are not authenticated by packet replay.\n')
         report = json.loads((output/'candidate-report.json').read_text(encoding='utf-8'))
         if expected_contract_hash is not None and report['contract_hash'] != expected_contract_hash:
             raise ValueError('Executed report differs from the reviewed contract hash')
@@ -326,6 +356,8 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         with zipfile.ZipFile(output/'comparison.zip') as archive:
             original = json.loads(archive.read('baseline/report.json'))
         summary = render_pr_summary(original, report, git_source, candidate_sql_source)
+        if query_files:
+            summary += '\n## Candidate query files\n\n~~~json\n'+json.dumps(status['candidate_query_sources'],ensure_ascii=True,indent=2)+'\n~~~\n\nSource snapshots are unsigned; inspect executed SQL in the comparison.\n'
         final_status = {**status, 'pr_summary':'pr-summary.md', 'review_archive':'pr-review.zip',
                         'status':report['status'], 'candidate':{'passed':report['passed'], 'total':report['total']}}
         archive = render_review_archive(output, summary, final_status)
@@ -356,6 +388,9 @@ def main():
                         help='Snapshot actual candidate UTF-8 SQL; overrides only migration, retaining candidate.json adapters')
     candidate.add_argument('--candidate-git-ref',
                           help='Read candidate SQL from a local Git commit; no fetch or checkout changes')
+    for operation in ('read','write','insert'):
+        parser.add_argument('--candidate-'+operation+'-file', type=Path,
+                            help='Snapshot this candidate query file; other adapters and the original stay unchanged')
     parser.add_argument('--candidate-git-path',
                         help='Repository-relative candidate SQL path; defaults to project/migration.sql')
     parser.add_argument('--expected-contract-hash',
@@ -374,7 +409,10 @@ def main():
                       args.baseline_migration_file.resolve() if args.baseline_migration_file else None,
                       args.baseline_git_ref, args.baseline_git_path, args.expected_contract_hash,
                       args.candidate_migration_file.resolve() if args.candidate_migration_file else None,
-                      args.candidate_git_ref, args.candidate_git_path)
+                      args.candidate_git_ref, args.candidate_git_path,
+                      args.candidate_read_file.resolve() if args.candidate_read_file else None,
+                      args.candidate_write_file.resolve() if args.candidate_write_file else None,
+                      args.candidate_insert_file.resolve() if args.candidate_insert_file else None)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')
