@@ -25,6 +25,17 @@ SCRIPT = '''
 const reports=JSON.parse(document.getElementById('recorded-data').textContent);
 const $=id=>document.getElementById(id);
 const text=(tag,value,parent)=>{const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;};
+const newFailures=new Set();
+if(reports.length===2){
+  const [before,after]=reports, old=new Map(before.results.map(p=>[p.id,p]));
+  const sameMigration=before.plan.migration===after.plan.migration;
+  after.results.forEach(p=>{const prior=old.get(p.id);
+    if(prior&&prior.passed&&!p.passed&&prior.category===p.category&&
+       (sameMigration||p.category!=='migration_window')&&
+       JSON.stringify(prior.payload)===JSON.stringify(p.payload)&&
+       JSON.stringify(prior.actions)===JSON.stringify(p.actions))newFailures.add(p.id);
+  });
+}
 let current=reports.length===2&&reports[1].status==='blocked'?1:
   reports[0].status==='blocked'?0:reports.length-1, selected=null, step=0;
 reports.forEach((r,i)=>{
@@ -39,6 +50,8 @@ reports.forEach((r,i)=>{
 });
 function chooseProbe(){
   const r=reports[current];selected=r.results.find(p=>p.id===$('probe').value);
+  $('probe-comparison').textContent=current===1&&newFailures.has(selected.id)?
+    'NEW FAILURE: this same probe passed in the baseline and failed in the candidate. Input and action sequence match; this does not identify a causal SQL line.':'';
   step=Math.max(0,selected.trace.findIndex(e=>e.status==='fail'));renderStep();
 }
 function choosePlan(){
@@ -46,17 +59,20 @@ function choosePlan(){
   $('review-focus').textContent=reports.length===1?
     'Inspect the recorded '+r.status+' result for this executed plan.':
     current===1?(r.status==='blocked'?
-      'The candidate is blocked. Inspect its counterexample before merging.':
+      (newFailures.size?`The candidate is blocked with ${newFailures.size} newly failing paired probes. New failures are marked NEW FAIL.`:
+      'The candidate is blocked. Inspect its counterexample before merging.'):
       'The candidate passed this bounded suite. Select Baseline to inspect the original result.'):
     (reports[1].status==='pass'&&r.status==='blocked'?
       'The candidate passed; this is the retained original failure. Select Candidate to inspect the repair.':
       'This is the original baseline. Select Candidate to inspect the proposed change.');
   const probes=r.results.filter(p=>!$('failures').checked||!p.passed);
-  probes.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.passed?'PASS':'FAIL'} · ${p.title} · input ${JSON.stringify(p.payload)}`;$('probe').append(o);});
+  probes.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${current===1&&newFailures.has(p.id)?'NEW FAIL':p.passed?'PASS':'FAIL'} · ${p.title} · input ${JSON.stringify(p.payload)}`;$('probe').append(o);});
   $('probe').disabled=!probes.length;$('empty').hidden=!!probes.length;$('walk').hidden=!probes.length;
   $('identity').textContent=`Contract SHA-256: ${r.contract_hash} · Suite SHA-256: ${r.suite_hash} · Engine SHA-256: ${r.engine_sha256}`;
   $('sql').replaceChildren();['migration','read','write','insert'].forEach(key=>{text('h3',key,$('sql'));text('pre',r.plan[key],$('sql'));});
-  if(probes.length){$('probe').value=probes.some(p=>p.id===r.witness?.id)?r.witness.id:probes[0].id;chooseProbe();}
+  $('probe-comparison').textContent='';
+  if(probes.length){const regression=current===1?probes.find(p=>newFailures.has(p.id)):null;
+    $('probe').value=regression?regression.id:probes.some(p=>p.id===r.witness?.id)?r.witness.id:probes[0].id;chooseProbe();}
 }
 function renderStep(){
   if(!selected.trace.length){$('position').disabled=true;$('previous').disabled=true;$('next').disabled=true;$('event').replaceChildren();text('p','No executed steps were retained for this probe.',$('event'));return;}
@@ -138,7 +154,7 @@ def render_review(reports, baseline_git=None, candidate_sql_source=None):
 <p class="scope">Sequential SQLite schedules only. Passing does not establish production safety, simultaneous transaction behavior or another database engine. Different migration sequences have their own statement boundaries; window probes are not paired by step number.</p>
 {provenance}<div id="summary" class="cards"></div>{changes}<section><p id="review-focus" aria-live="polite"></p><label for="plan">Executed plan</label><select id="plan"></select>
 <p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
-<label for="probe">Recorded probe</label><select id="probe"></select><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
+<label for="probe">Recorded probe</label><select id="probe"></select><p id="probe-comparison" aria-live="polite"></p><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">
 <button id="previous" type="button">Previous step</button><button id="next" type="button">Next step</button><div id="event" aria-live="polite"></div></div>
 <details><summary>Full executed SQL for selected plan</summary><div id="sql"></div></details></section>
