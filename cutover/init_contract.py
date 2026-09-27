@@ -27,7 +27,7 @@ def read_sql_file(path, label):
     return raw, sql
 
 
-def build_contract(project, table, old_column, new_column, first, second, incoming):
+def build_contract(project, table, old_column, new_column, first, second, incoming, first_id=1, second_id=2):
     if not project.strip() or len(project) > 100:
         raise ValueError('Project name must contain 1–100 characters')
     for name in (table, old_column, new_column):
@@ -37,12 +37,15 @@ def build_contract(project, table, old_column, new_column, first, second, incomi
         raise ValueError('Old/new columns must differ; id is reserved')
     if any(not value or len(value) > 1000 for value in (first, second)) or len(incoming) > 1000:
         raise ValueError('Seed values must be nonempty and all values at most 1000 characters')
+    if (any(type(value) is not int or not 1 <= value <= 1_000_000 for value in (first_id,second_id))
+            or first_id == second_id):
+        raise ValueError('First/second seed IDs must be distinct integers from 1 to 1,000,000')
     payloads = list(dict.fromkeys([incoming, "O'Connell", '0', '東京-棚', '']))
     t, old, new = (f'"{name}"' for name in (table, old_column, new_column))
     contract = dict(project=project.strip(), summary=f'Rehearse {old_column} to {new_column} while old workers remain.',
         table=table, old_column=old_column, new_column=new_column,
         schema=f'CREATE TABLE {t} (id INTEGER PRIMARY KEY, {old} TEXT NOT NULL);',
-        seed_sql=f'INSERT INTO {t} (id, {old}) VALUES (?, ?)', seed=[[1, first], [2, second]],
+        seed_sql=f'INSERT INTO {t} (id, {old}) VALUES (?, ?)', seed=[[first_id, first], [second_id, second]],
         old=dict(read=f'SELECT id, {old} AS value FROM {t} ORDER BY id',
             write=f'UPDATE {t} SET {old} = :value WHERE id = :id',
             insert=f'INSERT INTO {t} (id, {old}) VALUES (:id, :value)'), payloads=payloads)
@@ -58,6 +61,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('project', 'table', 'old-column', 'new-column', 'first-value', 'second-value', 'incoming-value'):
         parser.add_argument('--'+name, required=True)
+    parser.add_argument('--first-id', type=int, default=1, help='First synthetic seed ID (1 to 1,000,000; default 1)')
+    parser.add_argument('--second-id', type=int, default=2, help='Second distinct synthetic seed ID (default 2)')
     parser.add_argument('--out', type=Path, required=True, help='New folder; existing folders are refused')
     parser.add_argument('--migration-file', type=Path,
                         help='Snapshot UTF-8 SQL instead of generating a backfill (64 KiB, 12,000 characters, no NUL)')
@@ -71,7 +76,7 @@ def main():
     args = parser.parse_args()
     try:
         contract, plan = build_contract(args.project, args.table, args.old_column, args.new_column,
-                                       args.first_value, args.second_value, args.incoming_value)
+                                       args.first_value, args.second_value, args.incoming_value, args.first_id, args.second_id)
         schema_bytes = None
         if args.schema_file is not None:
             schema_bytes, schema = read_sql_file(args.schema_file, 'Schema DDL')
@@ -134,7 +139,7 @@ def main():
                      if new_files else 'New-worker queries remain generated templates: inspect them before use.')
         (args.out/'README.md').write_text(f'''# Your local migration rehearsal
 
-{schema_scope} Seed values and incoming writes are supplied synthetic examples, not database rows. No passing repair is supplied. {adapter_scope} {new_scope} Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
+{schema_scope} Seed IDs, values and incoming writes are supplied synthetic examples, not database rows. IDs are part of the fixed contract; changing them later changes the tested contract rather than repairing the migration. No passing repair is supplied. {adapter_scope} {new_scope} Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
 
 After editing, run one review from the extracted runtime folder:
 

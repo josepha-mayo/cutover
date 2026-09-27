@@ -10,6 +10,40 @@ from cutover.local_starter import render_local_starter
 
 
 class LocalContractSetupTests(unittest.TestCase):
+    def test_explicit_seed_ids_support_supplied_schema_range_and_remain_in_audited_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            with zipfile.ZipFile(io.BytesIO(render_local_starter())) as archive:
+                archive.extractall(root)
+            raw=b'CREATE TABLE shipments(id INTEGER PRIMARY KEY CHECK(id>=1000), loading_bay TEXT NOT NULL);'
+            (root/'schema.sql').write_bytes(raw)
+            base=[sys.executable,'-S','-m','cutover.init_contract','--project','ID-range dispatch',
+                  '--table','shipments','--old-column','loading_bay','--new-column','dispatch_bay',
+                  '--first-value','A-01','--second-value','B-02','--incoming-value','GATE-09','--schema-file','schema.sql']
+            def run(args):return subprocess.run(args,cwd=root,capture_output=True,timeout=120)
+            self.assertEqual(run(base+['--out','default-ids']).returncode,2)
+            self.assertFalse((root/'default-ids').exists())
+            created=run(base+['--first-id','1001','--second-id','1009','--out','release'])
+            self.assertEqual(created.returncode,0,created.stderr)
+            contract=json.loads((root/'release/contract.json').read_text(encoding='utf-8'))
+            self.assertEqual(contract['seed'],[[1001,'A-01'],[1009,'B-02']])
+            self.assertEqual((root/'release/schema.sql').read_bytes(),raw)
+            result=run([sys.executable,'-S','-m','cutover.review_project','--project','release','--out','review'])
+            self.assertEqual(result.returncode,1,result.stderr)
+            audit=run([sys.executable,'-S','-m','cutover.audit_bundle','--bundle','review/pr-review.zip'])
+            self.assertEqual(audit.returncode,1,audit.stderr)
+            with zipfile.ZipFile(root/'review/comparison.zip') as archive:
+                checked=json.loads(archive.read('candidate/contract.json'))
+                report=json.loads(archive.read('candidate/report.json'))
+                self.assertEqual(checked['seed'],contract['seed'])
+                self.assertEqual(report['witness']['seed_id'],1001)
+                ids={e['params']['id'] for probe in report['results'] for e in probe['trace'] if e.get('params')}
+                self.assertTrue({1001,1009,1010}.issubset(ids))
+            for first,second in [('1001','1001'),('0','1009'),('1001','1000001')]:
+                rejected=run(base+['--first-id',first,'--second-id',second,'--out','invalid'])
+                self.assertEqual(rejected.returncode,2)
+                self.assertFalse((root/'invalid').exists())
+
     def test_setup_file_errors_identify_input_and_recovery_without_saving(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

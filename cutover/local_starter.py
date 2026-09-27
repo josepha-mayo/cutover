@@ -75,6 +75,13 @@ required extra columns without usable defaults are refused. No live database
 rows are imported. Extra-column values are not tracked by the write ledger.
 Inspect the generated adapters; this is not whole-schema/application verification.
 
+Choose synthetic IDs that fit your supplied schema/query range with
+`--first-id 1001 --second-id 1009` (defaults 1 and 2). They must be distinct
+integers from 1 to 1,000,000. Inserts use IDs derived above the largest seed;
+ensure your schema and queries admit them too. These are synthetic inputs,
+not imported production rows. Seed IDs are part of the fixed contract; changing
+them changes the test contract and requires separate review.
+
 To retain existing old-worker queries, add any of `--old-read-file old-read.sql`,
 `--old-write-file old-write.sql`, `--old-insert-file old-insert.sql` to setup.
 The reader returns id/value; writes and inserts use :id/:value parameters.

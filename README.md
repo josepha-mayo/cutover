@@ -144,6 +144,13 @@ Already have the old SQLite table DDL? Also add `--schema-file path/to/schema.sq
 
 To use the existing old-worker queries, add any of `--old-read-file path/to/read.sql`, `--old-write-file path/to/write.sql` and `--old-insert-file path/to/insert.sql`. Each replaces its corresponding generated old query, retains exact file bytes in the project and fixes the decoded SQL in the contract. The reader must return `id`/`value`; the updater and inserter use `:id`/`:value`. Setup checks these queries against the synthetic seeds and payloads before creating the folder, with no template fallback on failure. Unsupplied queries remain generated; inspect every adapter before review. Nothing is inferred from application source or copied from a live database.
 
+Choose synthetic IDs that fit your supplied schema/query range with
+`--first-id 1001 --second-id 1009` (defaults 1 and 2). They must be distinct
+integers from 1 to 1,000,000. Inserts use IDs derived above the largest seed;
+ensure your schema and queries admit them too. These are synthetic inputs,
+not imported production rows. Seed IDs are part of the fixed contract; changing
+them changes the test contract and requires separate review.
+
 The matching new-worker flags are `--new-read-file`, `--new-write-file` and `--new-insert-file`. Supplied SQL is retained byte-for-byte and decoded into both initial plans. Import validates shape and bounds, not new-query execution: the rehearsal executes those queries with the migration. Unspecified queries remain generated. Supplying files does not infer a passing result or a repair. The new reader must return id/value from the new column without reading the old column: `COALESCE(new, old)` remains blocked as an adapter-contract failure even when values match. New writes/inserts must store the payload directly in the new column; explicit dual-writes are supported.
 
 After editing the migration SQL and candidate adapters, run the complete local review with one command:
