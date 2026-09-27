@@ -8,8 +8,9 @@ from .reporting import render_markdown
 from .reporting import render_reproduction
 
 
-ACTION_REF = '3fe6630c41d6220defc1107d9ead18d905720b1a'
-PRIOR_LOCKED_ACTION_REFS = ('65984c8efd007e2d50d6beaf5afbdac500ec690b',)
+ACTION_REF = '8a7895ea6c4a91b5058f50c1bcba6863cc8f96df'
+PRIOR_LOCKED_ACTION_REFS = ('3fe6630c41d6220defc1107d9ead18d905720b1a',
+                            '65984c8efd007e2d50d6beaf5afbdac500ec690b')
 LEGACY_ACTION_REF = 'a5bf69f6e8f94788eade58691d292941e009f8ac'
 CHECKOUT_REF = '3d3c42e5aac5ba805825da76410c181273ba90b1'
 
