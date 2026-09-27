@@ -129,7 +129,18 @@ def main():
                            'window_probes_paired': same_migration,
                            'interpretation': ('Identical migration SQL permits window pairing.' if same_migration else
                                'Different SQL sequences: statement windows are evaluated separately, not paired by step number.')}
-                review += ['## Measured comparison', '', fenced(json.dumps(summary, indent=2), 'json'), '',
+                review += ['## Review verdict', '',
+                           '| Executed plan | Verdict | Full suite passed | Completed-rollout failures | Migration-window failures |',
+                           '| --- | --- | --- | --- | --- |']
+                for label, executed in (('Baseline', before), ('Candidate', after)):
+                    window = next(category for category in executed['categories'] if category['id'] == 'migration_window')
+                    complete_total = executed['total'] - window['total']
+                    complete_failed = executed['failed'] - (window['total'] - window['passed'])
+                    review.append(f"| {label} | {executed['status'].upper()} | {executed['passed']}/{executed['total']} | {complete_failed}/{complete_total} | {window['total'] - window['passed']}/{window['total']} |")
+                review += ['',
+                           'Window counts describe each plan separately. Different statement sequences create different tested boundaries; '
+                           'a smaller denominator does not imply equivalent coverage. The packet retains both full reports.', '',
+                           '## Measured comparison', '', fenced(json.dumps(summary, indent=2), 'json'), '',
                            '## Executed SQL changes', '',
                            'Textual differences do not establish which SQL line caused the measured change.', '']
                 for key in ('migration', 'read', 'write', 'insert'):

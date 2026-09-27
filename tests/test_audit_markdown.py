@@ -41,6 +41,9 @@ class VerifiedMarkdownTests(unittest.TestCase):
             self.assertIn(self.before['plan_hash'], text)
             self.assertIn(self.after['plan_hash'], text)
             self.assertIn('### migration', text)
+            self.assertIn('| Baseline | BLOCKED | 108/124 | 0/76 | 16/48 |', text)
+            self.assertIn('| Candidate | PASS | 124/124 | 0/76 | 0/48 |', text)
+            self.assertLess(text.index('## Review verdict'), text.index('## Executed SQL changes'))
 
     def test_changed_comparison_refuses_output(self):
         with tempfile.TemporaryDirectory() as folder:
