@@ -1,5 +1,6 @@
 """Render audited reports as a self-contained, non-executing offline review."""
 import base64
+import difflib
 import hashlib
 import html
 import json
@@ -82,10 +83,27 @@ def content_security_policy():
 
 def render_review(reports, baseline_git=None):
     """Caller must independently audit reports before presenting this export."""
-    payload = json.dumps(list(reports), ensure_ascii=True, separators=(',', ':'))
+    reports = list(reports)
+    payload = json.dumps(reports, ensure_ascii=True, separators=(',', ':'))
     payload = payload.replace('&', '\\u0026').replace('<', '\\u003c').replace('>', '\\u003e')
     policy = content_security_policy()
     provenance = ''
+    changes = ''
+    if len(reports) == 2:
+        changed_fields = []
+        for key in ('migration', 'read', 'write', 'insert'):
+            before, after = (report['plan'][key] for report in reports)
+            if before == after:
+                continue
+            delta = '\n'.join(difflib.unified_diff(before.splitlines(), after.splitlines(),
+                              fromfile='baseline/'+key, tofile='candidate/'+key, lineterm=''))
+            changed_fields.append('<h3>'+key+'</h3><pre>'+html.escape(delta or
+                                  'Only line endings or final newline differ; no SQL line text changed.')+'</pre>')
+        changes = ('<section><details><summary>Changed SQL: baseline → candidate</summary>'
+                   '<p class="scope">Textual differences in the executed plans. These lines do not establish causality. '
+                   'Only this display normalizes line endings; complete original SQL remains below and in the packet.</p>'+
+                   (''.join(changed_fields) or '<p>No SQL fields changed between these executed plans.</p>')+
+                   '</details></section>')
     if baseline_git is not None:
         fields = ''.join('<dt>'+label+'</dt><dd class="identity">'+html.escape(str(baseline_git[key]))+'</dd>'
                          for label, key in [('Commit', 'commit'), ('Repository SQL path', 'path'), ('Git blob', 'blob')])
@@ -99,7 +117,7 @@ def render_review(reports, baseline_git=None):
 <body><main><h1>Follow the write. Review the migration.</h1>
 <p class="scope">Offline review generated after independent replay. This page displays recorded evidence; it does not execute SQL or reverify itself. No network access is required. The HTML is not signed.</p>
 <p class="scope">Sequential SQLite schedules only. Passing does not establish production safety, simultaneous transaction behavior or another database engine. Different migration sequences have their own statement boundaries; window probes are not paired by step number.</p>
-{provenance}<div id="summary" class="cards"></div><section><label for="plan">Executed plan</label><select id="plan"></select>
+{provenance}<div id="summary" class="cards"></div>{changes}<section><label for="plan">Executed plan</label><select id="plan"></select>
 <p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
 <label for="probe">Recorded probe</label><select id="probe"></select><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">

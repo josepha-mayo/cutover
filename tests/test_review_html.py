@@ -20,6 +20,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class OfflineReviewTests(unittest.TestCase):
+    def test_comparison_shows_changed_sql_and_keeps_display_text_inert(self):
+        import copy
+        reports = copy.deepcopy(self.reports)
+        reports[1]['plan']['write'] += '\n-- <img src=x>'
+        page = render_review(reports)
+        self.assertIn('Changed SQL: baseline → candidate', page)
+        self.assertIn('--- baseline/migration', page)
+        self.assertIn('+++ candidate/write', page)
+        self.assertIn('+-- &lt;img src=x&gt;', page)
+        self.assertNotIn('<img src=x>', page)
+        self.assertIn('do not establish causality', page)
+        self.assertNotIn('Changed SQL:', render_review([reports[0]]))
+        self.assertIn('No SQL fields changed', render_review([reports[0], reports[0]]))
+        reports[1]['plan'] = dict(reports[0]['plan'], migration=reports[0]['plan']['migration'].replace('\n', '\r\n')+'\r\n')
+        self.assertIn('Only line endings or final newline differ', render_review(reports))
+
     def test_git_provenance_is_visible_but_cannot_inject_markup(self):
         page = render_review(self.reports, {'commit': 'abc123', 'path': '<img src=x>.sql', 'blob': 'def456'})
         self.assertIn('abc123', page)

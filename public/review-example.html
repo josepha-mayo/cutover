@@ -17,7 +17,28 @@ code,.identity{overflow-wrap:anywhere}.identity{font:11px/1.6 monospace;color:#5
 <body><main><h1>Follow the write. Review the migration.</h1>
 <p class="scope">Offline review generated after independent replay. This page displays recorded evidence; it does not execute SQL or reverify itself. No network access is required. The HTML is not signed.</p>
 <p class="scope">Sequential SQLite schedules only. Passing does not establish production safety, simultaneous transaction behavior or another database engine. Different migration sequences have their own statement boundaries; window probes are not paired by step number.</p>
-<div id="summary" class="cards"></div><section><label for="plan">Executed plan</label><select id="plan"></select>
+<div id="summary" class="cards"></div><section><details><summary>Changed SQL: baseline → candidate</summary><p class="scope">Textual differences in the executed plans. These lines do not establish causality. Only this display normalizes line endings; complete original SQL remains below and in the packet.</p><h3>migration</h3><pre>--- baseline/migration
++++ candidate/migration
+@@ -1,2 +1,17 @@
+-ALTER TABLE &quot;shipments&quot; ADD COLUMN &quot;dispatch_bay&quot; TEXT;
+-UPDATE &quot;shipments&quot; SET &quot;dispatch_bay&quot; = &quot;loading_bay&quot;;
++ALTER TABLE shipments ADD COLUMN dispatch_bay TEXT;
++CREATE TRIGGER sync_old_update AFTER UPDATE OF loading_bay ON shipments
++WHEN NEW.loading_bay IS NOT NEW.dispatch_bay
++BEGIN
++  UPDATE shipments SET dispatch_bay = NEW.loading_bay WHERE id = NEW.id;
++END;
++CREATE TRIGGER sync_new_update AFTER UPDATE OF dispatch_bay ON shipments
++WHEN NEW.dispatch_bay IS NOT NEW.loading_bay
++BEGIN
++  UPDATE shipments SET loading_bay = NEW.dispatch_bay WHERE id = NEW.id;
++END;
++CREATE TRIGGER sync_old_insert AFTER INSERT ON shipments
++WHEN NEW.dispatch_bay IS NULL
++BEGIN
++  UPDATE shipments SET dispatch_bay = NEW.loading_bay WHERE id = NEW.id;
++END;
++UPDATE shipments SET dispatch_bay = loading_bay;</pre></details></section><section><label for="plan">Executed plan</label><select id="plan"></select>
 <p id="identity" class="identity"></p><label><input id="failures" type="checkbox"> Show failed probes only</label>
 <label for="probe">Recorded probe</label><select id="probe"></select><p id="empty" hidden>No failed probes in this report. Clear the filter to inspect passing executions.</p>
 <div id="walk"><label for="position">Replay step</label><input id="position" type="range" min="0" value="0">
