@@ -10,6 +10,33 @@ from cutover.local_starter import render_local_starter
 
 
 class LocalContractSetupTests(unittest.TestCase):
+    def test_setup_file_errors_identify_input_and_recovery_without_saving(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with zipfile.ZipFile(io.BytesIO(render_local_starter())) as archive:
+                archive.extractall(root)
+            base = [sys.executable, '-S', '-m', 'cutover.init_contract', '--project', 'File diagnostics',
+                '--table', 'shipments', '--old-column', 'loading_bay', '--new-column', 'dispatch_bay',
+                '--first-value', 'A-01', '--second-value', 'B-02', '--incoming-value', 'GATE-09']
+            cases = [('--schema-file', 'Schema DDL', None, 'relative paths start'),
+                     ('--old-write-file', 'Old-worker write SQL', b'\xff', 'Save a UTF-8 copy'),
+                     ('--new-insert-file', 'New-worker insert SQL', b'x'*65537, 'not a database dump'),
+                     ('--migration-file', 'Migration SQL', b'SELECT 1;\0', 'without NUL bytes')]
+            for i, (flag, label, raw, recovery) in enumerate(cases):
+                source = root/('input-'+str(i)+'.sql')
+                if raw is not None:
+                    source.write_bytes(raw)
+                output = 'release-'+str(i)
+                result = subprocess.run(base+[flag, source.name, '--out', output], cwd=root,
+                    capture_output=True, timeout=120)
+                self.assertEqual(result.returncode, 2)
+                error = result.stderr.decode('utf-8')
+                self.assertIn(label+' file '+source.name, error)
+                self.assertIn(recovery, error)
+                self.assertFalse((root/output).exists())
+                if raw is not None:
+                    self.assertEqual(source.read_bytes(), raw)
+
     def test_supplied_new_queries_are_retained_in_both_plans_and_executed(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

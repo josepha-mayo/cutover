@@ -7,11 +7,23 @@ import subprocess
 
 
 def read_sql_file(path, label):
-    with path.open('rb') as source:
-        raw = source.read(65537)
-    sql = raw.decode('utf-8-sig')
-    if len(raw) > 65536 or not sql.strip() or '\0' in sql or len(sql) > 12000:
-        raise ValueError(f'{label} must be nonempty UTF-8 without NUL, at most 64 KiB and 12,000 characters')
+    try:
+        with path.open('rb') as source:
+            raw = source.read(65537)
+    except OSError as exc:
+        raise ValueError(f'{label} file {path}: cannot read this file. Check its path and read access; '
+                         'relative paths start in the folder where you run the command.') from exc
+    if len(raw) > 65536:
+        raise ValueError(f"{label} file {path}: exceeds 64 KiB. Supply only this rehearsal's SQL, "
+                         'not a database dump.')
+    try:
+        sql = raw.decode('utf-8-sig')
+    except UnicodeError as exc:
+        raise ValueError(f'{label} file {path}: not UTF-8. Save a UTF-8 copy and pass that file; '
+                         'UTF-8 BOM is supported.') from exc
+    if not sql.strip() or '\0' in sql or len(sql) > 12000:
+        raise ValueError(f'{label} file {path}: SQL must be nonempty, without NUL bytes, '
+                         'and at most 12,000 characters.')
     return raw, sql
 
 
