@@ -1,6 +1,12 @@
 import {buildScenario} from './scenario.js';
 import {request as requestResource} from './request.js';
 const $ = id => document.getElementById(id);
+// API calls are same-origin. Identify loopback execution before inputs are entered.
+if (['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) {
+  $('execution-location').textContent='◉ Local disposable SQLite';
+  $('sql-location-note').textContent='This loopback instance sends rehearsal SQL to your local Cutover server. Build a two-column rename or import your contract, then export the review files you choose to share.';
+  $('scenario-location-note').textContent=$('scenario-location-note').textContent.replace('Use synthetic values here.', 'This scenario runs on your local Cutover server. Exported packets include the values and SQL you enter.');
+}
 let catalog, activeCase, reference = 'late_bridge', report = null, selected = null, busy = false, briefText = '';
 let pinnedReport = null, proofTourBusy = false;
 let catalogLoading = false;

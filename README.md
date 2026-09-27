@@ -22,6 +22,22 @@ python server.py
 
 Open http://127.0.0.1:8765. The server binds only to loopback by default. The same bounded app is hosted at [cutover-rehearsal.onrender.com](https://cutover-rehearsal.onrender.com/); it is a hackathon demo, not a hardened public multi-tenant service.
 
+## Start locally with your own release
+
+Run `python server.py`, then open `http://127.0.0.1:8765/?demo=scenario`.
+The local screen identifies loopback execution before you enter SQL. Name your
+table and old/new text columns, supply two seed records and the incoming write,
+or explicitly choose **Incoming write clears the value to empty text**. The
+builder executes a one-time backfill and a generated compatibility bridge on
+fresh local databases. Inspect the failure, edit the candidate's actual SQL and
+queries, then rerun. Use **Import migration .sql** for a file from your checkout.
+
+Download **both review packets** and the **comparison PR note** for review, or
+export the contract and plan for `python -m cutover`. Downloads include the seed
+values and SQL you supplied; choose what to share. The generated bridge is a
+starter for this bounded SQLite model, not a production migration recommendation.
+No browser upload to the public Render demo is needed for this local flow.
+
 ## Try the three-minute story
 
 1. Press **Run unsafe → Bob repair** in the first screen. Cutover executes the prewritten unsafe Warehouse migration and Bob's saved Warehouse repair fresh, then shows the pinned missed-write witness, both coverage totals, and each plan's independently measured SQL boundaries. The unsafe plan is a Codex-authored example; Bob authored the repair during the event. Or choose **Late bridge** and run it manually: all 76 completed-rollout Parcel probes pass, yet 16 of 48 migration-window probes fail. Select a red square to inspect the shortest observed failing replay, executed SQL, and expected/observed values. Pin this result as a baseline before trying another plan.
