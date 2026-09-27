@@ -192,12 +192,16 @@ class Handler(BaseHTTPRequestHandler):
                 if self.path == '/api/contract/validate':
                     self.send(200, validate_imported_contract(body['contract']))
                 elif self.path == '/api/replay':
+                    review_note = body.get('format', 'python') == 'markdown'
+                    if body.get('format', 'python') not in ('python', 'markdown'):
+                        raise ValueError('Selected export format must be python or markdown')
                     identities = {key: body[key] for key in
                                   ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}
                     result = run_selected_replay(body['case'], body['plan'], body['probe_id'],
                                                  identities, body['observed_probe'], body.get('contract'))
-                    self.send(200, result['script'].encode('utf-8'), 'text/x-python; charset=utf-8', {
-                        'Content-Disposition': 'attachment; filename="cutover-selected-replay.py"',
+                    self.send(200, result['review_markdown' if review_note else 'script'].encode('utf-8'),
+                              'text/markdown; charset=utf-8' if review_note else 'text/x-python; charset=utf-8', {
+                        'Content-Disposition': 'attachment; filename="cutover-selected-review.md"' if review_note else 'attachment; filename="cutover-selected-replay.py"',
                         'X-Cutover-Probe-ID': result['probe_id'],
                         'X-Cutover-Plan-SHA256': result['plan_hash'],
                         'X-Cutover-Contract-SHA256': result['contract_hash'],

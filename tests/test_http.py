@@ -94,6 +94,18 @@ class HttpTests(unittest.TestCase):
                 payload = {**inputs, 'probe_id': probe_id, 'observed_probe': probe,
                            **{key: report[key] for key in
                               ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}}
+                note_request = urllib.request.Request(self.base + '/api/replay',
+                    data=json.dumps({**payload, 'format': 'markdown'}).encode(),
+                    headers={'Content-Type': 'application/json'})
+                with urllib.request.urlopen(note_request, timeout=15) as response:
+                    note = response.read().decode('utf-8')
+                    self.assertEqual(response.headers['Content-Type'], 'text/markdown; charset=utf-8')
+                    self.assertEqual(response.headers['X-Cutover-Probe-ID'], probe_id)
+                    self.assertIn(f'**`{probe_id}`**', note)
+                    self.assertNotIn(f'**`{report["witness"]["id"]}`**', note)
+                    self.assertIn(report['plan_hash'], note)
+                    self.assertIn('not necessarily the shortest witness', note)
+                    self.assertIn(json.dumps(probe['payload'], ensure_ascii=False), note)
                 request = urllib.request.Request(self.base + '/api/replay',
                     data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'})
                 with urllib.request.urlopen(request, timeout=15) as response:

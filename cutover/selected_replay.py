@@ -3,7 +3,7 @@ import copy
 import json
 
 from .engine import load_case, migration_statements, rehearse, replay
-from .reporting import render_reproduction
+from .reporting import render_reproduction, replay_section
 
 
 IDENTITIES = ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')
@@ -43,4 +43,13 @@ def rehearse_selected(case, plan, probe_id, identities, observed_probe, contract
     # Keep the suite's canonical shortest witness and all packet formats intact.
     selected = {**probe, **repeated}
     script = render_reproduction({**report, 'witness': selected}, source, ascii_output=True)
-    return {**{key: report[key] for key in IDENTITIES}, 'probe_id': probe_id, 'script': script}
+    note = '\n'.join(['# Cutover selected failure review', '',
+                      f'Suite result: {report["passed"]}/{report["total"]} probes passed.', '',
+                      'This selected failure was freshly rerun and matched the displayed observation. '
+                      'It is not necessarily the shortest witness. This note does not establish Bob authorship '
+                      'or production safety.', '',
+                      *replay_section(selected, 'Selected executed failure'),
+                      '## Evidence identity', '',
+                      *[f'- {key}: `{report[key]}`' for key in IDENTITIES], ''])
+    return {**{key: report[key] for key in IDENTITIES}, 'probe_id': probe_id,
+            'script': script, 'review_markdown': note}

@@ -410,6 +410,7 @@ function updateReplayExport() {
   const eligible=probe&&!probe.passed&&['data_mismatch','target_mismatch'].includes(probe.failure?.kind);
   $('export-repro').disabled=busy||replayBusy||!eligible;
   $('export-repro').textContent=replayBusy?'Preparing selected replay…':'Export this failed replay ↓';
+  $('export-selected-review').disabled=busy||replayBusy||!eligible;
   $('replay-export-note').textContent=eligible
     ?'Downloads a standalone Python replay of this selected data mismatch after a fresh run matches the displayed evidence. It reproduces one failure, not the full suite.'
     :probe?.passed?'This probe passed. Select a failed data-mismatch probe to export its replay.'
@@ -610,11 +611,11 @@ $('export-comparison').addEventListener('click',async()=>{
   finally{comparisonBusy=false;button.textContent='Download both review packets ↓';renderComparison();}
 });
 $('export').addEventListener('click',()=>{if(!report)return;const {review_markdown,reproduction_python,...evidence}=report;download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.json`,pretty(evidence));});
-$('export-repro').addEventListener('click',async()=>{
+async function exportSelected(format='python') {
   const snapshot=report, probeId=selected;
   const probe=snapshot?.results.find(item=>item.id===probeId);
   if(busy||replayBusy||!probe||probe.passed||!['data_mismatch','target_mismatch'].includes(probe.failure?.kind))return;
-  const request={case:snapshot.case,plan:snapshot.plan,probe_id:probeId,observed_probe:probe,
+  const request={case:snapshot.case,plan:snapshot.plan,probe_id:probeId,observed_probe:probe,format,
     plan_hash:snapshot.plan_hash,contract_hash:snapshot.contract_hash,
     engine_sha256:snapshot.engine_sha256,suite_hash:snapshot.suite_hash};
   if(snapshot.case==='custom')request.contract=importedContract;
@@ -623,7 +624,8 @@ $('export-repro').addEventListener('click',async()=>{
     const body=JSON.stringify(request);
     if(new Blob([body]).size>65536)throw Error('The selected replay exceeds the 64 KiB hosted request limit. Export evidence or a review packet to retain this probe.');
     const response=await requestResource('/api/replay',{method:'POST',headers:{'Content-Type':'application/json'},body},{binary:true});
-    if(response.headers.get('Content-Type')!=='text/x-python; charset=utf-8'||
+    const mime=format==='markdown'?'text/markdown':'text/x-python';
+    if(response.headers.get('Content-Type')!==`${mime}; charset=utf-8`||
        response.headers.get('X-Cutover-Probe-ID')!==probeId||
        response.headers.get('X-Cutover-Plan-SHA256')!==snapshot.plan_hash||
        response.headers.get('X-Cutover-Contract-SHA256')!==snapshot.contract_hash||
@@ -632,11 +634,13 @@ $('export-repro').addEventListener('click',async()=>{
       throw Error('Fresh replay differs from the displayed evidence. Rerun the candidate first.');
     if(report!==snapshot||selected!==probeId)
       throw Error('The selected failure changed during export. Export the current selection again.');
-    download(`cutover-${snapshot.case}-${snapshot.plan_hash.slice(0,10)}-${probeId}-replay.py`,response.data,'text/x-python');
-    notify(`Selected replay downloaded: ${probeId}. Run it locally with Python to reproduce this failure.`);
+    download(`cutover-${snapshot.case}-${snapshot.plan_hash.slice(0,10)}-${probeId}-${format==='markdown'?'review.md':'replay.py'}`,response.data,mime);
+    notify(format==='markdown'?`Selected review note downloaded: ${probeId}. Attach it to your PR with the replay or full packet.`:`Selected replay downloaded: ${probeId}. Run it locally with Python to reproduce this failure.`);
   } catch(error) {notify(error.message);}
   finally {replayBusy=false;updateReplayExport();}
-});
+}
+$('export-repro').addEventListener('click',()=>exportSelected());
+$('export-selected-review').addEventListener('click',()=>exportSelected('markdown'));
 $('export-review').addEventListener('click',()=>report?.review_markdown&&download(`cutover-${report.case}-${report.plan_hash.slice(0,10)}.md`,report.review_markdown,'text/markdown'));
 $('save-plan').addEventListener('click',()=>download(`cutover-${activeCase.id}-candidate.json`,pretty(currentPlan())));
 $('save-contract').addEventListener('click',()=>importedContract&&download(`cutover-${fileSlug(importedContract.project)}-contract.json`,pretty(importedContract)));
