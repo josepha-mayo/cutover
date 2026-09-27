@@ -22,6 +22,14 @@ WAREHOUSE = Path(__file__).resolve().parents[1] / 'examples' / 'warehouse'
 
 
 class HttpTests(unittest.TestCase):
+    def test_bob_proof_pack_preserves_original_task_images(self):
+        with urllib.request.urlopen(self.base + '/api/bob-proof-pack', timeout=15) as response:
+            self.assertIn('cutover-bob-proof-pack.zip', response.headers['Content-Disposition'])
+            with zipfile.ZipFile(io.BytesIO(response.read())) as archive:
+                name = 'bob_sessions/cutover_task01_parcel_warehouse_repair_07a20bdb_summary.png'
+                self.assertEqual(archive.read(name), (Path(server.__file__).parent/name).read_bytes())
+                self.assertIn('BOB_EVIDENCE_INVENTORY.json', archive.namelist())
+
     def test_local_starter_download_needs_no_sql_input(self):
         with urllib.request.urlopen(self.base + '/api/local-starter', timeout=15) as response:
             self.assertEqual(response.headers['Content-Type'], 'application/zip')

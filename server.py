@@ -16,6 +16,7 @@ from cutover.audit_bundle import audit_bytes
 from cutover.ci_kit import render_ci_kit
 from cutover.repair_workspace import render_repair_workspace
 from cutover.local_starter import render_local_starter
+from cutover.bob_proof_pack import render_bob_proof_pack
 from cutover.engine import load_case, repair_brief
 from cutover.fragility import challenge_steps
 from cutover.reporting import render_markdown, render_reproduction
@@ -83,6 +84,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_video()
         if path == '/watch' and not VIDEO.is_file():
             return self.send(404, {'error': 'The final presentation has not been published yet'})
+        if path == '/api/bob-proof-pack':
+            try:
+                bob_repair_example()
+                return self.send(200, render_bob_proof_pack(), 'application/zip',
+                                 {'Content-Disposition': 'attachment; filename="cutover-bob-proof-pack.zip"'})
+            except (OSError, ValueError, KeyError):
+                return self.send(503, {'error': 'Published Bob proof pack is unavailable'})
         if path == '/api/local-starter':
             return self.send(200, render_local_starter(), 'application/zip',
                              {'Content-Disposition': 'attachment; filename="cutover-local-starter.zip"'})
