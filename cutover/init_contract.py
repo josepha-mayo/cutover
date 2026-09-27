@@ -61,6 +61,8 @@ python -m cutover.review_project --project "{args.out.as_posix()}" --out review-
 
 This snapshots the four input files, compares both plans, independently audits the packet and writes review.md. A passing candidate also exports pr-kit.zip; inspect its four files before copying them into your repository. Blocked/unverified candidates do not produce a ready PR kit. Existing output folders are refused; use review-2 for the next attempt. The exit follows the candidate: 0 passing, 1 blocked, 2 unverified. The original blocked baseline remains in the comparison.
 
+To hand a verified blocked candidate to Bob without uploading your SQL, add `--bob-workspace` to a review command with a new output folder. Its bob-repair-workspace.zip retains the failed inputs and fixed evaluator. Extract it into a new folder and follow its README for optional local MCP/IDE setup. Export does not invoke Bob or establish Bob usage; no passing repair is supplied.
+
 Alternatively, run each step from the extracted runtime folder:
 
 ```text

@@ -8,7 +8,7 @@ import sys
 import zipfile
 
 
-def review(project, output):
+def review(project, output, bob_workspace=False):
     names = ('contract.json', 'baseline.json', 'candidate.json', 'migration.sql')
     inputs = {}
     for name in names:
@@ -48,6 +48,13 @@ def review(project, output):
         report = json.loads((output/'candidate-report.json').read_text(encoding='utf-8'))
         if code != (0 if report['status'] == 'pass' else 1):
             raise ValueError('Candidate report does not match the comparison outcome')
+        if code == 1 and bob_workspace:
+            from .repair_workspace import render_repair_workspace
+            contract = json.loads((snapshot/'contract.json').read_text(encoding='utf-8-sig'))
+            payload = render_repair_workspace(report, contract)
+            with (output/'bob-repair-workspace.zip').open('xb') as destination:
+                destination.write(payload)
+            status['bob_workspace'] = 'bob-repair-workspace.zip'
         if code == 0:
             # Only include a negative control when the verified baseline is a data mismatch.
             with zipfile.ZipFile(output/'comparison.zip') as archive:
@@ -82,9 +89,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', type=Path, required=True, help='Folder created by cutover.init_contract')
     parser.add_argument('--out', type=Path, required=True, help='New evidence folder; existing folders refused')
+    parser.add_argument('--bob-workspace', action='store_true',
+                        help='Export a local Bob repair workspace only when the audited candidate is blocked')
     args = parser.parse_args()
     try:
-        code = review(args.project.resolve(), args.out.resolve())
+        code = review(args.project.resolve(), args.out.resolve(), args.bob_workspace)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')
@@ -92,6 +101,8 @@ def main():
         print('Passing PR kit: pr-kit.zip. Inspect its four files before copying into your repository.')
     else:
         print('No PR kit exported. Original failure and current candidate retained; edit and use a new review folder.')
+        if args.bob_workspace:
+            print('Local Bob handoff: bob-repair-workspace.zip. Inspect its README; export does not invoke Bob.')
     return code
 
 

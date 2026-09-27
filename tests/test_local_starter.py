@@ -18,7 +18,8 @@ class LocalStarterTests(unittest.TestCase):
                 inventory = json.loads(archive.read('SOURCE_INVENTORY.json'))
                 for name, digest in inventory.items():
                     self.assertEqual(hashlib.sha256(archive.read(name)).hexdigest(), digest)
-                self.assertNotIn('mcp_server.py', archive.namelist())
+                self.assertIn('mcp_server.py', archive.namelist())
+                self.assertNotIn('.bob/mcp.json', archive.namelist())
                 self.assertFalse(any(name.startswith('bob_sessions/') for name in archive.namelist()))
                 archive.extractall(root)
             command = [sys.executable, '-S', '-m', 'cutover', '--contract',

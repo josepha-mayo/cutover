@@ -12,7 +12,8 @@ def render_local_starter():
     names = ['LICENSE', 'cutover/__init__.py', 'cutover/__main__.py',
         'cutover/engine.py', 'cutover/service.py', 'cutover/worker.py',
         'cutover/reporting.py', 'cutover/bundle.py', 'cutover/audit_report.py',
-        'cutover/audit_bundle.py', 'cutover/selected_replay.py', 'cutover/ci_kit.py', 'cutover/init_contract.py', 'cutover/review_project.py']
+        'cutover/audit_bundle.py', 'cutover/selected_replay.py', 'cutover/ci_kit.py', 'cutover/init_contract.py', 'cutover/review_project.py',
+        'cutover/repair_workspace.py', 'configure_bob.py', 'mcp_server.py', 'requirements-mcp.txt']
     for case in ('parcel', 'contacts', 'warehouse'):
         for plan in ('contract', 'rename', 'backfill', 'late_bridge', 'bridge'):
             name = f'examples/{case}/{plan}.json'
@@ -69,6 +70,19 @@ are refused. Inspect kit files before copying them into your repository.
 
 Read my-release/README.md for the individual repair and comparison commands. Inspect and adapt the synthetic schema to your real old
 queries before relying on it. Existing output folders are refused.
+
+For a blocked candidate, optionally create its Bob handoff entirely locally:
+
+```text
+python -m cutover.review_project --project my-release --out review-for-bob --bob-workspace
+```
+
+The verified blocked review includes bob-repair-workspace.zip with the exact
+failed inputs, fixed evaluator, task and local MCP setup. Extract into a new
+folder and follow its README. Optional IDE integration requires the pinned MCP
+SDK and your Bob account; ordinary CLI review still needs only Python. Exporting
+does not invoke Bob, establish IDE acceptance or supply a passing repair. A
+passing or unverified candidate does not export a repair workspace.
 
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.

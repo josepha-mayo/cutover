@@ -22,17 +22,31 @@ class LocalProjectReviewTests(unittest.TestCase):
                 '--old-column', 'loading_bay', '--new-column', 'dispatch_bay', '--first-value', "O'Connell",
                 '--second-value', '東京-棚', '--incoming-value', 'GATE-09', '--out', 'my-release'])
             self.assertEqual(setup.returncode, 0, setup.stderr)
-            blocked = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-1'])
+            blocked = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-1', '--bob-workspace'])
             self.assertEqual(blocked.returncode, 1, blocked.stderr)
             self.assertFalse((root/'review-1/pr-kit.zip').exists())
+            workspace = root/'bob-handoff'
+            with zipfile.ZipFile(root/'review-1/bob-repair-workspace.zip') as archive:
+                archive.extractall(workspace)
+                baseline = json.loads(archive.read('baseline-report.json'))
+                self.assertEqual(baseline['passed'], 55)
+                self.assertEqual(json.loads(archive.read('contract.json')),
+                                 json.loads((root/'my-release/contract.json').read_text(encoding='utf-8')))
+                self.assertEqual(json.loads(archive.read('baseline-plan.json')), baseline['plan'])
+                self.assertNotIn('.bob/mcp.json', archive.namelist())
+            checked = subprocess.run([sys.executable, '-S', 'verify_workspace.py',
+                                      '--candidate', 'baseline-plan.json'], cwd=workspace,
+                                     capture_output=True, timeout=30)
+            self.assertEqual(checked.returncode, 1, checked.stderr)
             before = (root/'review-1/comparison.zip').read_bytes()
             # Separate supplied reference SQL is a test repair, not generated Bob output.
             reference = json.loads((root/'examples/warehouse/bridge.json').read_text(encoding='utf-8'))
             sql = reference['migration'].replace('stock_items', 'shipments').replace('pick_bin', 'loading_bay').replace('fulfillment_bin', 'dispatch_bay')
             sql = sql.replace('\n', '\r\n')
             (root/'my-release/migration.sql').write_bytes(sql.encode('utf-8'))
-            repaired = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-2'])
+            repaired = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-2', '--bob-workspace'])
             self.assertEqual(repaired.returncode, 0, repaired.stderr)
+            self.assertFalse((root/'review-2/bob-repair-workspace.zip').exists())
             note = (root/'review-2/review.md').read_text(encoding='utf-8')
             self.assertIn('| Baseline | BLOCKED | 55/125', note)
             self.assertIn('| Candidate | PASS | 155/155', note)
@@ -48,8 +62,9 @@ class LocalProjectReviewTests(unittest.TestCase):
             repeat = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-2'])
             self.assertEqual(repeat.returncode, 2)
             (root/'my-release/candidate.json').write_text('{broken', encoding='utf-8')
-            malformed = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-3'])
+            malformed = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-3', '--bob-workspace'])
             self.assertEqual(malformed.returncode, 2)
             status = json.loads((root/'review-3/review-status.json').read_text(encoding='utf-8'))
             self.assertEqual(status['status'], 'unverified')
             self.assertFalse((root/'review-3/pr-kit.zip').exists())
+            self.assertFalse((root/'review-3/bob-repair-workspace.zip').exists())
