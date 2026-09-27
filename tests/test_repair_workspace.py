@@ -19,7 +19,12 @@ class RepairWorkspaceTests(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(packet)) as archive:
             self.assertEqual(json.loads(archive.read('selected-failure.json')), probe)
             self.assertEqual(json.loads(archive.read('baseline-report.json')), self.report)
-            self.assertIn(probe['id'].encode(), archive.read('TASK.md'))
+            task = archive.read('TASK.md')
+            self.assertIn(probe['id'].encode(), task)
+            self.assertIn(b'## Recorded row difference', task)
+            self.assertIn(b'Expected by contract:', task)
+            self.assertIn(b'Reader observed:', task)
+            self.assertIn(b'independently rerun the entire fixed suite', task)
             manifest = json.loads(archive.read('WORKSPACE_MANIFEST.json'))
             self.assertIn('selected-failure.json', manifest['files'])
         for invalid in ([], dict(probe, payload='Changed'), {'id': 'nonexistent'}, next(p for p in self.report['results'] if p['passed'])):

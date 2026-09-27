@@ -6,6 +6,7 @@ import zipfile
 from pathlib import Path
 
 from .engine import digest, validate_contract, validate_plan
+from .selected_replay import row_observation_summary
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,7 +83,10 @@ def render_repair_workspace(report, contract, selected_probe=None):
             f'Investigate probe {selected_probe["id"]} in selected-failure.json first. '
             'It matches the fresh full report; its canonical first witness is retained separately. '
             'Explain the observed actions, expected data and actual failure. '
-            'Fixing this probe alone is insufficient: independently rerun the entire fixed suite.\n'
+            'Fixing this probe alone is insufficient: independently rerun the entire fixed suite.\n\n'
+            + '\n'.join(row_observation_summary(selected_probe['trace'])).replace(
+                'The full executed SQL and observations follow.',
+                'Full executed SQL and observations are retained in selected-failure.json and baseline-report.json.') + '\n'
         ).encode() + files['TASK.md']
     files['README.md'] = b'''# Local Bob repair workspace
 
