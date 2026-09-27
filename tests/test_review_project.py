@@ -11,6 +11,57 @@ from cutover.review_project import git_baseline
 
 
 class LocalProjectReviewTests(unittest.TestCase):
+    def test_candidate_git_commit_survives_changed_working_file(self):
+        from cutover.review_project import review
+        import hashlib
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);project=root/'release';project.mkdir()
+            fixture=Path('evidence/actual_pr_source_review/inputs')
+            for name in ('contract.json','baseline.json','candidate.json','migration.sql'):
+                (project/name).write_bytes((fixture/name).read_bytes())
+            sql=root/'release.sql'
+            original=(fixture/'supplied-baseline.sql').read_bytes()
+            repaired=(fixture/'supplied-candidate.sql').read_bytes()
+            def git(*args):
+                return subprocess.check_output(['git','-C',str(root),*args],stderr=subprocess.STDOUT)
+            git('init')
+            (root/'.gitattributes').write_text('release.sql -text\n',encoding='utf-8')
+            sql.write_bytes(original);git('add','.gitattributes','release.sql')
+            git('-c','user.name=Cutover test','-c','user.email=test@example.invalid','commit','-m','Original SQL')
+            baseline=git('rev-parse','HEAD').decode().strip()
+            sql.write_bytes(repaired);git('add','release.sql')
+            git('-c','user.name=Cutover test','-c','user.email=test@example.invalid','commit','-m','Candidate SQL')
+            candidate=git('rev-parse','HEAD').decode().strip()
+            sql.write_bytes(b'DO NOT EXECUTE THIS WORKING FILE;')
+            before=git('status','--porcelain','--untracked-files=no')
+            self.assertEqual(review(project,root/'review',baseline_git_ref=baseline,baseline_git_path='release.sql',
+                                    candidate_git_ref=candidate,candidate_git_path='release.sql'),0)
+            self.assertEqual(sql.read_bytes(),b'DO NOT EXECUTE THIS WORKING FILE;')
+            self.assertEqual(git('status','--porcelain','--untracked-files=no'),before)
+            self.assertEqual((root/'review/inputs/supplied-candidate.sql').read_bytes(),repaired)
+            status=json.loads((root/'review/review-status.json').read_text(encoding='utf-8'))
+            source=status['candidate_sql_source']
+            self.assertEqual(source['commit'],candidate)
+            self.assertEqual(source['blob'],git('rev-parse',candidate+':release.sql').decode().strip())
+            self.assertEqual(source['sha256'],hashlib.sha256(repaired).hexdigest())
+            for name in ('review.md','review.html'):
+                note=(root/'review'/name).read_text(encoding='utf-8')
+                self.assertIn(candidate,note);self.assertIn(baseline,note)
+            with zipfile.ZipFile(root/'review/comparison.zip') as archive:
+                report=json.loads(archive.read('candidate/report.json'))
+                baseline_report=json.loads(archive.read('baseline/report.json'))
+            self.assertEqual((baseline_report['passed'],baseline_report['total']),(108,124))
+            self.assertEqual((report['passed'],report['total']),(124,124))
+            self.assertEqual(report['plan']['migration'],repaired.decode('utf-8-sig'))
+            with zipfile.ZipFile(root/'review/pr-kit.zip') as archive:
+                self.assertEqual(json.loads(archive.read('evidence/report.json'))['plan_hash'],report['plan_hash'])
+            with self.assertRaisesRegex(ValueError,'requires'):
+                review(project,root/'bad-path',candidate_git_path='release.sql')
+            self.assertFalse((root/'bad-path').exists())
+            with self.assertRaisesRegex(ValueError,'not both'):
+                review(project,root/'conflict',candidate_migration_file=sql,candidate_git_ref=candidate)
+            self.assertFalse((root/'conflict').exists())
+
     def test_actual_candidate_sql_overrides_stale_copy_and_binds_passing_kit(self):
         from cutover.init_contract import build_contract
         from cutover.review_project import review

@@ -64,9 +64,9 @@ def git_baseline(project, ref, path=None):
 
 def review(project, output, bob_workspace=False, candidate_plan=None, baseline_migration=None,
            baseline_git_ref=None, baseline_git_path=None, expected_contract_hash=None,
-           candidate_migration_file=None):
-    if candidate_plan is not None and candidate_migration_file is not None:
-        raise ValueError('Choose a complete candidate plan or candidate SQL file, not both')
+           candidate_migration_file=None, candidate_git_ref=None, candidate_git_path=None):
+    if sum(value is not None for value in (candidate_plan, candidate_migration_file, candidate_git_ref)) > 1:
+        raise ValueError('Choose a complete candidate plan, candidate SQL file or candidate Git commit, not both')
     if expected_contract_hash is not None:
         expected_contract_hash = expected_contract_hash.lower()
         if not re.fullmatch(r'[0-9a-f]{64}', expected_contract_hash):
@@ -94,6 +94,15 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         if baseline_migration.stat().st_size > 65536:
             raise ValueError('Supplied baseline SQL must be at most 64 KiB')
         inputs['supplied-baseline.sql'] = baseline_migration.read_bytes()
+    candidate_git = None
+    if candidate_git_ref is not None:
+        raw, candidate_git = git_baseline(project, candidate_git_ref, candidate_git_path)
+        sql = raw.decode('utf-8-sig')
+        if not sql.strip() or '\0' in sql or len(sql) > 12000:
+            raise ValueError('Expected nonempty UTF-8 candidate SQL without NUL, up to 12,000 characters')
+        inputs['supplied-candidate.sql'] = raw
+    elif candidate_git_path is not None:
+        raise ValueError('--candidate-git-path requires --candidate-git-ref')
     git_source = None
     if baseline_git_ref is not None:
         if baseline_migration is not None:
@@ -109,7 +118,7 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
     status = {'status': 'unverified', 'input_sha256': {name: hashlib.sha256(raw).hexdigest()
               for name, raw in inputs.items()}, 'steps': []}
     status['candidate_source'] = ('supplied-candidate.json (all five plan fields)' if candidate_plan
-                                  else 'candidate.json adapters and supplied-candidate.sql' if candidate_migration_file
+                                  else 'candidate.json adapters and supplied-candidate.sql' if candidate_migration_file is not None or candidate_git is not None
                                   else 'candidate.json adapters and migration.sql')
     candidate_sql_source = None
     if candidate_migration_file is not None:
@@ -123,6 +132,12 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         candidate_sql_source = {'path': label, 'path_scope': scope,
                                 'snapshot': 'inputs/supplied-candidate.sql',
                                 'sha256': status['input_sha256']['supplied-candidate.sql']}
+        status['candidate_sql_source'] = candidate_sql_source
+    elif candidate_git is not None:
+        candidate_sql_source = {'path': candidate_git['path'], 'path_scope': 'Repository path at candidate commit',
+                                'snapshot': 'inputs/supplied-candidate.sql',
+                                'sha256': status['input_sha256']['supplied-candidate.sql'],
+                                'commit': candidate_git['commit'], 'blob': candidate_git['blob']}
         status['candidate_sql_source'] = candidate_sql_source
     supplied_baseline = baseline_migration is not None or git_source is not None
     status['baseline_source'] = ('baseline.json adapters and supplied-baseline.sql' if supplied_baseline
@@ -157,7 +172,7 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         candidate_args = ['--contract', snapshot/'contract.json', '--plan',
                           snapshot/('supplied-candidate.json' if candidate_plan else 'candidate.json')]
         if candidate_plan is None:
-            candidate_args += ['--migration-file', snapshot/('supplied-candidate.sql' if candidate_migration_file else 'migration.sql')]
+            candidate_args += ['--migration-file', snapshot/('supplied-candidate.sql' if candidate_migration_file is not None or candidate_git is not None else 'migration.sql')]
         baseline_args = ['--baseline-plan', snapshot/'baseline.json']
         if supplied_baseline:
             baseline_args += ['--baseline-migration-file', snapshot/'supplied-baseline.sql']
@@ -250,6 +265,10 @@ def main():
                         help='Review all fields of a saved candidate JSON instead of project candidate.json/migration.sql')
     candidate.add_argument('--candidate-migration-file', type=Path,
                         help='Snapshot actual candidate UTF-8 SQL; overrides only migration, retaining candidate.json adapters')
+    candidate.add_argument('--candidate-git-ref',
+                          help='Read candidate SQL from a local Git commit; no fetch or checkout changes')
+    parser.add_argument('--candidate-git-path',
+                        help='Repository-relative candidate SQL path; defaults to project/migration.sql')
     parser.add_argument('--expected-contract-hash',
                         help='Reviewed canonical contract SHA-256; mismatch stops before SQL and retains unverified evidence')
     baseline = parser.add_mutually_exclusive_group()
@@ -265,7 +284,8 @@ def main():
                       args.candidate_plan.resolve() if args.candidate_plan else None,
                       args.baseline_migration_file.resolve() if args.baseline_migration_file else None,
                       args.baseline_git_ref, args.baseline_git_path, args.expected_contract_hash,
-                      args.candidate_migration_file.resolve() if args.candidate_migration_file else None)
+                      args.candidate_migration_file.resolve() if args.candidate_migration_file else None,
+                      args.candidate_git_ref, args.candidate_git_path)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')

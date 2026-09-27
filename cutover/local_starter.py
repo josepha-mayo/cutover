@@ -150,6 +150,20 @@ SQL must be nonempty, at most 64 KiB and 12,000 characters, without NUL. Choose
 either this SQL file or --candidate-plan, not both. The comparison and passing kit
 execute the same retained SQL snapshot; the source file is never edited.
 
+To review an exact committed candidate instead of the working file:
+
+```text
+python -m cutover.review_project --project my-release --baseline-git-ref origin/main --baseline-git-path db/relocation.sql --candidate-git-ref HEAD --candidate-git-path db/relocation.sql --out review-commits
+```
+
+Both SQL sources are retained from their resolved local commits, even if the
+working file later changes. Candidate commit, repository path, blob and SQL byte
+SHA-256 appear in the note/status and offline review. Only migration SQL comes
+from Git; this does not test the whole application at either commit. Candidate
+Git SQL uses the same UTF-8/size bounds as a supplied candidate SQL file. Choose
+one candidate source: --candidate-plan, --candidate-migration-file or
+--candidate-git-ref. --candidate-git-path requires --candidate-git-ref.
+
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.
 Set the new read/write/insert adapters in each plan. The reader must return all

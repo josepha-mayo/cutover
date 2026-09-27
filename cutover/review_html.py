@@ -115,6 +115,9 @@ def render_review(reports, baseline_git=None, candidate_sql_source=None):
         fields = ''.join('<dt>'+label+'</dt><dd class="identity">'+html.escape(str(candidate_sql_source[key]))+'</dd>'
                          for label, key in [('Source file', 'path'), ('Path scope', 'path_scope'),
                                             ('Retained snapshot', 'snapshot'), ('SQL byte SHA-256', 'sha256')])
+        if 'commit' in candidate_sql_source:
+            fields += ''.join('<dt>'+label+'</dt><dd class="identity">'+html.escape(str(candidate_sql_source[key]))+'</dd>'
+                              for label, key in [('Candidate commit', 'commit'), ('Git blob', 'blob')])
         provenance += ('<section><h2>Candidate SQL reviewed</h2><dl>'+fields+'</dl>'
                        '<p class="scope">Byte hash includes any BOM and line endings. The candidate executes this retained snapshot; '
                        'adapters still come from candidate.json. This does not verify the whole PR and is not a signature.</p></section>')

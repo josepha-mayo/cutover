@@ -164,6 +164,14 @@ For a schema-changing PR, read the original migration directly from a locally av
 python -m cutover.review_project --project my-release --baseline-git-ref origin/main --baseline-git-path db/relocation.sql --candidate-migration-file db/relocation.sql --out review-pr
 ```
 
+For an immutable committed candidate, replace the candidate-file option with:
+
+```console
+python -m cutover.review_project --project my-release --baseline-git-ref origin/main --baseline-git-path db/relocation.sql --candidate-git-ref HEAD --candidate-git-path db/relocation.sql --out review-commits
+```
+
+Both references resolve once to local commit IDs. The review snapshots both SQL blobs without fetching, checking out or changing source files, and names the candidate commit/path/blob and exact SQL byte hash in the note and offline review. A later working-file edit does not change this review. Only migration SQL comes from these commits; contract and adapters remain supplied project inputs, so this does not test the whole application at either revision. Choose one candidate source: full plan, SQL file or Git commit.
+
 `--candidate-migration-file` snapshots the actual candidate SQL byte-for-byte into `inputs/supplied-candidate.sql`, then executes that snapshot with the project candidate adapters. It overrides the copied project migration only; it does not infer adapters from SQL. The source is never edited, and comparison/kit export share the same snapshot. The PR note and offline review name the candidate source and its exact byte SHA-256; paths outside the invocation directory display only the filename, avoiding a machine-local absolute path. Choose either this SQL source or a complete `--candidate-plan`, not both. UTF-8 SQL is bounded to 64 KiB and 12,000 characters without NUL.
 
 The [downloadable actual-PR source control](evidence/actual_pr_source_review/README.md) retains a prospective Git original, the changed working-tree SQL, exact source snapshots, actual comparison ZIP and exported kit. The copied project SQL was deliberately stale; the source-bound command still blocked the original and passed the supplied reference repair.
