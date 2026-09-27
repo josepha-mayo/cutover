@@ -35,6 +35,64 @@ class LocalKitTests(unittest.TestCase):
             verified = _read_kit(output)
             self.assertIsNotNone(verified)
 
+    def test_reader_contract_control_remains_verified_without_data_gap_script(self):
+        from ci.install_kit import _read_kit
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = json.loads(SAFE.read_text(encoding='utf-8'))
+            plan['read'] = ('SELECT id, fulfillment_bin AS value FROM stock_items UNION ALL '
+                            'SELECT id, fulfillment_bin AS value FROM stock_items ORDER BY id')
+            control_path = root / 'duplicate-reader.json'
+            control_path.write_text(json.dumps(plan), encoding='utf-8')
+            output = root / 'kit.zip'
+            process = self.run_cli('--ci-kit', output, '--ci-control', control_path)
+            self.assertEqual(process.returncode, 0, process.stderr)
+            with zipfile.ZipFile(output) as archive:
+                self.assertNotIn('evidence/unsafe-control-witness.py', archive.namelist())
+                self.assertIn(b'full reader-contract failure', archive.read('README.md'))
+                control = json.loads(archive.read('evidence/unsafe-control-report.json'))
+                self.assertEqual((control['status'], control['passed'], control['total']), ('blocked', 40, 124))
+            self.assertTrue(_read_kit(output)[4])
+            # Exact pre-correction witness source remains acceptable for old kits;
+            # altered source is rejected, and it is never executed by the installer.
+            from cutover.reporting import render_reproduction
+            contract = json.loads(CONTRACT.read_text(encoding='utf-8'))
+            with zipfile.ZipFile(output) as archive:
+                files = {name: archive.read(name) for name in archive.namelist()}
+            witness_name = 'evidence/unsafe-control-witness.py'
+            files[witness_name] = render_reproduction(control, contract).encode('utf-8')
+            legacy = root / 'legacy-kit.zip'
+            with zipfile.ZipFile(legacy, 'w') as archive:
+                for name, content in files.items():
+                    archive.writestr(name, content)
+            self.assertTrue(_read_kit(legacy)[4])
+            files[witness_name] += b'altered script'
+            with zipfile.ZipFile(legacy, 'w') as archive:
+                for name, content in files.items():
+                    archive.writestr(name, content)
+            with self.assertRaisesRegex(ValueError, 'witness differs'):
+                _read_kit(legacy)
+            refused = root / 'not-a-data-gap.py'
+            process = self.run_cli('--plan', control_path, '--repro', refused)
+            self.assertEqual(process.returncode, 2)
+            self.assertIn('no reproducible data gap', process.stderr)
+            self.assertFalse(refused.exists())
+
+    def test_real_value_gap_control_still_requires_its_witness(self):
+        from ci.install_kit import _read_kit
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'kit.zip'
+            process = self.run_cli('--ci-kit', output, '--ci-control', UNSAFE)
+            self.assertEqual(process.returncode, 0, process.stderr)
+            with zipfile.ZipFile(output) as archive:
+                files = {name: archive.read(name) for name in archive.namelist()
+                         if name != 'evidence/unsafe-control-witness.py'}
+            with zipfile.ZipFile(output, 'w') as archive:
+                for name, content in files.items():
+                    archive.writestr(name, content)
+            with self.assertRaisesRegex(ValueError, 'data-gap witness is missing'):
+                _read_kit(output)
+
     def test_nonfailing_control_and_blocked_candidate_do_not_write_kit(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / 'kit.zip'

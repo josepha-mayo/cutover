@@ -301,7 +301,7 @@ class HttpTests(unittest.TestCase):
             workflow = archive.read(workflow_name).decode('utf-8')
             inputs = dict(re.findall(r'^          ([a-z-]+): (.+)$', workflow, re.M))
             self.assertIn('on: pull_request\n', workflow)
-            self.assertIn('uses: josepha-mayo/cutover@8a7895ea6c4a91b5058f50c1bcba6863cc8f96df', workflow)
+            self.assertIn('uses: josepha-mayo/cutover@92f1b5120cbfd1bae4f6639651726525fbeab37b', workflow)
             self.assertIn(f"expected-contract-hash: '{report['contract_hash']}'", workflow)
             self.assertNotIn('migration', json.loads(archive.read(inputs['plan'])))
             with tempfile.TemporaryDirectory(prefix='cutover-downloaded-consumer-') as directory:

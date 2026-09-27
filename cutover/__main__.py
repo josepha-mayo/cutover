@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from .engine import load_case, load_plan
 from .bundle import render_bundle, render_comparison_bundle
-from .reporting import render_markdown, render_reproduction
+from .reporting import render_markdown, render_reproduction, has_reproducible_data_gap
 from .service import WORKER_TIMEOUT_SECONDS, run_rehearsal, run_selected_replay, verify_report_against_replay
 from .selected_replay import IDENTITIES
 
@@ -124,6 +124,8 @@ try:
         selected_export = run_selected_replay('custom' if contract is not None else args.case, plan,
                                              args.selected_probe, {key: report[key] for key in IDENTITIES},
                                              probe, contract, review_only=not args.repro)
+    if args.repro and not selected_export and not has_reproducible_data_gap(report):
+        raise ValueError('Recorded rows contain no reproducible data gap. Export the full review bundle or Markdown to retain this reader-contract failure.')
     reproduction = (selected_export['script'] if selected_export else
                     render_reproduction(report, contract if contract is not None else load_case(args.case))) if args.repro else None
 except subprocess.TimeoutExpired:

@@ -5,11 +5,12 @@ import re
 import zipfile
 
 from .reporting import render_markdown
-from .reporting import render_reproduction
+from .reporting import render_reproduction, has_reproducible_data_gap
 
 
-ACTION_REF = '8a7895ea6c4a91b5058f50c1bcba6863cc8f96df'
-PRIOR_LOCKED_ACTION_REFS = ('3fe6630c41d6220defc1107d9ead18d905720b1a',
+ACTION_REF = '92f1b5120cbfd1bae4f6639651726525fbeab37b'
+PRIOR_LOCKED_ACTION_REFS = ('8a7895ea6c4a91b5058f50c1bcba6863cc8f96df',
+                            '3fe6630c41d6220defc1107d9ead18d905720b1a',
                             '65984c8efd007e2d50d6beaf5afbdac500ec690b')
 LEGACY_ACTION_REF = 'a5bf69f6e8f94788eade58691d292941e009f8ac'
 CHECKOUT_REF = '3d3c42e5aac5ba805825da76410c181273ba90b1'
@@ -139,12 +140,20 @@ def render_ci_kit(report, contract, control=None):
         files[control_name] = json.dumps(control['plan'], ensure_ascii=False, indent=2) + '\n'
         files['evidence/unsafe-control-report.json'] = json.dumps(control, ensure_ascii=False, indent=2) + '\n'
         files['evidence/unsafe-control-review.md'] = render_markdown(control)
-        files['evidence/unsafe-control-witness.py'] = render_reproduction(control, contract)
+        data_gap = has_reproducible_data_gap(control)
+        if data_gap:
+            files['evidence/unsafe-control-witness.py'] = render_reproduction(control, contract)
+        retained = ('Its first failing write is retained in `evidence/unsafe-control-report.json` and '
+                    '`evidence/unsafe-control-witness.py`. From the repository checkout, run:\n\n'
+                    if data_gap else
+                    'Its full reader-contract failure is retained in `evidence/unsafe-control-report.json` '
+                    'and `evidence/unsafe-control-review.md`. No standalone data-gap script is included: '
+                    'the recorded row maps do not retain a differing value or missing row. '
+                    'From the repository checkout, run:\n\n')
         readme += (
             '\n## Prove this gate can go red\n\n'
             f"The same contract also blocked the unsafe control at {control['passed']}/{control['total']} probes. "
-            'Its first failing write is retained in `evidence/unsafe-control-report.json` and '
-            '`evidence/unsafe-control-witness.py`. From the repository checkout, run:\n\n'
+            + retained +
             f'    python ci/review_gate.py --contract {contract_name} --plan {control_name} '
             '--output-dir work/ci-negative-control\n'
             '    # Expected exit 1 and classification verified_block.\n'

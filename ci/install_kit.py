@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ci.discover_cases import FIELDS, LABEL, SLUG, discover
 from cutover.ci_kit import portable_files, PRIOR_LOCKED_ACTION_REFS
-from cutover.reporting import render_reproduction
+from cutover.reporting import render_reproduction, has_reproducible_data_gap
 from cutover.service import verify_report_against_replay
 
 
@@ -74,9 +74,10 @@ def _read_kit(path: Path):
         control_name = f'ci/{slug}-unsafe-control.json'
         control_files = {control_name, 'evidence/unsafe-control-report.json',
                          'evidence/unsafe-control-review.md', 'evidence/unsafe-control-witness.py'}
+        witness_name = 'evidence/unsafe-control-witness.py'
         has_control = bool(control_files.intersection(names))
         if has_control:
-            if not control_files.issubset(names):
+            if not (control_files - {witness_name}).issubset(names):
                 raise ValueError('CI kit unsafe control is incomplete')
             control_plan = _json(archive, control_name)
             control = _json(archive, 'evidence/unsafe-control-report.json')
@@ -94,8 +95,12 @@ def _read_kit(path: Path):
             verify_report_against_replay('custom', control_plan, control, contract)
             if archive.read('evidence/unsafe-control-review.md') != render_markdown(control).encode('utf-8'):
                 raise ValueError('CI kit unsafe review differs from its replayed report')
-            if archive.read('evidence/unsafe-control-witness.py') != render_reproduction(control, contract).encode('utf-8'):
-                raise ValueError('CI kit standalone witness differs from the replayed failure')
+            if witness_name in names:
+                # Verify exact historical bytes; equal maps do not prove a value gap.
+                if archive.read(witness_name) != render_reproduction(control, contract).encode('utf-8'):
+                    raise ValueError('CI kit standalone witness differs from the replayed failure')
+            elif has_reproducible_data_gap(control):
+                raise ValueError('CI kit unsafe data-gap witness is missing')
         return entry, contract_bytes, plan_bytes, report, has_control
 
 
