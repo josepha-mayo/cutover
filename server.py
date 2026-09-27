@@ -6,6 +6,7 @@ import mimetypes
 import re
 import subprocess
 import threading
+import time
 import zipfile
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -27,6 +28,13 @@ VIDEO = STATIC / 'demo.mp4'
 WAREHOUSE = Path(__file__).parent / 'examples' / 'warehouse'
 BOB_SESSION = Path(__file__).parent / 'bob_sessions'
 BOB_REPAIR_ID = '07a20bdb56f5'
+REQUEST_BODY_TIMEOUT_SECONDS = 30
+
+
+class RequestBodyTimeout(TimeoutError):
+    pass
+
+
 SLOTS = threading.BoundedSemaphore(2)
 PACKET_UPLOAD_LIMIT = 2 * 1024 * 1024
 PACKET_MEMBER_LIMIT = 4 * 1024 * 1024
@@ -71,12 +79,40 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(content)))
         self.send_header('Cache-Control', 'no-store')
+        if self.command == 'POST':
+            self.send_header('X-Cutover-Upload-Timeout-Seconds', str(REQUEST_BODY_TIMEOUT_SECONDS))
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Content-Security-Policy', csp if csp is not None else "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'")
         for name, value in (headers or {}).items():
             self.send_header(name, value)
         self.end_headers()
         self.wfile.write(content)
+
+    def read_request_body(self, size):
+        """Bound the complete upload, including clients that keep sending tiny chunks."""
+        deadline = time.monotonic() + REQUEST_BODY_TIMEOUT_SECONDS
+        previous_timeout = self.connection.gettimeout()
+        chunks = []
+        remaining = size
+        try:
+            while remaining:
+                budget = deadline - time.monotonic()
+                if budget <= 0:
+                    raise RequestBodyTimeout('Request upload timed out. No SQL or packet replay was started; retry explicitly.')
+                self.connection.settimeout(budget)
+                try:
+                    chunk = self.rfile.read1(min(remaining, 65536))
+                except TimeoutError as exc:
+                    raise RequestBodyTimeout('Request upload timed out. No SQL or packet replay was started; retry explicitly.') from exc
+                if not chunk:
+                    raise ValueError('Request body ended before its declared Content-Length')
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            if time.monotonic() > deadline:
+                raise RequestBodyTimeout('Request upload timed out. No SQL or packet replay was started; retry explicitly.')
+            return b''.join(chunks)
+        finally:
+            self.connection.settimeout(previous_timeout)
 
     def do_GET(self):
         path = urlparse(self.path).path
@@ -204,7 +240,7 @@ class Handler(BaseHTTPRequestHandler):
             if not SLOTS.acquire(blocking=False):
                 return self.send(429, {'error': 'Two rehearsals are already running; retry shortly.'})
             try:
-                body = json.loads(self.rfile.read(size))
+                body = json.loads(self.read_request_body(size))
                 if not isinstance(body, dict):
                     raise ValueError('Expected a JSON object')
                 if self.path == '/api/contract/validate':
@@ -324,6 +360,9 @@ class Handler(BaseHTTPRequestHandler):
                         self.send(200, report)
             finally:
                 SLOTS.release()
+        except RequestBodyTimeout as exc:
+            self.close_connection = True
+            self.send(408, {'error': str(exc)})
         except subprocess.TimeoutExpired:
             self.send(422, {'error': f'Rehearsal exceeded its {WORKER_TIMEOUT_SECONDS} second budget. No passing result was produced.'})
         except (ValueError, KeyError, TypeError) as exc:
@@ -339,7 +378,7 @@ class Handler(BaseHTTPRequestHandler):
             if not SLOTS.acquire(blocking=False):
                 return self.send(429, {'error': 'Two rehearsals are already running; retry shortly.'})
             try:
-                payload = self.rfile.read(size)
+                payload = self.read_request_body(size)
                 reports, contract, container = audit_upload_bytes(payload, archive_limit=PACKET_UPLOAD_LIMIT,
                                                member_limit=PACKET_MEMBER_LIMIT,
                                                total_limit=PACKET_TOTAL_LIMIT)
@@ -353,6 +392,9 @@ class Handler(BaseHTTPRequestHandler):
                                 'contract': contract, 'reports': enriched, 'container': container})
             finally:
                 SLOTS.release()
+        except RequestBodyTimeout as exc:
+            self.close_connection = True
+            self.send(408, {'error': str(exc)})
         except subprocess.TimeoutExpired:
             self.send(422, {'error': 'Packet replay timed out. No verified result was established.'})
         except (ValueError, KeyError, TypeError, OSError, RuntimeError, EOFError,
