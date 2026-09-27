@@ -1,0 +1,43 @@
+{
+  "artifact": "pr-review.zip",
+  "sha256": "05978f8c9954f26ec1880989e6cabbd807506ef0ee105097f5adc9bf666a6e6d",
+  "bytes": 85106,
+  "source_runtime_commit": "3cb095921a6b5c8d6408a76956a58f45e2b06cf6",
+  "fresh_audit_runtime_commit": "e379d9823d51ae907c4d42db7cd2137804fdf7d9",
+  "fresh_audit_exit": 1,
+  "source_scope": "Two local synthetic Git commits; only migration SQL comes from Git. Supplied warehouse contract and adapters; prewritten reference candidate, not Bob output or customer evidence.",
+  "baseline_git": {
+    "commit": "4bf0e9c31aeb2add321c8b4450efa1b494716444",
+    "path": "db/relocation.sql",
+    "blob": "687de3b7ae3dd0798bb10cf86057ce98af8b2c8c"
+  },
+  "candidate_sql_source": {
+    "path": "db/relocation.sql",
+    "path_scope": "Repository path at candidate commit",
+    "snapshot": "inputs/supplied-candidate.sql",
+    "sha256": "371aab8a669c64a52964b6402ebf17324ad9bb1f5da6ebaec61ff330abd4e0f0",
+    "commit": "f973f99fc0b83b7f645e7b534c740d66e7dd535e",
+    "blob": "290f49150911a80dc9f0fe445570e34017456ebf"
+  },
+  "reports": [
+    {
+      "status": "blocked",
+      "passed": 108,
+      "total": 124,
+      "plan_hash": "2faf11f8d30c1a92e396b85f302ae0fd25c716c3ba935e1bbf924526a277bd7b",
+      "contract_hash": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+      "suite_hash": "dbd9cb724455cadced8634b8ad2ceab343b8ba47dd4a9f2d880a4a7381ba0f86",
+      "engine_sha256": "9b315f8a9b9d434f4de5f46b94aefcc15b635bab64ffd69f1bae989361e50aeb"
+    },
+    {
+      "status": "pass",
+      "passed": 124,
+      "total": 124,
+      "plan_hash": "d36355aa38b1f4bc7c307a183b507f8bdf6b6bf87cc7f568f28f8b7693c15dfa",
+      "contract_hash": "6455c1c197d93e0bdd5915232d94e4558514efe9d3245d576d970172e8f9b5a5",
+      "suite_hash": "dbd9cb724455cadced8634b8ad2ceab343b8ba47dd4a9f2d880a4a7381ba0f86",
+      "engine_sha256": "9b315f8a9b9d434f4de5f46b94aefcc15b635bab64ffd69f1bae989361e50aeb"
+    }
+  ],
+  "verification_scope": "Unsigned outer inventory checks byte consistency only; inner comparison replayed. Outer notes, HTML, optional kits and Git labels are not authenticated or independently verified."
+}

@@ -32,3 +32,28 @@ python -m cutover.audit_bundle --bundle committed-control/comparison.zip --markd
 
 Exit1 is expected for verified paired evidence containing a blocked original;
 exit2 means unverified. Hashes identify bytes, not authenticity or signatures.
+
+## Try the portable PR handoff
+
+`pr-review.zip` is the actual later handoff from runtime3cb0959 reviewing the same
+two synthetic commits. Its exact85,106bytes and SHA256
+`05978f8c9954f26ec1880989e6cabbd807506ef0ee105097f5adc9bf666a6e6d`
+are retained in `pr-review-receipt.json`. The original108/124 block and
+candidate124/124 pass remain distinct; the candidate is a prewritten reference,
+not Bob output. This handoff contains SQL snapshots and review outputs, not the
+Git repository itself; use committed-control.zip above to reproduce the commits.
+
+Choose Open review packet in the live or local browser and select this ZIP. Or
+use the current downloaded local starter without unpacking or uploading it:
+
+```console
+python -m cutover.audit_bundle --bundle pr-review.zip --markdown fresh.md --html fresh.html
+```
+
+The inner comparison was independently replayed by runtimee379d98 with exit1;
+the original blocked report explains that exit. Fresh notes contain only the
+replayed comparison evidence. The outer inventory checks byte consistency only;
+outer notes, HTML, optional kits and Git labels are not authenticated or
+independently verified. The archive is preserved byte-for-byte from its original
+export, with its original instructions and metadata unchanged. The CLI and browser
+reviewer extensions are Codex work.
