@@ -63,6 +63,8 @@ This snapshots the four input files, compares both plans, independently audits t
 
 To hand a verified blocked candidate to Bob without uploading your SQL, add `--bob-workspace` to a review command with a new output folder. Its bob-repair-workspace.zip retains the failed inputs and fixed evaluator. Extract it into a new folder and follow its README for optional local MCP/IDE setup. Export does not invoke Bob or establish Bob usage; no passing repair is supplied.
 
+To review a saved repair, add `--candidate-plan path/to/bob-candidate.json` with a new output folder. All five fields of that saved plan are executed, including its migration; project candidate.json and migration.sql cannot override it. Both the supplied file and unchanged project inputs are retained in the review snapshot. The original baseline remains fixed.
+
 Alternatively, run each step from the extracted runtime folder:
 
 ```text

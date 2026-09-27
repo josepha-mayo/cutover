@@ -148,6 +148,8 @@ It retains a byte-exact snapshot of the four input files, a freshly executed and
 
 To take a verified local failure into Bob IDE without uploading its SQL, add `--bob-workspace` and use a new output folder. A blocked candidate exports `bob-repair-workspace.zip` containing its exact failed plan/contract, fixed evaluator, repair task and optional local MCP setup. Extract into a new folder and follow its README. Passing and unverified candidates do not export this handoff. Exporting it does not invoke Bob or establish IDE acceptance; the optional integration requires the pinned MCP SDK and your Bob account.
 
+Bring back a saved repair using `--candidate-plan bob-workspace/work/bob-candidate.json` and a new review output folder. This executes all five fields of the supplied plan, including its migration; the project's separate migration.sql cannot silently override it. Both supplied candidate bytes and unchanged project inputs are snapshotted. The original baseline stays in the independent comparison, and only a passing candidate gets the locked PR kit. Reading a filename does not establish Bob authorship.
+
 
 
 ## Bring your own contract through the CLI

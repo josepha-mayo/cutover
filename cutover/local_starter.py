@@ -84,6 +84,17 @@ SDK and your Bob account; ordinary CLI review still needs only Python. Exporting
 does not invoke Bob, establish IDE acceptance or supply a passing repair. A
 passing or unverified candidate does not export a repair workspace.
 
+Bring a saved repair plan back without copying its SQL into separate files:
+
+```text
+python -m cutover.review_project --project my-release --candidate-plan bob-workspace/work/bob-candidate.json --out review-after-bob
+```
+
+This explicitly reviews all five fields of the supplied JSON, including its
+migration. Project candidate.json and migration.sql are retained as inputs but
+do not override that candidate. The supplied file is snapshotted byte for byte;
+the project and original failure stay unchanged. No Bob authorship is inferred.
+
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.
 Set the new read/write/insert adapters in each plan. The reader must return all

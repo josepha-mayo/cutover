@@ -8,7 +8,7 @@ import sys
 import zipfile
 
 
-def review(project, output, bob_workspace=False):
+def review(project, output, bob_workspace=False, candidate_plan=None):
     names = ('contract.json', 'baseline.json', 'candidate.json', 'migration.sql')
     inputs = {}
     for name in names:
@@ -16,6 +16,10 @@ def review(project, output, bob_workspace=False):
         if source.stat().st_size > 65536:
             raise ValueError(f'{name} must be at most 64 KiB')
         inputs[name] = source.read_bytes()
+    if candidate_plan is not None:
+        if candidate_plan.stat().st_size > 65536:
+            raise ValueError('Supplied candidate plan must be at most 64 KiB')
+        inputs['supplied-candidate.json'] = candidate_plan.read_bytes()
     output.mkdir(parents=True, exist_ok=False)
     snapshot = output/'inputs'
     snapshot.mkdir()
@@ -23,6 +27,8 @@ def review(project, output, bob_workspace=False):
         (snapshot/name).write_bytes(content)
     status = {'status': 'unverified', 'input_sha256': {name: hashlib.sha256(raw).hexdigest()
               for name, raw in inputs.items()}, 'steps': []}
+    status['candidate_source'] = ('supplied-candidate.json (all five plan fields)' if candidate_plan
+                                  else 'candidate.json adapters and migration.sql')
 
     def save():
         (output/'review-status.json').write_text(json.dumps(status, indent=2)+'\n', encoding='utf-8')
@@ -40,8 +46,10 @@ def review(project, output, bob_workspace=False):
 
     save()
     try:
-        candidate_args = ['--contract', snapshot/'contract.json', '--plan', snapshot/'candidate.json',
-                          '--migration-file', snapshot/'migration.sql']
+        candidate_args = ['--contract', snapshot/'contract.json', '--plan',
+                          snapshot/('supplied-candidate.json' if candidate_plan else 'candidate.json')]
+        if candidate_plan is None:
+            candidate_args += ['--migration-file', snapshot/'migration.sql']
         code = run('cutover', candidate_args+['--baseline-plan', snapshot/'baseline.json',
                    '--bundle', output/'comparison.zip', '--output', output/'candidate-report.json'], 'comparison')
         run('cutover.audit_bundle', ['--bundle', output/'comparison.zip', '--markdown', output/'review.md'], 'audit')
@@ -91,9 +99,12 @@ def main():
     parser.add_argument('--out', type=Path, required=True, help='New evidence folder; existing folders refused')
     parser.add_argument('--bob-workspace', action='store_true',
                         help='Export a local Bob repair workspace only when the audited candidate is blocked')
+    parser.add_argument('--candidate-plan', type=Path,
+                        help='Review all fields of a saved candidate JSON instead of project candidate.json/migration.sql')
     args = parser.parse_args()
     try:
-        code = review(args.project.resolve(), args.out.resolve(), args.bob_workspace)
+        code = review(args.project.resolve(), args.out.resolve(), args.bob_workspace,
+                      args.candidate_plan.resolve() if args.candidate_plan else None)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')
