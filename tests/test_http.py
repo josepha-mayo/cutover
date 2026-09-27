@@ -123,6 +123,30 @@ class HttpTests(unittest.TestCase):
         code, _ = self.request('/api/replay', {**payload, 'format': 'markdown', 'observed_probe': changed})
         self.assertEqual(code, 400)
 
+    def test_matching_reader_maps_export_review_but_refuse_data_loss_script(self):
+        inputs = {'case': 'custom',
+                  'contract': json.loads((WAREHOUSE / 'contract.json').read_text(encoding='utf-8')),
+                  'plan': json.loads((WAREHOUSE / 'bridge.json').read_text(encoding='utf-8'))}
+        inputs['plan']['read'] = ('SELECT id, fulfillment_bin AS value FROM stock_items UNION ALL '
+                                  'SELECT id, fulfillment_bin AS value FROM stock_items ORDER BY id')
+        status, body = self.request('/api/rehearse', inputs)
+        self.assertEqual(status, 200)
+        report = json.loads(body)
+        probe = next(row for row in report['results'] if row['id'] == 'old_to_new-0')
+        failure = next(event for event in probe['trace'] if event['status'] == 'fail')
+        self.assertEqual(failure['expected'], failure['actual'])
+        self.assertFalse(probe['passed'])
+        payload = {**inputs, 'probe_id': probe['id'], 'observed_probe': probe,
+                   **{key: report[key] for key in ('plan_hash', 'contract_hash', 'engine_sha256', 'suite_hash')}}
+        code, body = self.request('/api/replay', payload)
+        self.assertEqual(code, 400)
+        self.assertIn('data mismatch witness', json.loads(body)['error'])
+        code, body = self.request('/api/replay', {**payload, 'format': 'markdown'})
+        self.assertEqual(code, 200)
+        self.assertIn(b'Row maps do not retain duplicate returned rows', body)
+        self.assertIn(report['plan_hash'].encode(), body)
+        self.assertIn(b'old_to_new-0', body)
+
     def test_selected_replay_executes_the_requested_failure_not_the_first(self):
         cases = [({'case': 'parcel', 'plan': load_plan('parcel', 'late_bridge')},
                   'window_insert_after_2-1'),

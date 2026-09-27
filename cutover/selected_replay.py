@@ -20,7 +20,11 @@ def rehearse_selected(case, plan, probe_id, identities, observed_probe, contract
     probe = next((row for row in report['results'] if row['id'] == probe_id), None)
     if probe is None:
         raise ValueError('Select a probe from the executed report')
-    eligible = (probe.get('failure') or {}).get('kind') in ('data_mismatch', 'target_mismatch')
+    failed_read = next((event for event in probe['trace'] if event['status'] == 'fail'
+                        and isinstance(event.get('expected'), dict)
+                        and isinstance(event.get('actual'), dict)), None)
+    eligible = ((probe.get('failure') or {}).get('kind') in ('data_mismatch', 'target_mismatch')
+                and failed_read is not None and failed_read['expected'] != failed_read['actual'])
     if probe['passed'] or (not eligible and not review_only):
         raise ValueError('A failing data mismatch witness is required for a runnable reproduction')
     if json.loads(json.dumps(probe)) != observed_probe:
@@ -49,6 +53,10 @@ def rehearse_selected(case, plan, probe_id, identities, observed_probe, contract
                       'This selected failure was freshly rerun and matched the displayed observation. '
                       'It is not necessarily the shortest witness. This note does not establish Bob authorship '
                       'or production safety.', '',
+                      *(['Recorded row values agree, but the reader failed. Row maps do not retain duplicate '
+                         'returned rows or prove adapter-contract compliance. Inspect the executed SQL and '
+                         'replay the original packet to diagnose this failure.', '']
+                        if failed_read is not None and failed_read['expected'] == failed_read['actual'] else []),
                       *replay_section(selected, 'Selected executed failure'),
                       '## Evidence identity', '',
                       *[f'- {key}: `{report[key]}`' for key in IDENTITIES], ''])

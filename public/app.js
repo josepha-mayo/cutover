@@ -466,15 +466,21 @@ function renderWalkStep() {
   buttons[0].disabled=walkIndex===0;buttons[1].disabled=walkIndex===probe.trace.length-1;
   panel.querySelector('div').innerHTML=`<div class="trace-step ${escape(event.status)}"><p>STEP ${walkIndex+1} / ${probe.trace.length} · ${escape(event.status)}</p><h4>${escape(event.action)}</h4><p>${escape(event.detail||'Executed.')}${event.connection?' · '+escape(event.connection)+' connection':''}</p><pre>${escape(event.sql||'No SQL recorded.')}${event.params?'\n\nInputs: '+escape(pretty(event.params)):''}</pre>${Object.hasOwn(event,'expected')&&Object.hasOwn(event,'actual')?`<div class="comparison"><div class="expected">EXPECTED BY CONTRACT<pre>${escape(pretty(event.expected))}</pre></div><div class="actual">READER OBSERVED<pre>${escape(pretty(event.actual))}</pre></div></div>`:'<p>No row values recorded at this step. Inputs are not a database snapshot.</p>'}</div>`;
 }
+function hasRecordedDataGap(probe) {
+  if(!probe||probe.passed||!['data_mismatch','target_mismatch'].includes(probe.failure?.kind))return false;
+  const event=probe.trace.find(event=>event.status==='fail'&&event.expected&&event.actual);
+  return !!event&&[...new Set([...Object.keys(event.expected),...Object.keys(event.actual)])].some(row=>Object.hasOwn(event.expected,row)!==Object.hasOwn(event.actual,row)||JSON.stringify(event.expected[row])!==JSON.stringify(event.actual[row]));
+}
 function updateReplayExport() {
   const probe=report?.results.find(item=>item.id===selected);
-  const eligible=probe&&!probe.passed&&['data_mismatch','target_mismatch'].includes(probe.failure?.kind);
+  const eligible=hasRecordedDataGap(probe);
   $('export-repro').disabled=busy||replayBusy||!eligible;
   $('export-repro').textContent=replayBusy?'Preparing selected replay…':'Export this failed replay ↓';
   $('export-selected-review').disabled=busy||replayBusy||!probe||probe.passed;
   $('replay-export-note').textContent=eligible
     ?'Downloads a standalone Python replay of this selected data mismatch after a fresh run matches the displayed evidence. It reproduces one failure, not the full suite.'
     :probe?.passed?'This probe passed. Select a failed data-mismatch probe to export its replay.'
+    :probe&&['data_mismatch','target_mismatch'].includes(probe.failure?.kind)?'Recorded row values agree. Download the selected PR note with freshly rerun SQL and evidence; these maps cannot substantiate a data-loss script.'
     :probe?'This failure is not a data mismatch. Download its selected PR note for the rerun SQL and error; a data-loss script is unavailable.'
     :'Select a failed data-mismatch probe to export its replay.';
 }
@@ -680,7 +686,7 @@ $('export').addEventListener('click',()=>{if(!report)return;const {review_markdo
 async function exportSelected(format='python') {
   const snapshot=report, probeId=selected;
   const probe=snapshot?.results.find(item=>item.id===probeId);
-  if(busy||replayBusy||!probe||probe.passed||(format==='python'&&!['data_mismatch','target_mismatch'].includes(probe.failure?.kind)))return;
+  if(busy||replayBusy||!probe||probe.passed||(format==='python'&&!hasRecordedDataGap(probe)))return;
   const request={case:snapshot.case,plan:snapshot.plan,probe_id:probeId,observed_probe:probe,format,
     plan_hash:snapshot.plan_hash,contract_hash:snapshot.contract_hash,
     engine_sha256:snapshot.engine_sha256,suite_hash:snapshot.suite_hash};
