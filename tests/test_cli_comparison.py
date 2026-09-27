@@ -68,6 +68,19 @@ class LocalComparisonTests(unittest.TestCase):
             self.assertEqual(collision.returncode, 2)
             self.assertEqual((root/'baseline.sql').read_bytes(), baseline_sql.encode('utf-8'))
 
+    def test_unwritable_output_is_an_export_error_not_a_blocked_verdict(self):
+        safe = ROOT / 'examples/warehouse/bridge.json'
+        unsafe = ROOT / 'examples/warehouse/late_bridge.json'
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory) / 'retained-review'
+            parent.write_text('Existing reviewer notes', encoding='utf-8')
+            result = self.run_cli(safe, unsafe, parent/'comparison.zip')
+            self.assertEqual(result.returncode, 2)
+            self.assertIn('Cannot export evidence:', result.stderr)
+            self.assertNotIn('Traceback', result.stderr)
+            self.assertNotIn('Independently replayed comparison saved', result.stdout)
+            self.assertEqual(parent.read_text(encoding='utf-8'), 'Existing reviewer notes')
+
     def test_existing_evidence_is_not_overwritten(self):
         safe = ROOT / 'examples/warehouse/bridge.json'
         with tempfile.TemporaryDirectory() as directory:

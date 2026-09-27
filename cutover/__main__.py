@@ -137,31 +137,35 @@ try:
             verify_report_against_replay('custom' if contract is not None else args.case,
                                          executed['plan'], executed, contract)
         bundle = render_comparison_bundle(baseline, report, contract if contract is not None else load_case(args.case))
-        print(f"Independently replayed comparison: baseline {baseline['status']} {baseline['passed']}/{baseline['total']} -> candidate {report['status']} {report['passed']}/{report['total']}")
     else:
         bundle = render_bundle(report, contract if contract is not None else load_case(args.case)) if args.bundle else None
 except (ValueError, subprocess.TimeoutExpired) as exc:
     parser.error(f'Local comparison not verified: {exc}')
 output = json.dumps(report, ensure_ascii=False, indent=2)
-if args.output:
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_bytes((output + "\n").encode("utf-8"))
-if args.markdown:
-    args.markdown.parent.mkdir(parents=True, exist_ok=True)
-    args.markdown.write_bytes((selected_export['review_markdown'] if selected_export else render_markdown(report)).encode("utf-8"))
-if args.repro:
-    args.repro.parent.mkdir(parents=True, exist_ok=True)
-    args.repro.write_bytes(reproduction.encode("utf-8"))
-if args.bundle:
-    args.bundle.parent.mkdir(parents=True, exist_ok=True)
-    if args.baseline_plan:
-        with args.bundle.open('xb') as target:
-            target.write(bundle)
-    else:
-        args.bundle.write_bytes(bundle)
+try:
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_bytes((output + "\n").encode("utf-8"))
+    if args.markdown:
+        args.markdown.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown.write_bytes((selected_export['review_markdown'] if selected_export else render_markdown(report)).encode("utf-8"))
+    if args.repro:
+        args.repro.parent.mkdir(parents=True, exist_ok=True)
+        args.repro.write_bytes(reproduction.encode("utf-8"))
+    if args.bundle:
+        args.bundle.parent.mkdir(parents=True, exist_ok=True)
+        if args.baseline_plan:
+            with args.bundle.open('xb') as target:
+                target.write(bundle)
+        else:
+            args.bundle.write_bytes(bundle)
+except OSError as exc:
+    parser.error(f'Cannot export evidence: {exc}')
+if args.baseline_plan:
+    print(f"Independently replayed comparison saved to {args.bundle}: baseline {baseline['status']} {baseline['passed']}/{baseline['total']} -> candidate {report['status']} {report['passed']}/{report['total']}")
 if kit is not None:
-    args.ci_kit.parent.mkdir(parents=True, exist_ok=True)
     try:
+        args.ci_kit.parent.mkdir(parents=True, exist_ok=True)
         with args.ci_kit.open('xb') as target:
             target.write(kit)
     except OSError as exc:
