@@ -120,11 +120,12 @@ class Handler(BaseHTTPRequestHandler):
                  '/watch': 'watch.html', '/watch.css': 'watch.css', '/watch.js': 'watch.js',
                  '/captions.en.vtt': 'captions.en.vtt',
                  '/proof': 'proof.html', '/proof.css': 'proof.css',
-                 '/review-example': 'review-example.html', '/review-example.html': 'review-example.html'}
+                 '/review-example': 'review-example.html', '/review-example.html': 'review-example.html',
+                 '/bob-review-example': 'bob-review-example.html', '/bob-review-example.html': 'bob-review-example.html'}
         if path not in files:
             return self.send(404, {'error': 'Not found'})
         file = STATIC / files[path]
-        if files[path] == 'review-example.html':
+        if files[path] in ('review-example.html', 'bob-review-example.html'):
             from cutover.review_html import content_security_policy
             return self.send(200, file.read_bytes(), 'text/html; charset=utf-8',
                              csp=content_security_policy()+"; frame-ancestors 'none'")
