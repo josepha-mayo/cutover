@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-vEsRVutkGcRWx/ssoL/7ftkR6SF/CG3rQaSuqcIP5BU='; style-src 'sha256-OOUhCgu6rBUgqPCWRQnaaJOmiq1JMDM5YmnpzUVrilw='; base-uri 'none'; form-action 'none'"><title>Cutover recorded review</title><style>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-h6b+heMmuuz0fUi3xOddVd6g4zWtHln7mDw2+HGFgtk='; style-src 'sha256-OOUhCgu6rBUgqPCWRQnaaJOmiq1JMDM5YmnpzUVrilw='; base-uri 'none'; form-action 'none'"><title>Cutover recorded review</title><style>
 *{box-sizing:border-box}body{margin:0;background:#f4f5ef;color:#17211f;font:15px/1.6 system-ui,sans-serif}
 main{max-width:1100px;margin:auto;padding:28px}h1{font-size:34px;line-height:1.2}h2{font-size:20px}
 .scope{color:#58665b;font-size:13px}.cards,.columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
@@ -170,6 +170,9 @@ function selectedFailureNote(probe,report){
   const partner=completedCounterpart(probe,report);
   const counterpart=partner?report.results.find(p=>p.id===partner.other):null;
   const evidence={
+    review_role:reports.length===1?'executed':current===0?'baseline':'candidate',
+    recorded_candidate:reports.length===2?{status:reports[1].status,passed:reports[1].passed,total:reports[1].total,
+      plan_hash:reports[1].plan_hash}:null,
     plan_name:report.plan.name,plan_status:report.status,plan_passed:report.passed,plan_total:report.total,
     plan_hash:report.plan_hash,contract_hash:report.contract_hash,suite_hash:report.suite_hash,engine_sha256:report.engine_sha256,
     selected_probe:{id:probe.id,title:probe.title,category:probe.category,payload:probe.payload,actions:probe.actions,
@@ -180,6 +183,7 @@ function selectedFailureNote(probe,report){
   const json=JSON.stringify(evidence,null,2),runs=json.match(/`+/g)||[];
   const fence='`'.repeat(Math.max(3,...runs.map(run=>run.length+1)));
   return '# Cutover selected counterexample\n\n'+
+    (reports.length===2&&current===0?'This selected failure belongs to the retained baseline. Inspect the recorded candidate verdict below separately; exporting this original failure does not change that verdict.\n\n':'')+
     'Recorded evidence selected from an offline review. This export does not execute SQL or independently reverify the report. The HTML and this note are unsigned. Keep the original review packet for independent replay.\n\n'+
     'Sequential SQLite schedules only; this is not proof of production safety or simultaneous transaction behavior.\n\n'+
     (counterpart?'The completed-rollout contrast uses the same recorded accepted write SQL, row/input and reader SQL in this plan, with a different schedule. Passing traces may omit row snapshots.\n\n':'')+

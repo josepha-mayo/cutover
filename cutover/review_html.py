@@ -141,6 +141,9 @@ function selectedFailureNote(probe,report){
   const partner=completedCounterpart(probe,report);
   const counterpart=partner?report.results.find(p=>p.id===partner.other):null;
   const evidence={
+    review_role:reports.length===1?'executed':current===0?'baseline':'candidate',
+    recorded_candidate:reports.length===2?{status:reports[1].status,passed:reports[1].passed,total:reports[1].total,
+      plan_hash:reports[1].plan_hash}:null,
     plan_name:report.plan.name,plan_status:report.status,plan_passed:report.passed,plan_total:report.total,
     plan_hash:report.plan_hash,contract_hash:report.contract_hash,suite_hash:report.suite_hash,engine_sha256:report.engine_sha256,
     selected_probe:{id:probe.id,title:probe.title,category:probe.category,payload:probe.payload,actions:probe.actions,
@@ -151,6 +154,7 @@ function selectedFailureNote(probe,report){
   const json=JSON.stringify(evidence,null,2),runs=json.match(/`+/g)||[];
   const fence='`'.repeat(Math.max(3,...runs.map(run=>run.length+1)));
   return '# Cutover selected counterexample\\n\\n'+
+    (reports.length===2&&current===0?'This selected failure belongs to the retained baseline. Inspect the recorded candidate verdict below separately; exporting this original failure does not change that verdict.\\n\\n':'')+
     'Recorded evidence selected from an offline review. This export does not execute SQL or independently reverify the report. The HTML and this note are unsigned. Keep the original review packet for independent replay.\\n\\n'+
     'Sequential SQLite schedules only; this is not proof of production safety or simultaneous transaction behavior.\\n\\n'+
     (counterpart?'The completed-rollout contrast uses the same recorded accepted write SQL, row/input and reader SQL in this plan, with a different schedule. Passing traces may omit row snapshots.\\n\\n':'')+
