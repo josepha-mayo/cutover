@@ -108,6 +108,14 @@ The first command exits 1 with a blocked 108/124 verdict; its shortest observed 
 
 The JSON audit command reruns the checked-in contract and plan in a fresh bounded worker and compares every replayable report field. The ZIP audit command independently reruns every contained report and verifies the review text, any standalone witness source, and a before/after comparison manifest against those reports without extracting or executing the downloaded script. Creation time, runtime and host SQLite version are self-reported. Both commands exit 0 for a verified pass, 1 for a verified block, and 2 if evidence differs or cannot be replayed. Changing the shown passing replay or Bob attribution invalidates the report.
 
+To turn a saved single or comparison ZIP into a PR note locally, run:
+
+```powershell
+python -m cutover.audit_bundle --bundle work/review-pair.zip --markdown work/verified-pr-review.md
+```
+
+The note is written only after both the SQL reports and packaged companion files verify. A comparison includes measured pairing counts, exact changed SQL and each report's retained witness and identities. Different migration statement sequences keep their window probes separate. The output must be a new file; it cannot overwrite the ZIP or an existing review. Exit 1 still writes a verified blocked review, while exit 2 writes no new review. This keeps private schemas local and preserves the independently auditable ZIP as the source evidence.
+
 **Open a CI failure in the browser:** choose **Open review packet** and select
 the `review.zip` inside the downloaded GitHub artifact, or a single/comparison
 review packet exported by Cutover. The server independently replays and checks

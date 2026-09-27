@@ -11,6 +11,7 @@ from pathlib import Path
 from .bundle import render_bundle, render_comparison_bundle
 from .engine import load_case
 from .service import verify_report_against_replay
+from .reporting import fenced, render_markdown
 
 MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
 MAX_MEMBER_BYTES = 128 * 1024 * 1024
@@ -103,9 +104,44 @@ def main():
         'Independently replay every report in a Cutover ZIP and verify its '
         'comparison, Markdown review and witness without extracting or executing it.'))
     parser.add_argument('--bundle', required=True, type=Path)
+    parser.add_argument('--markdown', type=Path,
+                        help='Write a verified PR review after replay; refuses existing output files')
     args = parser.parse_args()
     try:
+        if args.markdown and (args.markdown.resolve() == args.bundle.resolve() or args.markdown.exists()):
+            raise ValueError('Markdown output must be a new file and cannot overwrite the packet')
         reports = audit(args.bundle)
+        if args.markdown:
+            review = ['# Independently verified Cutover packet', '',
+                      'Every retained report and packaged companion file passed independent replay and format verification. '
+                      'This is bounded SQLite evidence, not production approval or authenticated authorship.', '']
+            if len(reports) == 2:
+                before, after = reports
+                same_migration = before['plan']['migration'] == after['plan']['migration']
+                old = {item['id']: item for item in before['results']}
+                paired = [(old[item['id']], item) for item in after['results']
+                          if (same_migration or item['category'] != 'migration_window')
+                          and item['id'] in old and old[item['id']]['payload'] == item['payload']
+                          and old[item['id']]['actions'] == item['actions']]
+                summary = {'paired_probes': len(paired),
+                           'resolved': sum(not left['passed'] and right['passed'] for left, right in paired),
+                           'regressed': sum(left['passed'] and not right['passed'] for left, right in paired),
+                           'window_probes_paired': same_migration,
+                           'interpretation': ('Identical migration SQL permits window pairing.' if same_migration else
+                               'Different SQL sequences: statement windows are evaluated separately, not paired by step number.')}
+                review += ['## Measured comparison', '', fenced(json.dumps(summary, indent=2), 'json'), '',
+                           '## Executed SQL changes', '',
+                           'Textual differences do not establish which SQL line caused the measured change.', '']
+                for key in ('migration', 'read', 'write', 'insert'):
+                    if before['plan'][key] != after['plan'][key]:
+                        review += [f'### {key}', '', 'Pinned baseline:', '', fenced(before['plan'][key], 'sql'), '',
+                                   'Current candidate:', '', fenced(after['plan'][key], 'sql'), '']
+            for index, report in enumerate(reports):
+                review += [('## Pinned baseline report' if index == 0 else '## Current candidate report')
+                           if len(reports) == 2 else '## Executed report', '', render_markdown(report), '']
+            args.markdown.parent.mkdir(parents=True, exist_ok=True)
+            with args.markdown.open('x', encoding='utf-8', newline='\n') as output:
+                output.write('\n'.join(review))
     except (OSError, ValueError, KeyError, TypeError, RuntimeError,
             zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         print(f'UNVERIFIED: {exc}', file=sys.stderr)
