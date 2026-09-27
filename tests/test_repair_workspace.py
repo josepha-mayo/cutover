@@ -39,6 +39,10 @@ class RepairWorkspaceTests(unittest.TestCase):
             blocked = subprocess.run([sys.executable, 'verify_workspace.py', '--candidate',
                                       'baseline-plan.json'], cwd=root, capture_output=True, timeout=120)
             self.assertEqual(blocked.returncode, 1, blocked.stderr)
+            self.assertIn(b'Independent replay matched', blocked.stdout)
+            self.assertEqual(len(list((root/'work').glob('verification-*/audit.log'))), 1)
+            self.assertEqual(next((root/'work').glob('verification-*/candidate.json')).read_bytes(),
+                             (root/'baseline-plan.json').read_bytes())
             report = json.loads(next((root/'work').glob('verification-*/report.json')).read_text(encoding='utf-8'))
             self.assertEqual((report['passed'], report['total']), (108, 124))
             self.assertEqual(len(list((root/'work').glob('verification-*/review.md'))), 1)
@@ -46,6 +50,7 @@ class RepairWorkspaceTests(unittest.TestCase):
             passing = subprocess.run([sys.executable, 'verify_workspace.py', '--candidate',
                                       'work/bob-candidate.json'], cwd=root, capture_output=True, timeout=120)
             self.assertEqual(passing.returncode, 0, passing.stderr)
+            self.assertIn(b'Independent replay matched', passing.stdout)
             reports = [json.loads(p.read_text(encoding='utf-8')) for p in (root/'work').glob('verification-*/report.json')]
             self.assertEqual(len(reports), 2)
             report = next(r for r in reports if r['status'] == 'pass')
@@ -84,6 +89,34 @@ class RepairWorkspaceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn(b'Packaged fixed file changed: contract.json', result.stderr)
             self.assertFalse((root/'work').exists())
+
+    def test_independent_audit_refuses_a_report_changed_after_execution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            zipfile.ZipFile(io.BytesIO(self.packet)).extractall(root)
+            runner = '''import json, runpy, subprocess, sys
+from pathlib import Path
+original_run = subprocess.run
+def execute(args, **kwargs):
+    result = original_run(args, **kwargs)
+    if args[2] == 'cutover':
+        report_path = Path(args[args.index('--output')+1])
+        report = json.loads(report_path.read_text(encoding='utf-8'))
+        report['passed'] += 1
+        report_path.write_text(json.dumps(report), encoding='utf-8')
+    return result
+subprocess.run = execute
+sys.argv = ['verify_workspace.py', '--candidate', 'baseline-plan.json']
+runpy.run_path('verify_workspace.py', run_name='__main__')
+'''
+            (root/'tamper_control.py').write_text(runner, encoding='utf-8')
+            result = subprocess.run([sys.executable, 'tamper_control.py'], cwd=root,
+                                    capture_output=True, timeout=120)
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn(b'Independent replay refused', result.stderr)
+            log = next((root/'work').glob('verification-*/audit.log')).read_bytes()
+            self.assertIn(b'UNVERIFIED', log)
+            self.assertNotIn(b'Independent replay matched', result.stdout)
 
     def test_archive_has_no_machine_configuration_or_passing_references(self):
         names = set(zipfile.ZipFile(io.BytesIO(self.packet)).namelist())

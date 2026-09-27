@@ -103,7 +103,9 @@ Inspect the source before running it. No API keys or account information are inc
 6. Independently check the saved result:
    `python verify_workspace.py --candidate work/bob-candidate.json`.
    Exit 0 means this suite passed, 1 means blocked, and other errors remain unverified.
-   Each attempt retains its report and Markdown in a new folder under work/.
+   Each attempt snapshots the candidate, executes it, then independently replays
+   the report before accepting the result. Its report, Markdown, candidate and
+   audit.log remain in a new folder under work/.
 7. Export the before/after review entirely locally:
    `python -m cutover --contract contract.json --plan work/bob-candidate.json --baseline-plan baseline-plan.json --bundle work/before-after.zip`.
    For separate SQL sources, add `--migration-file work/repaired.sql --baseline-migration-file work/original.sql`; adapters still come from the respective plan files.
@@ -140,10 +142,23 @@ try:
         output = root/'work'/('verification-' + uuid.uuid4().hex)
         output.mkdir(parents=True)
         print('Evidence directory: ' + str(output), flush=True)
+        if candidate.stat().st_size > 65536:
+            raise ValueError('Candidate JSON exceeds 64 KiB')
+        snapshot = output/'candidate.json'
+        snapshot.write_bytes(candidate.read_bytes())
         result = subprocess.run([sys.executable, '-m', 'cutover', '--contract',
-            str(root/'contract.json'), '--plan', str(candidate), '--output',
+            str(root/'contract.json'), '--plan', str(snapshot), '--output',
             str(output/'report.json'), '--markdown',
             str(output/'review.md')], cwd=root, timeout=120)
+        if result.returncode not in (0, 1):
+            raise ValueError('Candidate execution did not produce a verified outcome')
+        audited = subprocess.run([sys.executable, '-m', 'cutover.audit_report',
+            '--contract', str(root/'contract.json'), '--plan', str(snapshot),
+            '--report', str(output/'report.json')], cwd=root, capture_output=True, timeout=120)
+        (output/'audit.log').write_bytes(audited.stdout+b'\\n'+audited.stderr)
+        if audited.returncode != result.returncode:
+            raise ValueError('Independent replay refused the candidate report; inspect audit.log')
+        print('Independent replay matched the candidate report. Audit log retained.')
         sys.exit(result.returncode)
 except (OSError, ValueError, KeyError, subprocess.TimeoutExpired) as exc:
     print('UNVERIFIED: ' + str(exc), file=sys.stderr)
