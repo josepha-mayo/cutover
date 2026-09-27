@@ -22,6 +22,16 @@ WAREHOUSE = Path(__file__).resolve().parents[1] / 'examples' / 'warehouse'
 
 
 class HttpTests(unittest.TestCase):
+    def test_offline_example_uses_exact_inline_hashes_without_relaxing_app_policy(self):
+        from cutover.review_html import content_security_policy
+        with urllib.request.urlopen(self.base+'/review-example', timeout=15) as response:
+            self.assertEqual(response.headers['Content-Security-Policy'],
+                             content_security_policy()+"; frame-ancestors 'none'")
+            self.assertEqual(response.read(), (Path(server.__file__).parent/'public/review-example.html').read_bytes())
+        with urllib.request.urlopen(self.base+'/', timeout=15) as response:
+            self.assertIn("script-src 'self'", response.headers['Content-Security-Policy'])
+            self.assertNotIn('sha256-', response.headers['Content-Security-Policy'])
+
     def test_bob_proof_pack_preserves_original_task_images(self):
         with urllib.request.urlopen(self.base + '/api/bob-proof-pack', timeout=15) as response:
             self.assertIn('cutover-bob-proof-pack.zip', response.headers['Content-Disposition'])

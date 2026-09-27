@@ -12,7 +12,7 @@ def render_local_starter():
     names = ['LICENSE', 'cutover/__init__.py', 'cutover/__main__.py',
         'cutover/engine.py', 'cutover/service.py', 'cutover/worker.py',
         'cutover/reporting.py', 'cutover/bundle.py', 'cutover/audit_report.py',
-        'cutover/audit_bundle.py', 'cutover/selected_replay.py', 'cutover/ci_kit.py', 'cutover/init_contract.py', 'cutover/review_project.py',
+        'cutover/audit_bundle.py', 'cutover/review_html.py', 'cutover/selected_replay.py', 'cutover/ci_kit.py', 'cutover/init_contract.py', 'cutover/review_project.py',
         'cutover/repair_workspace.py', 'configure_bob.py', 'mcp_server.py', 'requirements-mcp.txt']
     for case in ('parcel', 'contacts', 'warehouse'):
         for plan in ('contract', 'rename', 'backfill', 'late_bridge', 'bridge'):
@@ -63,7 +63,12 @@ python -m cutover.review_project --project my-release --out review-1
 ```
 
 It snapshots the four actual inputs, freshly compares the original and candidate,
-independently audits the packet, writes review.md and retains logs. A passing
+independently audits the packet, writes review.md and review.html, and retains logs. Open review.html
+locally to inspect verdicts, exact SQL and each recorded replay step. It needs no
+network access or server and does not execute SQL or reverify itself. The page is
+unsigned; share only when its included SQL/values are appropriate for the reviewer.
+For an existing packet: `python -m cutover.audit_bundle --bundle comparison.zip --html review.html`.
+A passing
 candidate also exports pr-kit.zip with the reviewed contract lock; a blocked or
 unverified candidate does not produce a ready PR kit. Existing review folders
 are refused. Inspect kit files before copying them into your repository.

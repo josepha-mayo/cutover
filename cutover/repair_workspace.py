@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCES = (
     'LICENSE', 'configure_bob.py', 'mcp_server.py', 'requirements-mcp.txt',
     'cutover/__init__.py', 'cutover/__main__.py', 'cutover/audit_report.py', 'cutover/audit_bundle.py',
-    'cutover/bundle.py', 'cutover/engine.py', 'cutover/reporting.py',
+    'cutover/bundle.py', 'cutover/engine.py', 'cutover/reporting.py', 'cutover/review_html.py',
     'cutover/selected_replay.py', 'cutover/service.py', 'cutover/worker.py', 'cutover/ci_kit.py',
 )
 

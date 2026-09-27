@@ -102,7 +102,9 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
             baseline_args += ['--baseline-migration-file', snapshot/'supplied-baseline.sql']
         code = run('cutover', candidate_args+baseline_args+[
                    '--bundle', output/'comparison.zip', '--output', output/'candidate-report.json'], 'comparison')
-        run('cutover.audit_bundle', ['--bundle', output/'comparison.zip', '--markdown', output/'review.md'], 'audit')
+        run('cutover.audit_bundle', ['--bundle', output/'comparison.zip', '--markdown', output/'review.md',
+                                    '--html', output/'review.html'], 'audit')
+        status['offline_review'] = 'review.html'
         if git_source is not None:
             with (output/'review.md').open('a', encoding='utf-8') as note:
                 note.write('\n## Baseline SQL source\n\nLocal Git snapshot (not a signature):\n\n'+
@@ -181,6 +183,7 @@ def main():
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')
+    print('Offline walkthrough: review.html. Open locally; it displays evidence without running SQL or using the network.')
     if code == 0:
         print('Passing PR kit: pr-kit.zip. Inspect its four files before copying into your repository.')
     else:

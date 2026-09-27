@@ -108,11 +108,22 @@ def main():
     parser.add_argument('--bundle', required=True, type=Path)
     parser.add_argument('--markdown', type=Path,
                         help='Write a verified PR review after replay; refuses existing output files')
+    parser.add_argument('--html', type=Path,
+                        help='Write a self-contained offline review after replay; refuses existing files')
     args = parser.parse_args()
     try:
         if args.markdown and (args.markdown.resolve() == args.bundle.resolve() or args.markdown.exists()):
             raise ValueError('Markdown output must be a new file and cannot overwrite the packet')
+        if args.html and (args.html.exists() or args.html.resolve() == args.bundle.resolve() or
+                          (args.markdown and args.html.resolve() == args.markdown.resolve())):
+            raise ValueError('HTML output must be a new file distinct from the packet and Markdown')
         reports = audit(args.bundle)
+        if args.html:
+            from .review_html import render_review
+            content = render_review(reports)
+            args.html.parent.mkdir(parents=True, exist_ok=True)
+            with args.html.open('x', encoding='utf-8', newline='\n') as output:
+                output.write(content)
         if args.markdown:
             review = ['# Independently verified Cutover packet', '',
                       'Every retained report and packaged companion file passed independent replay and format verification. '

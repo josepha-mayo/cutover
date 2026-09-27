@@ -57,6 +57,7 @@ class LocalProjectReviewTests(unittest.TestCase):
             blocked = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-1', '--bob-workspace'])
             self.assertEqual(blocked.returncode, 1, blocked.stderr)
             self.assertFalse((root/'review-1/pr-kit.zip').exists())
+            self.assertTrue((root/'review-1/review.html').exists())
             workspace = root/'bob-handoff'
             with zipfile.ZipFile(root/'review-1/bob-repair-workspace.zip') as archive:
                 archive.extractall(workspace)

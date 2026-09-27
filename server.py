@@ -64,7 +64,7 @@ def bob_repair_example():
 
 
 class Handler(BaseHTTPRequestHandler):
-    def send(self, code, content, content_type='application/json; charset=utf-8', headers=None):
+    def send(self, code, content, content_type='application/json; charset=utf-8', headers=None, csp=None):
         if not isinstance(content, bytes):
             content = json.dumps(content, ensure_ascii=False).encode()
         self.send_response(code)
@@ -72,7 +72,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(content)))
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('Content-Security-Policy', "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'")
+        self.send_header('Content-Security-Policy', csp if csp is not None else "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'")
         for name, value in (headers or {}).items():
             self.send_header(name, value)
         self.end_headers()
@@ -119,10 +119,15 @@ class Handler(BaseHTTPRequestHandler):
         files = {'/': 'index.html', '/app.js': 'app.js', '/scenario.js': 'scenario.js', '/request.js': 'request.js', '/style.css': 'style.css',
                  '/watch': 'watch.html', '/watch.css': 'watch.css', '/watch.js': 'watch.js',
                  '/captions.en.vtt': 'captions.en.vtt',
-                 '/proof': 'proof.html', '/proof.css': 'proof.css'}
+                 '/proof': 'proof.html', '/proof.css': 'proof.css',
+                 '/review-example': 'review-example.html', '/review-example.html': 'review-example.html'}
         if path not in files:
             return self.send(404, {'error': 'Not found'})
         file = STATIC / files[path]
+        if files[path] == 'review-example.html':
+            from cutover.review_html import content_security_policy
+            return self.send(200, file.read_bytes(), 'text/html; charset=utf-8',
+                             csp=content_security_policy()+"; frame-ancestors 'none'")
         self.send(200, file.read_bytes(), mimetypes.guess_type(file)[0] + '; charset=utf-8')
 
     def do_HEAD(self):
