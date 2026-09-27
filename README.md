@@ -140,6 +140,8 @@ This validates the generated old-worker queries locally and creates the contract
 
 Already have migration SQL? Add `--migration-file path/to/original.sql` to the setup command. Cutover copies the exact UTF-8 file (up to 64 KiB and 12,000 characters, without NUL bytes) into the new project and uses its SQL in both original plans, leaving the source untouched. Importing makes no passing or failing claim. The schema and worker queries remain an editable two-column starter; adapt them to the actual contract before relying on a review.
 
+Already have the old SQLite table DDL? Also add `--schema-file path/to/schema.sql`. The setup retains its exact bytes in `schema.sql`, uses the decoded DDL in the contract and validates the generated old-worker queries before saving. Exactly one named table is supported, with `id` and the old column but without the new column, views or initial triggers. Indexes and extra columns may remain when the synthetic seeds and generated inserts work; required extra columns without usable defaults are refused. This imports no database rows and tracks only the selected value column. Review your adapters and extra-column behavior separately. Schema SQL has the same UTF-8, size and NUL limits as migration SQL.
+
 After editing the migration SQL and candidate adapters, run the complete local review with one command:
 
 ```text

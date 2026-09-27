@@ -1,4 +1,4 @@
-"""Create editable local inputs for a bounded two-column SQLite migration."""
+"""Create local inputs for a bounded SQLite column migration with synthetic values."""
 import argparse
 import json
 from pathlib import Path
@@ -40,10 +40,20 @@ def main():
     parser.add_argument('--out', type=Path, required=True, help='New folder; existing folders are refused')
     parser.add_argument('--migration-file', type=Path,
                         help='Snapshot UTF-8 SQL instead of generating a backfill (64 KiB, 12,000 characters, no NUL)')
+    parser.add_argument('--schema-file', type=Path,
+                        help='Use existing single-table SQLite DDL with synthetic seed values; validated locally before saving')
     args = parser.parse_args()
     try:
         contract, plan = build_contract(args.project, args.table, args.old_column, args.new_column,
                                        args.first_value, args.second_value, args.incoming_value)
+        schema_bytes = None
+        if args.schema_file is not None:
+            with args.schema_file.open('rb') as source:
+                schema_bytes = source.read(65537)
+            schema = schema_bytes.decode('utf-8-sig')
+            if len(schema_bytes) > 65536 or not schema.strip() or '\0' in schema or len(schema) > 12000:
+                raise ValueError('Schema DDL must be nonempty UTF-8 without NUL, at most 64 KiB and 12,000 characters')
+            contract['schema'] = schema
         migration_bytes = (plan['migration']+'\n').encode('utf-8')
         if args.migration_file is not None:
             if args.migration_file.stat().st_size > 65536:
@@ -61,12 +71,21 @@ def main():
         for name, data in [('contract.json', contract), ('baseline.json', plan), ('candidate.json', plan)]:
             (args.out/name).write_text(json.dumps(data, ensure_ascii=True, indent=2)+'\n', encoding='utf-8')
         (args.out/'migration.sql').write_bytes(migration_bytes)
+        if schema_bytes is not None:
+            (args.out/'schema.sql').write_bytes(schema_bytes)
+        schema_scope = ('Your supplied schema DDL is retained byte-for-byte in schema.sql and decoded into contract.json. '
+                        'The source was not edited. Exactly one named table is supported, without initial views or triggers; '
+                        'id and the old column must exist, and the new column must be absent. Indexes and extra columns may remain '
+                        'when the generated old queries work with your synthetic seeds and inserts. '
+                        'Extra-column values are not part of the tracked write ledger. This does not export live rows or verify the whole schema.'
+                        if schema_bytes is not None else
+                        'The schema is a generated synthetic two-column SQLite starter. Inspect and adapt it to your fixed old-worker contract.')
         starting_sql = ('Your supplied SQL was copied byte-for-byte to migration.sql and decoded into both original plans. '
                         'The source file was not edited. No verdict is inferred from importing it.' if args.migration_file else
                         'The generated one-time backfill should block: a successful new-version smoke test does not protect old-worker writes after the copy.')
         (args.out/'README.md').write_text(f'''# Your local migration rehearsal
 
-This is a generated synthetic two-column SQLite starter, not your production schema or a passing repair. Inspect and adapt contract.json to your fixed old-worker schema and queries. Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
+{schema_scope} Seed values and incoming writes are supplied synthetic examples, not database rows. No passing repair is supplied. Inspect the generated old/new queries before use. Keep baseline.json as the original candidate; edit migration.sql and candidate.json for the repair. No SQL has been sent to the hosted demo.
 
 After editing, run one review from the extracted runtime folder:
 

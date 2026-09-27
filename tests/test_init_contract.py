@@ -10,6 +10,46 @@ from cutover.local_starter import render_local_starter
 
 
 class LocalContractSetupTests(unittest.TestCase):
+    def test_existing_schema_is_retained_and_executed_without_importing_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with zipfile.ZipFile(io.BytesIO(render_local_starter())) as archive:
+                archive.extractall(root)
+            raw = (b'\xef\xbb\xbfCREATE TABLE shipments (id INTEGER PRIMARY KEY, loading_bay TEXT NOT NULL, '
+                   b'tenant TEXT NOT NULL DEFAULT \'synthetic-tenant\');\r\n'
+                   b'CREATE INDEX shipments_loading ON shipments(loading_bay);\r\n')
+            source = root/'existing-schema.sql'; source.write_bytes(raw)
+            command = [sys.executable, '-S', '-m', 'cutover.init_contract', '--project', 'Existing dispatch schema',
+                '--table', 'shipments', '--old-column', 'loading_bay', '--new-column', 'dispatch_bay',
+                '--first-value', 'A-01', '--second-value', 'B-02', '--incoming-value', 'GATE-09',
+                '--schema-file', source.name, '--out', 'release']
+            def run(args):
+                return subprocess.run(args, cwd=root, capture_output=True, timeout=120)
+            created = run(command)
+            self.assertEqual(created.returncode, 0, created.stderr)
+            self.assertEqual((root/'release/schema.sql').read_bytes(), raw)
+            contract = json.loads((root/'release/contract.json').read_text(encoding='utf-8'))
+            self.assertEqual(contract['schema'], raw.decode('utf-8-sig'))
+            self.assertEqual(contract['seed'], [[1, 'A-01'], [2, 'B-02']])
+            reviewed = run([sys.executable, '-S', '-m', 'cutover.review_project', '--project', 'release', '--out', 'review'])
+            self.assertEqual(reviewed.returncode, 1, reviewed.stderr)
+            with zipfile.ZipFile(root/'review/comparison.zip') as archive:
+                self.assertEqual(json.loads(archive.read('baseline/contract.json'))['schema'], raw.decode('utf-8-sig'))
+            audited = run([sys.executable, '-S', '-m', 'cutover.audit_bundle', '--bundle', 'review/comparison.zip'])
+            self.assertEqual(audited.returncode, 1, audited.stderr)
+            self.assertEqual(source.read_bytes(), raw)
+            self.assertIn('Extra-column values are not part of the tracked write ledger',
+                          (root/'release/README.md').read_text(encoding='utf-8'))
+            invalid_schemas = [b'', b'SELECT 1;\0', b'\xff', b'x'*65537,
+                b'CREATE TABLE shipments(id INTEGER PRIMARY KEY, loading_bay TEXT, required TEXT NOT NULL);',
+                b'CREATE TABLE shipments(id INTEGER PRIMARY KEY, loading_bay TEXT); CREATE TABLE other(id INTEGER);',
+                b'CREATE TABLE shipments(id INTEGER PRIMARY KEY, loading_bay TEXT, dispatch_bay TEXT);']
+            for index, invalid in enumerate(invalid_schemas):
+                source.write_bytes(invalid)
+                rejected = command[:-1]+['rejected-'+str(index)]
+                self.assertEqual(run(rejected).returncode, 2)
+                self.assertFalse((root/('rejected-'+str(index))).exists())
+
     def test_supplied_sql_is_the_executed_original_and_invalid_inputs_create_no_folder(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

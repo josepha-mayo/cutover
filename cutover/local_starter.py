@@ -65,6 +65,16 @@ limited to 12,000 characters without NUL bytes, matching the review command. Imp
 does not establish a verdict. The generated schema and old/new queries are
 still a two-column starter: inspect and adapt them to your actual contract.
 
+To retain existing SQLite DDL instead of the generated table, also add
+`--schema-file path/to/schema.sql`. It snapshots that UTF-8 file and executes
+its decoded schema in disposable local SQLite before saving the project.
+The schema must have exactly the named table, id and the old column, without
+the new column or initial views/triggers. Indexes and extra columns can remain
+if the generated old reader/updater/inserter work with your synthetic seeds;
+required extra columns without usable defaults are refused. No live database
+rows are imported. Extra-column values are not tracked by the write ledger.
+Inspect the generated adapters; this is not whole-schema/application verification.
+
 ```text
 python -m cutover.review_project --project my-release --out review-1
 ```
