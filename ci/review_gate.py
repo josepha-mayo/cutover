@@ -23,6 +23,7 @@ from pathlib import Path
 # Resolve presentation helpers from this gate's checkout, including in a consumer Action.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ci.witness_source import describe as describe_source, window_source
+from cutover.reporting import structured
 
 # Per-command wall-clock budget (seconds).  The engine's own worker has a
 # 90-second internal cap; we add headroom for process startup and I/O.
@@ -213,16 +214,16 @@ def _build_summary(
 
         # Show the first key where expected ≠ actual (the most informative pair).
         differing_key = next(
-            (k for k in expected if expected.get(k) != actual.get(k)), None
+            (k for k in expected if k not in actual or expected[k] != actual[k]), None
         )
         if differing_key is not None:
             lines += [
-                "**First differing value (row `" + str(differing_key) + "`):**",
+                "**First differing row:**",
                 "",
-                "| | Value |",
-                "| --- | --- |",
-                f"| Expected | `{expected[differing_key]}` |",
-                f"| Actual   | `{actual.get(differing_key)}` |",
+                structured({"row": differing_key,
+                            "expected": expected[differing_key],
+                            "reader_returned_row": differing_key in actual,
+                            **({"actual": actual[differing_key]} if differing_key in actual else {})}),
                 "",
             ]
 
