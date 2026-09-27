@@ -516,7 +516,7 @@ $('challenge-steps').addEventListener('click',async()=>{
     $('fragility-results').innerHTML=`<p class="fragility-scope">Original ${data.original.passed}/${data.original.total} passed. Each omission runs on a fresh disposable database; coverage counts may change.</p>`+
       data.challenges.map(item=>{
         const state=item.outcome==='blocked'?'EXPOSED FAILURE':item.outcome==='still_passes'?'STILL PASSES':'CANNOT REPLAY';
-        const failed=item.witness?.trace?.[0];
+        const failed=item.witness?.trace?.find(event=>event.status==='fail');
         const values=failed?.expected&&failed?.actual?`<p class="fragility-values">Ledger expected ${escape(pretty(failed.expected))}<br>Observed ${escape(pretty(failed.actual))}</p>`:'';
         const detail=item.outcome==='blocked'
           ?`${item.passed}/${item.total} pass · ${escape(item.witness?.title||'First failed probe')} · ${escape(item.witness?.failure?.message||'')}`
