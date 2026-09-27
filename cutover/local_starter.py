@@ -101,6 +101,21 @@ and only the baseline migration is overridden; the fixed old contract and
 baseline adapters stay unchanged. The optional unsafe control in a passing PR
 kit uses that exact executed baseline, with matching evidence identities.
 
+For a PR, read the original SQL from a locally available Git commit instead:
+
+```text
+python -m cutover.review_project --project my-release --baseline-git-ref origin/main --baseline-git-path db/relocation.sql --out review-pr
+```
+
+Requires Git and a project inside the repository. The ref resolves to an exact
+commit; the note/status retain the commit, path and blob identity and the original
+SQL bytes are snapshotted. No fetch, branch switch or checkout change occurs.
+Without an explicit path, it reads my-release/migration.sql at that commit.
+Only baseline migration SQL comes from Git; contract and adapters stay the supplied
+project inputs. Missing refs/files, symlinks and files over 64 KiB are refused.
+This is not a signature or a full application diff. Use either a Git ref or a
+baseline SQL file, not both, and a new output folder for each attempt.
+
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.
 Set the new read/write/insert adapters in each plan. The reader must return all

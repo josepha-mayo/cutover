@@ -8,7 +8,38 @@ import sys
 import zipfile
 
 
-def review(project, output, bob_workspace=False, candidate_plan=None, baseline_migration=None):
+def git_baseline(project, ref, path=None):
+    """Read a bounded committed SQL blob without fetching or changing a checkout."""
+    git_directory = project
+    def git(*args):
+        result = subprocess.run(['git', '--literal-pathspecs', '-C', str(git_directory), *args], capture_output=True,
+                                timeout=30, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        if result.returncode:
+            raise ValueError('Git baseline could not be resolved; check the local commit and tracked SQL path')
+        return result.stdout
+
+    root = Path(git('rev-parse', '--show-toplevel').decode('utf-8').strip()).resolve()
+    git_directory = root
+    commit = git('rev-parse', '--verify', '--end-of-options', ref+'^{commit}').decode('ascii').strip()
+    if path is None:
+        path = (project.resolve().relative_to(root)/'migration.sql').as_posix()
+    if not path or path.startswith('/') or '\\' in path or any(part in ('', '.', '..') for part in path.split('/')):
+        raise ValueError('Git baseline path must be a repository-relative file path')
+    entries = git('ls-tree', '-z', commit, '--', path).decode('utf-8').rstrip('\0').split('\0')
+    entry = entries[0].split('\t', 1)
+    if (len(entries) != 1 or len(entry) != 2 or entry[1] != path or
+            entry[0].split()[:2] not in (['100644', 'blob'], ['100755', 'blob'])):
+        raise ValueError('Git baseline must be a tracked regular file, not a directory or symbolic link')
+    blob = entry[0].split()[2]
+    if int(git('cat-file', '-s', blob)) > 65536:
+        raise ValueError('Git baseline SQL must be at most 64 KiB')
+    raw = git('cat-file', 'blob', blob)
+    raw.decode('utf-8-sig')
+    return raw, {'commit': commit, 'path': path, 'blob': blob}
+
+
+def review(project, output, bob_workspace=False, candidate_plan=None, baseline_migration=None,
+           baseline_git_ref=None, baseline_git_path=None):
     names = ('contract.json', 'baseline.json', 'candidate.json', 'migration.sql')
     inputs = {}
     for name in names:
@@ -24,6 +55,13 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         if baseline_migration.stat().st_size > 65536:
             raise ValueError('Supplied baseline SQL must be at most 64 KiB')
         inputs['supplied-baseline.sql'] = baseline_migration.read_bytes()
+    git_source = None
+    if baseline_git_ref is not None:
+        if baseline_migration is not None:
+            raise ValueError('Choose a baseline SQL file or Git commit, not both')
+        inputs['supplied-baseline.sql'], git_source = git_baseline(project, baseline_git_ref, baseline_git_path)
+    elif baseline_git_path is not None:
+        raise ValueError('--baseline-git-path requires --baseline-git-ref')
     output.mkdir(parents=True, exist_ok=False)
     snapshot = output/'inputs'
     snapshot.mkdir()
@@ -33,8 +71,11 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
               for name, raw in inputs.items()}, 'steps': []}
     status['candidate_source'] = ('supplied-candidate.json (all five plan fields)' if candidate_plan
                                   else 'candidate.json adapters and migration.sql')
-    status['baseline_source'] = ('baseline.json adapters and supplied-baseline.sql' if baseline_migration
+    supplied_baseline = baseline_migration is not None or git_source is not None
+    status['baseline_source'] = ('baseline.json adapters and supplied-baseline.sql' if supplied_baseline
                                 else 'baseline.json (all five plan fields)')
+    if git_source is not None:
+        status['baseline_git'] = git_source
 
     def save():
         (output/'review-status.json').write_text(json.dumps(status, indent=2)+'\n', encoding='utf-8')
@@ -57,11 +98,17 @@ def review(project, output, bob_workspace=False, candidate_plan=None, baseline_m
         if candidate_plan is None:
             candidate_args += ['--migration-file', snapshot/'migration.sql']
         baseline_args = ['--baseline-plan', snapshot/'baseline.json']
-        if baseline_migration is not None:
+        if supplied_baseline:
             baseline_args += ['--baseline-migration-file', snapshot/'supplied-baseline.sql']
         code = run('cutover', candidate_args+baseline_args+[
                    '--bundle', output/'comparison.zip', '--output', output/'candidate-report.json'], 'comparison')
         run('cutover.audit_bundle', ['--bundle', output/'comparison.zip', '--markdown', output/'review.md'], 'audit')
+        if git_source is not None:
+            with (output/'review.md').open('a', encoding='utf-8') as note:
+                note.write('\n## Baseline SQL source\n\nLocal Git snapshot (not a signature):\n\n'+
+                           '```json\n'+json.dumps(git_source, ensure_ascii=True, indent=2)+'\n```\n\n'+
+                           'Exact bytes are retained in `inputs/supplied-baseline.sql`. '
+                           'Only migration SQL comes from Git; adapters and contract are the supplied project inputs.\n')
         report = json.loads((output/'candidate-report.json').read_text(encoding='utf-8'))
         if code != (0 if report['status'] == 'pass' else 1):
             raise ValueError('Candidate report does not match the comparison outcome')
@@ -118,13 +165,19 @@ def main():
                         help='Export a local Bob repair workspace only when the audited candidate is blocked')
     parser.add_argument('--candidate-plan', type=Path,
                         help='Review all fields of a saved candidate JSON instead of project candidate.json/migration.sql')
-    parser.add_argument('--baseline-migration-file', type=Path,
+    baseline = parser.add_mutually_exclusive_group()
+    baseline.add_argument('--baseline-migration-file', type=Path,
                         help='Snapshot actual original SQL, overriding only the baseline.json migration')
+    baseline.add_argument('--baseline-git-ref',
+                          help='Read original SQL from a local Git commit; no fetch or checkout changes')
+    parser.add_argument('--baseline-git-path',
+                        help='Repository-relative SQL path at that commit; defaults to project/migration.sql')
     args = parser.parse_args()
     try:
         code = review(args.project.resolve(), args.out.resolve(), args.bob_workspace,
                       args.candidate_plan.resolve() if args.candidate_plan else None,
-                      args.baseline_migration_file.resolve() if args.baseline_migration_file else None)
+                      args.baseline_migration_file.resolve() if args.baseline_migration_file else None,
+                      args.baseline_git_ref, args.baseline_git_path)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')

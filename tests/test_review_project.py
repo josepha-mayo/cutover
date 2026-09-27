@@ -7,9 +7,41 @@ import tempfile
 import unittest
 import zipfile
 from cutover.local_starter import render_local_starter
+from cutover.review_project import git_baseline
 
 
 class LocalProjectReviewTests(unittest.TestCase):
+    def test_git_baseline_reads_exact_committed_blob_and_refuses_missing_or_oversized_sources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def git(*args):
+                return subprocess.check_output(['git', '-C', str(root), *args], stderr=subprocess.STDOUT)
+            git('init')
+            raw = b'\xef\xbb\xbfSELECT 1;\r\n'
+            (root/'.gitattributes').write_text('* -text\n', encoding='utf-8')
+            (root/'original.sql').write_bytes(raw)
+            (root/'release').mkdir()
+            (root/'release/migration.sql').write_bytes(raw)
+            (root/'old plan.sql').write_bytes(raw)
+            (root/'large.sql').write_bytes(b'x'*65537)
+            git('add', '.')
+            blob = git('hash-object', 'original.sql').decode().strip()
+            git('update-index', '--add', '--cacheinfo', f'120000,{blob},link.sql')
+            git('-c', 'user.name=Cutover test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'Original SQL')
+            commit = git('rev-parse', 'HEAD').decode().strip()
+            (root/'original.sql').write_bytes(b'SELECT 2;')
+            observed, source = git_baseline(root, 'HEAD', 'original.sql')
+            self.assertEqual(observed, raw)
+            self.assertEqual(source['commit'], commit)
+            self.assertEqual(source['path'], 'original.sql')
+            self.assertEqual((root/'original.sql').read_bytes(), b'SELECT 2;')
+            self.assertEqual(git_baseline(root/'release', 'HEAD')[0], raw)
+            self.assertEqual(git_baseline(root/'release', 'HEAD', 'old plan.sql')[0], raw)
+            for ref, path in [('missing-ref', 'original.sql'), ('HEAD', 'missing.sql'),
+                              ('HEAD', '../original.sql'), ('HEAD', 'large.sql'), ('HEAD', '*'),
+                              ('HEAD', 'release'), ('HEAD', 'link.sql')]:
+                with self.subTest(ref=ref, path=path), self.assertRaises(ValueError):
+                    git_baseline(root, ref, path)
     def test_blocked_repair_and_malformed_attempts_keep_separate_evidence_and_gate_only_the_repair(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -83,6 +115,30 @@ class LocalProjectReviewTests(unittest.TestCase):
                 control = json.loads(archive.read('evidence/unsafe-control-report.json'))
             for key in ('plan_hash', 'contract_hash', 'suite_hash', 'engine_sha256'):
                 self.assertEqual(control[key], executed[key])
+            # Resolve the original from Git even after that working-tree file changes.
+            def git(*args):
+                return subprocess.check_output(['git', '-C', str(root), *args], stderr=subprocess.STDOUT)
+            git('init')
+            (root/'.gitattributes').write_text('original.sql -text\n', encoding='utf-8')
+            git('add', '.gitattributes', 'original.sql')
+            git('-c', 'user.name=Cutover test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'Reviewed original')
+            commit = git('rev-parse', 'HEAD').decode().strip()
+            (root/'original.sql').write_bytes(b'SELECT 999;')
+            git_review = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-git',
+                '--candidate-plan', 'saved-candidate.json', '--baseline-git-ref', commit,
+                '--baseline-git-path', 'original.sql'])
+            self.assertEqual(git_review.returncode, 0, git_review.stderr)
+            self.assertEqual((root/'review-git/inputs/supplied-baseline.sql').read_bytes(), original_sql)
+            source_status = json.loads((root/'review-git/review-status.json').read_text())
+            self.assertEqual(source_status['baseline_git']['commit'], commit)
+            self.assertIn(commit, (root/'review-git/review.md').read_text(encoding='utf-8'))
+            with zipfile.ZipFile(root/'review-git/comparison.zip') as archive:
+                git_report = json.loads(archive.read('baseline/report.json'))
+            self.assertEqual(git_report['plan_hash'], executed['plan_hash'])
+            with zipfile.ZipFile(root/'review-git/pr-kit.zip') as archive:
+                git_control = json.loads(archive.read('evidence/unsafe-control-report.json'))
+            self.assertEqual(git_control['plan_hash'], executed['plan_hash'])
+            self.assertEqual((root/'original.sql').read_bytes(), b'SELECT 999;')
             repeat = run('cutover.review_project', ['--project', 'my-release', '--out', 'review-2'])
             self.assertEqual(repeat.returncode, 2)
             (root/'my-release/candidate.json').write_text('{broken', encoding='utf-8')

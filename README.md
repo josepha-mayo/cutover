@@ -152,6 +152,14 @@ Bring back a saved repair using `--candidate-plan bob-workspace/work/bob-candida
 
 For an original migration stored as SQL, add `--baseline-migration-file migrations/original.sql` to that review. This snapshots the actual file bytes and overrides only the baseline migration, retaining its adapters and the fixed contract. The kit's optional unsafe control comes from the independently audited executed baseline; all four evidence identities must match before the kit is ready.
 
+For a schema-changing PR, read the original migration directly from a locally available Git commit:
+
+```text
+python -m cutover.review_project --project my-release --baseline-git-ref origin/main --baseline-git-path db/relocation.sql --out review-pr
+```
+
+The Git option requires Git installed and the project inside that repository. It resolves the ref to a commit and snapshots the tracked SQL blob, even if the working-tree file has changed. The review note and status retain the commit, repository-relative path and blob identity. It does not fetch, switch branches, or modify the checkout. Without `--baseline-git-path`, it reads the project's `migration.sql` at that commit. Missing refs/files, symbolic links and SQL larger than 64 KiB are refused. Git supplies only the baseline migration; contract and baseline adapters remain the reviewed project inputs. This is a local source binding, not a signature or a comparison of every application file. Use a new output folder for each attempt.
+
 
 
 ## Bring your own contract through the CLI
