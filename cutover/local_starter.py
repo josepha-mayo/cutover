@@ -95,6 +95,12 @@ migration. Project candidate.json and migration.sql are retained as inputs but
 do not override that candidate. The supplied file is snapshotted byte for byte;
 the project and original failure stay unchanged. No Bob authorship is inferred.
 
+If the original migration lives in a checked-in SQL file, add
+`--baseline-migration-file migrations/original.sql`. Its bytes are snapshotted
+and only the baseline migration is overridden; the fixed old contract and
+baseline adapters stay unchanged. The optional unsafe control in a passing PR
+kit uses that exact executed baseline, with matching evidence identities.
+
 For more complex contracts, copy a sample contract and plan into new files. Set your schema, synthetic seed
 records, test payloads and fixed old read/write/insert queries in the contract.
 Set the new read/write/insert adapters in each plan. The reader must return all

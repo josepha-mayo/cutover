@@ -8,7 +8,7 @@ import sys
 import zipfile
 
 
-def review(project, output, bob_workspace=False, candidate_plan=None):
+def review(project, output, bob_workspace=False, candidate_plan=None, baseline_migration=None):
     names = ('contract.json', 'baseline.json', 'candidate.json', 'migration.sql')
     inputs = {}
     for name in names:
@@ -20,6 +20,10 @@ def review(project, output, bob_workspace=False, candidate_plan=None):
         if candidate_plan.stat().st_size > 65536:
             raise ValueError('Supplied candidate plan must be at most 64 KiB')
         inputs['supplied-candidate.json'] = candidate_plan.read_bytes()
+    if baseline_migration is not None:
+        if baseline_migration.stat().st_size > 65536:
+            raise ValueError('Supplied baseline SQL must be at most 64 KiB')
+        inputs['supplied-baseline.sql'] = baseline_migration.read_bytes()
     output.mkdir(parents=True, exist_ok=False)
     snapshot = output/'inputs'
     snapshot.mkdir()
@@ -29,6 +33,8 @@ def review(project, output, bob_workspace=False, candidate_plan=None):
               for name, raw in inputs.items()}, 'steps': []}
     status['candidate_source'] = ('supplied-candidate.json (all five plan fields)' if candidate_plan
                                   else 'candidate.json adapters and migration.sql')
+    status['baseline_source'] = ('baseline.json adapters and supplied-baseline.sql' if baseline_migration
+                                else 'baseline.json (all five plan fields)')
 
     def save():
         (output/'review-status.json').write_text(json.dumps(status, indent=2)+'\n', encoding='utf-8')
@@ -50,7 +56,10 @@ def review(project, output, bob_workspace=False, candidate_plan=None):
                           snapshot/('supplied-candidate.json' if candidate_plan else 'candidate.json')]
         if candidate_plan is None:
             candidate_args += ['--migration-file', snapshot/'migration.sql']
-        code = run('cutover', candidate_args+['--baseline-plan', snapshot/'baseline.json',
+        baseline_args = ['--baseline-plan', snapshot/'baseline.json']
+        if baseline_migration is not None:
+            baseline_args += ['--baseline-migration-file', snapshot/'supplied-baseline.sql']
+        code = run('cutover', candidate_args+baseline_args+[
                    '--bundle', output/'comparison.zip', '--output', output/'candidate-report.json'], 'comparison')
         run('cutover.audit_bundle', ['--bundle', output/'comparison.zip', '--markdown', output/'review.md'], 'audit')
         report = json.loads((output/'candidate-report.json').read_text(encoding='utf-8'))
@@ -70,11 +79,19 @@ def review(project, output, bob_workspace=False, candidate_plan=None):
             kit_args = candidate_args+['--ci-kit', output/'pending-pr-kit.zip']
             if (baseline['status'] == 'blocked' and baseline.get('witness') and
                     baseline['witness']['failure']['kind'] == 'data_mismatch'):
-                kit_args += ['--ci-control', snapshot/'baseline.json']
+                executed_baseline = output/'executed-baseline.json'
+                executed_baseline.write_text(json.dumps(baseline['plan'], ensure_ascii=True, indent=2)+'\n',
+                                             encoding='utf-8')
+                kit_args += ['--ci-control', executed_baseline]
             if run('cutover', kit_args, 'pr-kit') != 0:
                 raise ValueError('Passing candidate could not produce a verified PR kit')
             with zipfile.ZipFile(output/'pending-pr-kit.zip') as archive:
                 kit_report = json.loads(archive.read('evidence/report.json'))
+                if '--ci-control' in kit_args:
+                    control_report = json.loads(archive.read('evidence/unsafe-control-report.json'))
+                    for key in ('plan_hash', 'contract_hash', 'suite_hash', 'engine_sha256'):
+                        if control_report[key] != baseline[key]:
+                            raise ValueError('PR kit control differs from the executed baseline')
             for key in ('plan_hash', 'contract_hash', 'suite_hash', 'engine_sha256'):
                 if kit_report[key] != report[key]:
                     raise ValueError('PR kit identities differ from the reviewed comparison')
@@ -101,10 +118,13 @@ def main():
                         help='Export a local Bob repair workspace only when the audited candidate is blocked')
     parser.add_argument('--candidate-plan', type=Path,
                         help='Review all fields of a saved candidate JSON instead of project candidate.json/migration.sql')
+    parser.add_argument('--baseline-migration-file', type=Path,
+                        help='Snapshot actual original SQL, overriding only the baseline.json migration')
     args = parser.parse_args()
     try:
         code = review(args.project.resolve(), args.out.resolve(), args.bob_workspace,
-                      args.candidate_plan.resolve() if args.candidate_plan else None)
+                      args.candidate_plan.resolve() if args.candidate_plan else None,
+                      args.baseline_migration_file.resolve() if args.baseline_migration_file else None)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.TimeoutExpired) as exc:
         parser.error(str(exc))
     print(f'{"PASS" if code == 0 else "BLOCKED"}: independently audited comparison and review in {args.out}')

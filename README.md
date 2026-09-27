@@ -150,6 +150,8 @@ To take a verified local failure into Bob IDE without uploading its SQL, add `--
 
 Bring back a saved repair using `--candidate-plan bob-workspace/work/bob-candidate.json` and a new review output folder. This executes all five fields of the supplied plan, including its migration; the project's separate migration.sql cannot silently override it. Both supplied candidate bytes and unchanged project inputs are snapshotted. The original baseline stays in the independent comparison, and only a passing candidate gets the locked PR kit. Reading a filename does not establish Bob authorship.
 
+For an original migration stored as SQL, add `--baseline-migration-file migrations/original.sql` to that review. This snapshots the actual file bytes and overrides only the baseline migration, retaining its adapters and the fixed contract. The kit's optional unsafe control comes from the independently audited executed baseline; all four evidence identities must match before the kit is ready.
+
 
 
 ## Bring your own contract through the CLI
